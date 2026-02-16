@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | FraudReturn Shield</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <nav class="navbar">
+      <div class="nav-brand">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>FraudReturn Shield</span>
+      </div>
+      <div class="nav-links">
+        <a href="/" class="nav-link">Проверка</a>
+        <a href="/history" class="nav-link">История</a>
+        <a href="/admin" class="nav-link active">Настройки</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1>⚙️ Настройки системы</h1>
+        <p>Конфигурация порогов и режимов работы</p>
+      </div>
+
+      <div class="content-grid">
+        <div class="card">
+          <div class="card-header">
+            <h2>🎯 Пороги риска</h2>
+          </div>
+          <div class="settings-form" style="padding: 1.5rem;">
+            <div class="form-group">
+              <label>Зелёная зона (автоодобрение)</label>
+              <input type="number" id="greenThreshold" value="0.30" min="0" max="1" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Жёлтая зона (проверка)</label>
+              <input type="number" id="yellowThreshold" value="0.65" min="0" max="1" step="0.01">
+            </div>
+            <div class="form-group">
+              <label>Красная зона (отказ)</label>
+              <input type="number" id="redThreshold" value="1.00" min="0" max="1" step="0.01">
+            </div>
+            <button class="btn btn-primary" onclick="saveThresholds()">
+              💾 Сохранить
+            </button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header">
+            <h2>👤 Режим работы</h2>
+          </div>
+          <div class="settings-form" style="padding: 1.5rem;">
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="shadowMode">
+                <span>Режим «тени» (без влияния на бизнес)</span>
+              </label>
+              <small style="color: var(--gray-500); display: block; margin-top: 0.5rem;">
+                Система работает параллельно, только логирует прогнозы
+              </small>
+            </div>
+            <div class="form-group">
+              <label class="checkbox-label">
+                <input type="checkbox" id="notificationsEnabled" checked>
+                <span>Уведомления операторам</span>
+              </label>
+            </div>
+            <button class="btn btn-primary" onclick="saveSettings()">
+              💾 Сохранить
+            </button>
+          </div>
+        </div>
+
+        <div class="card" style="grid-column: 1 / -1;">
+          <div class="card-header">
+            <h2>📊 Статистика системы</h2>
+          </div>
+          <div class="stats-grid" style="padding: 1.5rem; display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1.5rem;">
+            <div class="stat-card">
+              <div class="stat-value" id="totalChecks">0</div>
+              <div class="stat-label">Всего проверок</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="fraudDetected">0</div>
+              <div class="stat-label">Выявлено фрода</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="avgRisk">0%</div>
+              <div class="stat-label">Средний риск</div>
+            </div>
+            <div class="stat-card">
+              <div class="stat-value" id="accuracy">—</div>
+              <div class="stat-label">Точность</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <p>© 2026 FraudReturn Shield</p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    function loadSettings() {
+      const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
+      
+      if (settings.greenThreshold) {
+        document.getElementById('greenThreshold').value = settings.greenThreshold;
+      }
+      if (settings.yellowThreshold) {
+        document.getElementById('yellowThreshold').value = settings.yellowThreshold;
+      }
+      if (settings.shadowMode !== undefined) {
+        document.getElementById('shadowMode').checked = settings.shadowMode;
+      }
+      
+      loadStats();
+    }
+
+    function saveThresholds() {
+      const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
+      settings.greenThreshold = parseFloat(document.getElementById('greenThreshold').value);
+      settings.yellowThreshold = parseFloat(document.getElementById('yellowThreshold').value);
+      localStorage.setItem('fraudSettings', JSON.stringify(settings));
+      showToast('Пороги сохранены', 'success');
+    }
+
+    function saveSettings() {
+      const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
+      settings.shadowMode = document.getElementById('shadowMode').checked;
+      settings.notificationsEnabled = document.getElementById('notificationsEnabled').checked;
+      localStorage.setItem('fraudSettings', JSON.stringify(settings));
+      showToast('Настройки сохранены', 'success');
+    }
+
+    function loadStats() {
+      const history = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+      
+      document.getElementById('totalChecks').textContent = history.length;
+      
+      const fraudCount = history.filter(h => h.result.risk_score > 0.65).length;
+      document.getElementById('fraudDetected').textContent = fraudCount;
+      
+      if (history.length > 0) {
+        const avgRisk = history.reduce((sum, h) => sum + h.result.risk_score, 0) / history.length;
+        document.getElementById('avgRisk').textContent = (avgRisk * 100).toFixed(1) + '%';
+      }
+    }
+
+    function showToast(message, type = 'success') {
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.remove(), 3000);
+    }
+
+    document.addEventListener('DOMContentLoaded', loadSettings);
+  </script>
+
+  <style>
+    .stat-card {
+      background: var(--gray-50);
+      padding: 1.5rem;
+      border-radius: var(--radius);
+      text-align: center;
+    }
+
+    .stat-value {
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--primary);
+      margin-bottom: 0.5rem;
+    }
+
+    .stat-label {
+      color: var(--gray-600);
+      font-size: 0.875rem;
+    }
+
+    .settings-form .form-group {
+      margin-bottom: 1.5rem;
+    }
+
+    .settings-form label {
+      display: block;
+      margin-bottom: 0.5rem;
+      font-weight: 500;
+    }
+
+    .settings-form input[type="number"] {
+      width: 100%;
+      padding: 0.75rem;
+      border: 1px solid var(--gray-300);
+      border-radius: var(--radius);
+      font-size: 1rem;
+    }
+  </style>
+</body>
+</html>

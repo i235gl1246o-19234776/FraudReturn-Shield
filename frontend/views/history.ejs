@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title><%= title %> | FraudReturn Shield</title>
+  <link rel="stylesheet" href="/css/styles.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-container">
+    <nav class="navbar">
+      <div class="nav-brand">
+        <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+        </svg>
+        <span>FraudReturn Shield</span>
+      </div>
+      <div class="nav-links">
+        <a href="/" class="nav-link">Проверка</a>
+        <a href="/history" class="nav-link active">История</a>
+        <a href="/admin" class="nav-link">Настройки</a>
+      </div>
+    </nav>
+
+    <main class="main-content">
+      <div class="page-header">
+        <h1>📜 История проверок</h1>
+        <p>Последние 50 проверок возвратов</p>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <h2>Журнал проверок</h2>
+          <button class="btn btn-secondary btn-small" onclick="exportHistory()">
+            📥 Экспорт CSV
+          </button>
+        </div>
+        <div class="table-container">
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>Дата</th>
+                <th>Заказ</th>
+                <th>Сумма</th>
+                <th>Риск</th>
+                <th>Статус</th>
+                <th>Решение</th>
+              </tr>
+            </thead>
+            <tbody id="historyTable">
+              <!-- Заполняется JS -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <div class="footer-content">
+        <p>© 2026 FraudReturn Shield</p>
+      </div>
+    </footer>
+  </div>
+
+  <script>
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+      const tbody = document.getElementById('historyTable');
+      
+      tbody.innerHTML = history.map(item => `
+        <tr>
+          <td>${new Date(item.timestamp).toLocaleString('ru-RU')}</td>
+          <td>${item.data.orderNumber}</td>
+          <td>${item.data.orderAmount.toLocaleString()} ₽</td>
+          <td>
+            <span class="risk-badge risk-${getRiskClass(item.result.risk_score)}">
+              ${(item.result.risk_score * 100).toFixed(0)}%
+            </span>
+          </td>
+          <td>${getRiskText(item.result.risk_score)}</td>
+          <td>${item.decision ? getDecisionText(item.decision) : '—'}</td>
+        </tr>
+      `).join('');
+    }
+
+    function getRiskClass(score) {
+      if (score <= 0.30) return 'low';
+      if (score <= 0.65) return 'medium';
+      return 'high';
+    }
+
+    function getRiskText(score) {
+      if (score <= 0.30) return '🟢 Низкий';
+      if (score <= 0.65) return '🟡 Средний';
+      return '🔴 Высокий';
+    }
+
+    function getDecisionText(decision) {
+      const texts = {
+        'approved': '✅ Одобрено',
+        'manual_review': '⚠️ Проверка',
+        'rejected': '❌ Отклонено'
+      };
+      return texts[decision] || decision;
+    }
+
+    function exportHistory() {
+      const history = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+      const csv = [
+        ['Дата', 'Заказ', 'Сумма', 'Риск', 'Статус', 'Решение'].join(','),
+        ...history.map(item => [
+          new Date(item.timestamp).toLocaleString('ru-RU'),
+          item.data.orderNumber,
+          item.data.orderAmount,
+          (item.result.risk_score * 100).toFixed(2),
+          getRiskText(item.result.risk_score),
+          item.decision || '—'
+        ].join(','))
+      ].join('\n');
+
+      const blob = new Blob([csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `fraud_history_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
+    }
+
+    document.addEventListener('DOMContentLoaded', loadHistory);
+  </script>
+
+  <style>
+    .table-container {
+      overflow-x: auto;
+      padding: 1.5rem;
+    }
+
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 1rem;
+      text-align: left;
+      border-bottom: 1px solid var(--gray-200);
+    }
+
+    .data-table th {
+      background: var(--gray-50);
+      font-weight: 600;
+      color: var(--gray-700);
+    }
+
+    .data-table tr:hover {
+      background: var(--gray-50);
+    }
+
+    .risk-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      border-radius: 50px;
+      font-weight: 600;
+      font-size: 0.875rem;
+    }
+
+    .risk-badge.low {
+      background: rgba(16, 185, 129, 0.1);
+      color: var(--success);
+    }
+
+    .risk-badge.medium {
+      background: rgba(245, 158, 11, 0.1);
+      color: var(--warning);
+    }
+
+    .risk-badge.high {
+      background: rgba(239, 68, 68, 0.1);
+      color: var(--danger);
+    }
+  </style>
+</body>
+</html>
