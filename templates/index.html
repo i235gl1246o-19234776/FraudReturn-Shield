@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudReturn Shield — Проверка возврата</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="wrapper">
+        <header class="header">
+            <div class="container">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <h1>FraudReturn Shield</h1>
+                </div>
+                <p class="subtitle">Система оценки риска мошеннических возвратов</p>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="container">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📋 Данные возврата</h2>
+                    </div>
+                    <form class="form" action="/check" method="POST">
+                        <div class="form-section">
+                            <h3>Информация о заказе</h3>
+                            <div class="form-group">
+                                <label for="orderNumber">Номер заказа *</label>
+                                <input type="text" id="orderNumber" name="orderNumber" required placeholder="MSK-12345">
+                            </div>
+                            <div class="form-group">
+                                <label for="category">Категория товара *</label>
+                                <select id="category" name="category" required>
+                                    <option value="">Выберите категорию</option>
+                                    <option value="electronics">Электроника</option>
+                                    <option value="clothing">Одежда</option>
+                                    <option value="cosmetics">Косметика</option>
+                                    <option value="books">Книги</option>
+                                    <option value="sports">Спорттовары</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>Состояние товара</h3>
+                            <div class="checkbox-group">
+                                <label class="checkbox">
+                                    <input type="checkbox" name="hasTag" id="hasTag" checked>
+                                    <span class="checkmark"></span>
+                                    <span>Бирка на месте</span>
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
+                                    <span class="checkmark"></span>
+                                    <span>Чек предоставлен</span>
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="hasDamage" id="hasDamage">
+                                    <span class="checkmark"></span>
+                                    <span>Есть повреждения</span>
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="isUsed" id="isUsed">
+                                    <span class="checkmark"></span>
+                                    <span>Есть следы использования</span>
+                                </label>
+                            </div>
+                        </div>
+
+                        <div class="form-section">
+                            <h3>Причина возврата</h3>
+                            <div class="form-group">
+                                <select id="reason" name="reason" required>
+                                    <option value="">Выберите причину</option>
+                                    <option value="defect">Дефект / Брак</option>
+                                    <option value="size">Не подошел размер</option>
+                                    <option value="color">Не тот цвет</option>
+                                    <option value="quality">Некачественные материалы</option>
+                                    <option value="changed_mind">Передумал</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn btn-primary">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                                <circle cx="11" cy="11" r="8"/>
+                                <path d="m21 21-4.35-4.35"/>
+                            </svg>
+                            Оценить риск
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="container">
+                <p>© 2026 FraudReturn Shield. Учебный проект</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

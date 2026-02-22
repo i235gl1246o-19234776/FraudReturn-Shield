@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Результат — FraudReturn Shield</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="wrapper">
+        <header class="header">
+            <div class="container">
+                <div class="logo">
+                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    <h1>FraudReturn Shield</h1>
+                </div>
+                <p class="subtitle">Результат проверки</p>
+            </div>
+        </header>
+
+        <main class="main">
+            <div class="container">
+                <div class="result-card {{.RiskClass}}">
+                    <div class="result-header">
+                        <h2>📊 Результат анализа</h2>
+                        <a href="/" class="btn btn-secondary">← Новая проверка</a>
+                    </div>
+
+                    <div class="result-body">
+                        <div class="risk-gauge">
+                            <div class="gauge-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle class="gauge-bg" cx="50" cy="50" r="45"/>
+                                    <circle class="gauge-fill {{.RiskClass}}" cx="50" cy="50" r="45" 
+                                        style="stroke-dashoffset: {{ .StrokeDashOffset }}"/>
+                                </svg>
+                                <div class="gauge-value">
+                                    <span>{{ .RiskPercent }}%</span>
+                                </div>
+                            </div>
+                            <div class="risk-badge {{.RiskClass}}">
+                                <span class="badge-icon">
+                                    {{if eq .RiskClass "low"}}🟢{{else if eq .RiskClass "medium"}}🟡{{else}}🔴{{end}}
+                                </span>
+                                <span>{{.RiskLevel}} риск</span>
+                            </div>
+                        </div>
+
+                        <div class="recommendation">
+                            <strong>Рекомендация:</strong>
+                            <p>{{.Recommendation}}</p>
+                        </div>
+
+                        {{if .TopFactors}}
+                        <div class="factors">
+                            <h3>🔍 Факторы риска</h3>
+                            <ul class="factor-list">
+                                {{range .TopFactors}}
+                                <li>{{.}}</li>
+                                {{end}}
+                            </ul>
+                        </div>
+                        {{end}}
+
+                        <div class="order-info">
+                            <h3>📦 Информация о заказе</h3>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <span class="label">Номер заказа:</span>
+                                    <span class="value">{{.OrderNumber}}</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="label">Категория:</span>
+                                    <span class="value">{{.Category}}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="container">
+                <p>© 2026 FraudReturn Shield. Учебный проект</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>
