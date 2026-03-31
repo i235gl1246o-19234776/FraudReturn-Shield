@@ -3,112 +3,79 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FraudReturn Shield — Проверка возврата</title>
+    <title>FraudReturn Shield — Главная</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 </head>
 <body>
-    <!-- Динамические частицы -->
-    <div class="particle" style="left: 10%; animation-delay: 0s;"></div>
-    <div class="particle" style="left: 20%; animation-delay: 2s;"></div>
-    <div class="particle" style="left: 30%; animation-delay: 4s;"></div>
-    <div class="particle" style="left: 40%; animation-delay: 1s;"></div>
-    <div class="particle" style="left: 50%; animation-delay: 3s;"></div>
-    <div class="particle" style="left: 60%; animation-delay: 5s;"></div>
-    <div class="particle" style="left: 70%; animation-delay: 2s;"></div>
-    <div class="particle" style="left: 80%; animation-delay: 4s;"></div>
-
     <div class="wrapper">
-        <header class="header">
+        <nav class="navbar">
             <div class="container">
-                <div class="logo">
-                    <svg class="logo-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                <a href="/" class="nav-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
-                    <h1>FraudReturn Shield</h1>
-                </div>
-                <p class="subtitle">Система оценки риска мошеннических возвратов</p>
+                    FraudReturn Shield
+                </a>
+                <ul class="nav-links">
+                    <li><a href="/" class="active">Главная</a></li>
+                    <li><a href="/check">Проверка</a></li>
+                    <li><a href="/settings">Настройки</a></li>
+                    <li><a href="/history">История</a></li>
+                </ul>
             </div>
-        </header>
+        </nav>
 
-        <main class="main">
+        <section class="hero">
             <div class="container">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>📋 Данные возврата</h2>
-                    </div>
-                    <form class="form" action="/check" method="POST">
-                        <div class="form-section">
-                            <h3>Информация о заказе</h3>
-                            <div class="form-group">
-                                <label for="orderNumber">Номер заказа *</label>
-                                <input type="text" id="orderNumber" name="orderNumber" required placeholder="MSK-12345">
-                            </div>
-                            <div class="form-group">
-                                <label for="category">Категория товара *</label>
-                                <select id="category" name="category" required>
-                                    <option value="">Выберите категорию</option>
-                                    <option value="electronics">Электроника</option>
-                                    <option value="clothing">Одежда</option>
-                                    <option value="cosmetics">Косметика</option>
-                                    <option value="books">Книги</option>
-                                    <option value="sports">Спорттовары</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <div class="form-section">
-                            <h3>Состояние товара</h3>
-                            <div class="checkbox-group">
-                                <label class="checkbox">
-                                    <input type="checkbox" name="hasTag" id="hasTag" checked>
-                                    <span class="checkmark"></span>
-                                    <span>Бирка на месте</span>
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
-                                    <span class="checkmark"></span>
-                                    <span>Чек предоставлен</span>
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="hasDamage" id="hasDamage">
-                                    <span class="checkmark"></span>
-                                    <span>Есть повреждения</span>
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="isUsed" id="isUsed">
-                                    <span class="checkmark"></span>
-                                    <span>Есть следы использования</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <div class="form-section">
-                            <h3>Причина возврата</h3>
-                            <div class="form-group">
-                                <select id="reason" name="reason" required>
-                                    <option value="">Выберите причину</option>
-                                    <option value="defect">Дефект / Брак</option>
-                                    <option value="size">Не подошел размер</option>
-                                    <option value="color">Не тот цвет</option>
-                                    <option value="quality">Некачественные материалы</option>
-                                    <option value="changed_mind">Передумал</option>
-                                    <option value="other">Другое</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <button type="submit" class="btn btn-primary">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
-                                <circle cx="11" cy="11" r="8"/>
-                                <path d="m21 21-4.35-4.35"/>
-                            </svg>
-                            Оценить риск
-                        </button>
-                    </form>
+                <div class="hero-badge">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+                    </svg>
+                    AI-Powered Fraud Detection
+                </div>
+                <h1>Защитите свой бизнес<br>от мошеннических возвратов</h1>
+                <p>Интеллектуальная система оценки риска на основе машинного обучения.
+                Анализируйте возвраты в реальном времени с точностью до 95%.</p>
+                <div class="hero-buttons">
+                    <a href="/check" class="btn btn-primary btn-lg">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="11" cy="11" r="8"/>
+                            <path d="m21 21-4.35-4.35"/>
+                        </svg>
+                        Начать проверку
+                    </a>
+                    <a href="/settings" class="btn btn-secondary btn-lg">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="3"/>
+                            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/>
+                        </svg>
+                        Настройки
+                    </a>
                 </div>
             </div>
-        </main>
+        </section>
+
+        <div class="container">
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{.Stats.total_clients}}</div>
+                    <div class="stat-label">Клиентов в БД</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{.Stats.total_orders}}</div>
+                    <div class="stat-label">Заказов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{.Stats.total_returns}}</div>
+                    <div class="stat-label">Возвратов</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{.Stats.high_risk}}</div>
+                    <div class="stat-label">Высокий риск</div>
+                </div>
+            </div>
+        </div>
 
         <footer class="footer">
             <div class="container">

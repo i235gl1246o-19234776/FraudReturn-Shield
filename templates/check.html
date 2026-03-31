@@ -1,0 +1,429 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Проверка возврата — FraudReturn Shield</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .autocomplete-container { position: relative; }
+        .autocomplete-dropdown {
+            position: absolute; top: 100%; left: 0; right: 0;
+            background: white; border: 2px solid var(--primary);
+            border-radius: var(--radius); max-height: 300px;
+            overflow-y: auto; z-index: 1000;
+            box-shadow: var(--shadow-lg); margin-top: 4px;
+        }
+        .autocomplete-item {
+            padding: 12px 16px; cursor: pointer;
+            border-bottom: 1px solid var(--gray-100);
+            transition: all var(--transition-fast);
+        }
+        .autocomplete-item:hover {
+            background: var(--primary); color: white;
+        }
+        .autocomplete-item strong { display: block; margin-bottom: 4px; }
+        .autocomplete-item small { color: var(--gray-500); font-size: 0.85rem; }
+        .search-icon {
+            position: absolute; right: 12px; top: 50%;
+            transform: translateY(-50%); color: var(--gray-400);
+            pointer-events: none;
+        }
+        .form-group input.search-input { padding-right: 45px; }
+        .badge-info {
+            display: inline-block; padding: 4px 8px;
+            background: var(--primary-bg); color: var(--primary);
+            border-radius: 4px; font-size: 0.85rem; margin-left: 8px;
+        }
+        .auto-fill-indicator {
+            display: inline-flex; align-items: center; gap: 6px;
+            color: var(--success); font-size: 0.85rem; margin-left: 10px;
+            animation: fadeIn 0.3s ease;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(-5px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <!-- Навигация -->
+        <nav class="navbar">
+            <div class="container">
+                <a href="/" class="nav-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    FraudReturn Shield
+                </a>
+                <ul class="nav-links">
+                    <li><a href="/">Главная</a></li>
+                    <li><a href="/check" class="active">Проверка</a></li>
+                    <li><a href="/settings">Настройки</a></li>
+                    <li><a href="/history">История</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <!-- Hero -->
+        <section class="hero">
+            <div class="container">
+                <div class="hero-badge">🛡️ AI-Powered Fraud Detection v3.0</div>
+                <h1>Проверка возврата</h1>
+                <p>Заполните форму для оценки риска мошеннического возврата с использованием ONNX-модели</p>
+            </div>
+        </section>
+
+        <!-- Основная форма -->
+        <main class="main">
+            <div class="container">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📋 Данные возврата</h2>
+                        <button type="button" class="btn btn-secondary btn-sm" onclick="loadRandomData()">🎲 Случайные данные</button>
+                    </div>
+                    <div class="card-body">
+                        <form class="form" action="/check" method="POST" id="fraudForm">
+                            <!-- 🔹 Секция 1: Основные идентификаторы -->
+                            <div class="form-section">
+                                <h3>🔑 Идентификаторы</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="clientID">ID клиента *</label>
+                                        <div class="autocomplete-container">
+                                            <input type="number" id="clientID" name="clientID" required placeholder="1" min="1" class="search-input" oninput="searchClients(this.value)">
+                                            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"/>
+                                                <path d="m21 21-4.35-4.35"/>
+                                            </svg>
+                                            <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                        </div>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">💡 Введите ID для автозаполнения</small>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="orderID">ID заказа *</label>
+                                        <div class="autocomplete-container">
+                                            <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)">
+                                            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"/>
+                                                <path d="m21 21-4.35-4.35"/>
+                                            </svg>
+                                            <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                        </div>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">💡 Введите ID для автозаполнения</small>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Секция 2: Данные клиента -->
+                            <div class="form-section">
+                                <h3>👤 Данные клиента
+                                    <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                        Заполнено из БД
+                                    </span>
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="accountAgeDays">Возраст аккаунта (дни) *</label>
+                                        <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0" max="730">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="totalOrders">Всего заказов *</label>
+                                        <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0" max="100">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="returnRate">% возвратов *</label>
+                                        <input type="number" id="returnRate" name="returnRate" required placeholder="12.5" min="0" max="100" step="0.1">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Секция 3: Параметры заказа -->
+                            <div class="form-section">
+                                <h3>📦 Параметры заказа
+                                    <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                        Заполнено из БД
+                                    </span>
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="category">Категория товара *</label>
+                                        <select id="category" name="category" required>
+                                            <option value="">Выберите категорию</option>
+                                            <option value="electronics">Электроника</option>
+                                            <option value="clothing">Одежда</option>
+                                            <option value="cosmetics">Косметика</option>
+                                            <option value="books">Книги</option>
+                                            <option value="sports">Спорттовары</option>
+                                            <option value="home">Для дома</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="orderAmount">Сумма заказа (₽) *</label>
+                                        <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" max="200000" step="0.01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="daysToReturn">Дней до возврата</label>
+                                        <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0" max="365">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Секция 4: Дополнительные параметры -->
+                            <div class="form-section">
+                                <h3>⚙️ Дополнительные параметры</h3>
+                                <div class="checkbox-group">
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="addressMatch" id="addressMatch" checked>
+                                        <span>✓ Адрес доставки совпадает</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="deviceNew" id="deviceNew">
+                                        <span>📱 Новое устройство</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="isWeekend" id="isWeekend">
+                                        <span>📅 Выходной день</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Секция 5: Состояние товара -->
+                            <div class="form-section">
+                                <h3>✅ Состояние товара</h3>
+                                <div class="checkbox-group">
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="hasTag" id="hasTag" checked>
+                                        <span>✓ Бирка на месте</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
+                                        <span>✓ Чек предоставлен</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="hasDamage" id="hasDamage">
+                                        <span>⚠ Есть повреждения</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="isUsed" id="isUsed">
+                                        <span>⚠ Есть следы использования</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Секция 6: Причина возврата -->
+                            <div class="form-section">
+                                <h3>❓ Причина возврата *</h3>
+                                <div class="form-group">
+                                    <select id="reason" name="reason" required>
+                                        <option value="">Выберите причину</option>
+                                        <option value="defect">Дефект / Брак</option>
+                                        <option value="size">Не подошел размер</option>
+                                        <option value="color">Не тот цвет</option>
+                                        <option value="quality">Некачественные материалы</option>
+                                        <option value="changed_mind">Передумал</option>
+                                        <option value="other">Другое</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Секция 7: Детали возврата -->
+                            <div class="form-section">
+                                <h3>⏱️ Детали возврата</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="daysSincePurchase">Дней с покупки</label>
+                                        <input type="number" id="daysSincePurchase" name="daysSincePurchase" min="0" max="365" value="7">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="returnChannel">Канал возврата</label>
+                                        <select id="returnChannel" name="returnChannel">
+                                            <option value="online">Онлайн</option>
+                                            <option value="store">В магазине</option>
+                                            <option value="app">Через приложение</option>
+                                            <option value="phone">По телефону</option>
+                                        </select>
+                                    </div>
+                                </div>
+                                <div class="checkbox-group" style="margin-top: 15px;">
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="tagsRemoved" id="tagsRemoved">
+                                        <span>🔴 Бирка срезана</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="missingComponents" id="missingComponents">
+                                        <span>⚠ Нет комплектующих</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- 🔹 Кнопки -->
+                            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                                    🔍 Оценить риск (ONNX)
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
+                                <a href="/" class="btn btn-secondary">🏠 На главную</a>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <p>© 2026 FraudReturn Shield. Учебный проект</p>
+            </div>
+        </footer>
+    </div>
+
+    <!-- 🔹 JavaScript для автозаполнения и уведомлений -->
+    <script>
+        // Поиск клиентов с autocomplete
+        async function searchClients(query) {
+            const dropdown = document.getElementById('clientDropdown');
+            if (!query || query.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            try {
+                const response = await fetch(`/api/client/${query}`);
+                if (response.ok) {
+                    const client = await response.json();
+                    dropdown.innerHTML = `
+                        <div class="autocomplete-item" onclick="fillClientData(${client.client_id})">
+                            <strong>Клиент #${client.client_id}</strong>
+                            <small>
+                                Заказов: ${client.total_orders} |
+                                Возвратов: ${client.total_returns} (${client.global_return_rate || 0}%)
+                            </small>
+                        </div>
+                    `;
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            } catch (err) {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Поиск заказов с autocomplete
+        async function searchOrders(query) {
+            const dropdown = document.getElementById('orderDropdown');
+            if (!query || query.length === 0) {
+                dropdown.style.display = 'none';
+                return;
+            }
+            try {
+                const response = await fetch(`/api/order/${query}`);
+                if (response.ok) {
+                    const order = await response.json();
+                    dropdown.innerHTML = `
+                        <div class="autocomplete-item" onclick="fillOrderData(${order.order_id})">
+                            <strong>Заказ #${order.order_id}</strong>
+                            <small>
+                                Сумма: ${order.order_amount || 0} ₽ |
+                                Товаров: ${order.items_count}
+                            </small>
+                        </div>
+                    `;
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.style.display = 'none';
+                }
+            } catch (err) {
+                dropdown.style.display = 'none';
+            }
+        }
+
+        // Заполнение данных клиента
+        async function fillClientData(clientId) {
+            try {
+                const response = await fetch(`/api/client/${clientId}`);
+                if (!response.ok) return;
+                const client = await response.json();
+                document.getElementById('clientID').value = client.client_id;
+                document.getElementById('accountAgeDays').value = client.account_age_days || '';
+                document.getElementById('totalOrders').value = client.total_orders || '';
+                document.getElementById('returnRate').value = client.global_return_rate || '';
+                document.getElementById('clientDropdown').style.display = 'none';
+                document.getElementById('clientFillIndicator').style.display = 'inline-flex';
+                showToast('Данные клиента загружены', 'success');
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Заполнение данных заказа
+        async function fillOrderData(orderId) {
+            try {
+                const response = await fetch(`/api/order/${orderId}`);
+                if (!response.ok) return;
+                const order = await response.json();
+                document.getElementById('orderID').value = order.order_id;
+                document.getElementById('orderAmount').value = order.order_amount || '';
+                document.getElementById('orderDropdown').style.display = 'none';
+                document.getElementById('orderFillIndicator').style.display = 'inline-flex';
+                showToast('Данные заказа загружены', 'success');
+                // Загрузить клиента этого заказа
+                if (order.client_id) {
+                    fillClientData(order.client_id);
+                }
+            } catch (err) {
+                console.error(err);
+            }
+        }
+
+        // Загрузка случайных данных
+        function loadRandomData() {
+            document.getElementById('accountAgeDays').value = Math.floor(Math.random() * 365) + 1;
+            document.getElementById('totalOrders').value = Math.floor(Math.random() * 50) + 1;
+            document.getElementById('returnRate').value = (Math.random() * 30).toFixed(1);
+            document.getElementById('orderAmount').value = Math.floor(Math.random() * 50000) + 1000;
+            document.getElementById('category').value = ['electronics', 'clothing', 'cosmetics', 'books', 'sports', 'home'][Math.floor(Math.random() * 6)];
+            showToast('Случайные данные загружены', 'success');
+        }
+
+        // Очистка формы
+        function clearForm() {
+            if (confirm('Очистить все поля формы?')) {
+                document.getElementById('fraudForm').reset();
+                document.getElementById('clientFillIndicator').style.display = 'none';
+                document.getElementById('orderFillIndicator').style.display = 'none';
+                showToast('Форма очищена', 'success');
+            }
+        }
+
+        // Уведомления (toast)
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span><span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.5s ease-out forwards';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+
+        // Закрытие dropdown при клике вне
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.autocomplete-container')) {
+                document.getElementById('clientDropdown').style.display = 'none';
+                document.getElementById('orderDropdown').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

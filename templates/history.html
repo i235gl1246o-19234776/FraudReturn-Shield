@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>История — FraudReturn Shield</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="wrapper">
+        <nav class="navbar">
+            <div class="container">
+                <a href="/" class="nav-logo">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                    </svg>
+                    FraudReturn Shield
+                </a>
+                <ul class="nav-links">
+                    <li><a href="/">Главная</a></li>
+                    <li><a href="/check">Проверка</a></li>
+                    <li><a href="/settings">Настройки</a></li>
+                    <li><a href="/history" class="active">История</a></li>
+                </ul>
+            </div>
+        </nav>
+
+        <main class="main">
+            <div class="container">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>📜 История возвратов</h2>
+                    </div>
+                    <div class="card-body">
+                        {{if .UseDatabase}}
+                        <table class="history-table">
+                            <thead>
+                                <tr>
+                                    <th>Дата</th>
+                                    <th>Заказ</th>
+                                    <th>Клиент</th>
+                                    <th>Канал</th>
+                                    <th>Чек</th>
+                                    <th>Бирка</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {{range .Returns}}
+                                <tr>
+                                    <td>{{.created_at}}</td>
+                                    <td>#{{.order_id}}</td>
+                                    <td>#{{.client_id}}</td>
+                                    <td>{{.return_channel}}</td>
+                                    <td>{{if .has_receipt}}✓{{else}}✗{{end}}</td>
+                                    <td>{{if .tags_removed}}🔴{{else}}🟢{{end}}</td>
+                                </tr>
+                                {{end}}
+                            </tbody>
+                        </table>
+                        {{else}}
+                        <p style="text-align: center; color: var(--gray-500); padding: 40px;">
+                            Нет данных в истории
+                        </p>
+                        {{end}}
+                    </div>
+                </div>
+            </div>
+        </main>
+
+        <footer class="footer">
+            <div class="container">
+                <p>© 2026 FraudReturn Shield. Учебный проект</p>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

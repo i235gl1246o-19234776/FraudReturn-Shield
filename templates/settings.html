@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Настройки — FraudReturn Shield</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .settings-grid {
+            display: grid;
+            gap: 20px;
+            margin-top: 20px;
+        }
+        .setting-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+        }
+        .setting-card h3 {
+            margin-bottom: 15px;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .setting-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        .setting-row:last-child { border-bottom: none; }
+        .setting-label {
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .setting-control select,
+        .setting-control input[type="range"] {
+            padding: 8px 12px;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .setting-control input[type="range"] {
+            width: 150px;
+        }
+        .font-preview {
+            margin-top: 10px;
+            padding: 12px;
+            background: var(--gray-50);
+            border-radius: 8px;
+            font-size: 1rem;
+        }
+        .toggle {
+            position: relative;
+            width: 50px;
+            height: 28px;
+        }
+        .toggle input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: var(--gray-300);
+            border-radius: 28px;
+            transition: 0.3s;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px; width: 22px;
+            left: 3px; bottom: 3px;
+            background: white;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        input:checked + .toggle-slider { background: var(--primary); }
+        input:checked + .toggle-slider:before { transform: translateX(22px); }
+    </style>
+</head>
+<body>
+<div class="wrapper">
+    <nav class="navbar">
+        <div class="container">
+            <a href="/" class="nav-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                FraudReturn Shield
+            </a>
+            <ul class="nav-links">
+                <li><a href="/">Главная</a></li>
+                <li><a href="/check">Проверка</a></li>
+                <li><a href="/settings" class="active">Настройки</a></li>
+                <li><a href="/history">История</a></li>
+                <li><a href="/users">👥 Пользователи</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <section class="hero">
+        <div class="container">
+            <div class="hero-badge">⚙️ Персонализация</div>
+            <h1>Настройки интерфейса</h1>
+            <p>Настройте отображение под свои предпочтения</p>
+        </div>
+    </section>
+
+    <main class="main">
+        <div class="container">
+            <div class="settings-grid">
+                
+                <!-- Размер шрифта -->
+                <div class="setting-card">
+                    <h3>🔤 Размер шрифта</h3>
+                    <div class="setting-row">
+                        <span class="setting-label">Основной текст</span>
+                        <div class="setting-control">
+                            <input type="range" id="fontSize" min="14" max="20" value="16" oninput="updateFontSize()">
+                            <span id="fontSizeValue">16px</span>
+                        </div>
+                    </div>
+                    <div class="font-preview" id="fontPreview">
+                        Пример текста: «Система оценки риска мошеннических возвратов»
+                    </div>
+                </div>
+
+                <!-- Плотность интерфейса -->
+                <div class="setting-card">
+                    <h3>📐 Плотность интерфейса</h3>
+                    <div class="setting-row">
+                        <span class="setting-label">Компактный режим</span>
+                        <label class="toggle">
+                            <input type="checkbox" id="compactMode" onchange="toggleCompact()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Скрыть анимации</span>
+                        <label class="toggle">
+                            <input type="checkbox" id="reduceMotion" onchange="toggleMotion()">
+                            <span class="toggle-slider"></span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Тема -->
+                <div class="setting-card">
+                    <h3>🎨 Тема оформления</h3>
+                    <div class="setting-row">
+                        <span class="setting-label">Цветовая схема</span>
+                        <div class="setting-control">
+                            <select id="themeSelect" onchange="changeTheme()">
+                                <option value="light">☀️ Светлая</option>
+                                <option value="dark">🌙 Тёмная</option>
+                                <option value="auto">🤖 Авто (по системе)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Пороги риска -->
+                <div class="setting-card">
+                    <h3>⚠️ Пороги риска</h3>
+                    <div class="setting-row">
+                        <span class="setting-label">Низкий риск (до)</span>
+                        <input type="number" id="thresholdLow" min="0" max="100" value="30" style="width:70px;padding:6px 10px;border:2px solid var(--gray-200);border-radius:8px">
+                    </div>
+                    <div class="setting-row">
+                        <span class="setting-label">Средний риск (до)</span>
+                        <input type="number" id="thresholdMed" min="0" max="100" value="65" style="width:70px;padding:6px 10px;border:2px solid var(--gray-200);border-radius:8px">
+                    </div>
+                    <button class="btn btn-primary" onclick="saveThresholds()" style="margin-top:15px">💾 Сохранить пороги</button>
+                </div>
+
+                <!-- Сброс настроек -->
+                <div class="setting-card">
+                    <h3>🔄 Сброс настроек</h3>
+                    <p style="color:var(--gray-600);margin-bottom:15px">Вернуть все настройки к значениям по умолчанию</p>
+                    <button class="btn btn-secondary" onclick="resetSettings()">🗑️ Сбросить всё</button>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 FraudReturn Shield. Настройки</p>
+        </div>
+    </footer>
+</div>
+
+<script>
+// Инициализация настроек
+document.addEventListener('DOMContentLoaded', () => {
+    const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
+    
+    // Размер шрифта
+    if (settings.fontSize) {
+        document.getElementById('fontSize').value = settings.fontSize;
+        updateFontSize();
+    }
+    
+    // Компактный режим
+    if (settings.compactMode) {
+        document.getElementById('compactMode').checked = settings.compactMode;
+        toggleCompact();
+    }
+    
+    // Анимации
+    if (settings.reduceMotion) {
+        document.getElementById('reduceMotion').checked = settings.reduceMotion;
+        toggleMotion();
+    }
+    
+    // Тема
+    if (settings.theme) {
+        document.getElementById('themeSelect').value = settings.theme;
+        changeTheme();
+    }
+    
+    // Пороги
+    if (settings.thresholdLow) document.getElementById('thresholdLow').value = settings.thresholdLow;
+    if (settings.thresholdMed) document.getElementById('thresholdMed').value = settings.thresholdMed;
+});
+
+// Обновление размера шрифта
+function updateFontSize() {
+    const size = document.getElementById('fontSize').value;
+    document.getElementById('fontSizeValue').textContent = size + 'px';
+    document.getElementById('fontPreview').style.fontSize = size + 'px';
+    document.documentElement.style.setProperty('--font-size', size + 'px');
+    saveSetting('fontSize', size);
+}
+
+// Компактный режим
+function toggleCompact() {
+    const compact = document.getElementById('compactMode').checked;
+    document.body.classList.toggle('compact', compact);
+    saveSetting('compactMode', compact);
+}
+
+// Уменьшение анимаций
+function toggleMotion() {
+    const reduce = document.getElementById('reduceMotion').checked;
+    if (reduce) {
+        document.documentElement.style.setProperty('--transition', '0s');
+    } else {
+        document.documentElement.style.setProperty('--transition', '350ms cubic-bezier(0.4, 0, 0.2, 1)');
+    }
+    saveSetting('reduceMotion', reduce);
+}
+
+// Смена темы
+function changeTheme() {
+    const theme = document.getElementById('themeSelect').value;
+    document.documentElement.setAttribute('data-theme', theme);
+    saveSetting('theme', theme);
+}
+
+// Сохранение порогов
+function saveThresholds() {
+    const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
+    settings.thresholdLow = parseInt(document.getElementById('thresholdLow').value);
+    settings.thresholdMed = parseInt(document.getElementById('thresholdMed').value);
+    localStorage.setItem('fraudSettings', JSON.stringify(settings));
+    showToast('Пороги сохранены', 'success');
+}
+
+// Сброс настроек
+function resetSettings() {
+    if (confirm('Сбросить все настройки к значениям по умолчанию?')) {
+        localStorage.removeItem('fraudSettings');
+        location.reload();
+    }
+}
+
+// Универсальное сохранение
+function saveSetting(key, value) {
+    const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
+    settings[key] = value;
+    localStorage.setItem('fraudSettings', JSON.stringify(settings));
+}
+
+// Уведомления
+function showToast(message, type = 'success') {
+    const toast = document.createElement('div');
+    toast.className = `toast ${type}`;
+    toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${message}</span>`;
+    document.body.appendChild(toast);
+    setTimeout(() => {
+        toast.style.animation = 'fadeOut 0.5s ease-out forwards';
+        setTimeout(() => toast.remove(), 500);
+    }, 3000);
+}
+</script>
+</body>
+</html>
