@@ -18,6 +18,10 @@ import (
 	_ "github.com/lib/pq"
 )
 
+// ============================================
+// 📊 СТРУКТУРЫ ДАННЫХ
+// ============================================
+
 // FormData — данные формы проверки
 type FormData struct {
 	OrderNumber       string  `json:"orderNumber"`
@@ -60,6 +64,19 @@ type ResultData struct {
 // DBRecord — универсальная запись из БД
 type DBRecord map[string]interface{}
 
+// UserCard — данные для карточки пользователя
+type UserCard struct {
+	ClientID         int     `json:"client_id"`
+	AccountAgeDays   int     `json:"account_age_days"`
+	TotalOrders      int     `json:"total_orders"`
+	TotalReturns     int     `json:"total_returns"`
+	GlobalReturnRate float64 `json:"global_return_rate"`
+	AvgOrderAmount   float64 `json:"avg_order_amount"`
+	RiskLevel        string  `json:"risk_level"`
+	LastActivity     string  `json:"last_activity"`
+	Status           string  `json:"status"`
+}
+
 // Глобальные переменные
 var (
 	pythonModelLoaded bool = false
@@ -67,8 +84,9 @@ var (
 )
 
 // ============================================
-// 🔌 Подключение к PostgreSQL
+// 🔌 ПОДКЛЮЧЕНИЕ К POSTGRESQL
 // ============================================
+
 func initDatabase() error {
 	dbHost := getEnv("DB_HOST", "localhost")
 	dbPort := getEnv("DB_PORT", "5432")
@@ -101,8 +119,9 @@ func getEnv(key, defaultValue string) string {
 }
 
 // ============================================
-// 🗄️ Функции работы с базой данных
+// 🗄️ ФУНКЦИИ РАБОТЫ С БД
 // ============================================
+
 func GetClientByID(clientID int) (*DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -326,39 +345,387 @@ func CloseDB() {
 }
 
 // ============================================
-// 🚀 Основной сервер
+// 👥 API: ПОЛЬЗОВАТЕЛИ (АДМИН-ПАНЕЛЬ)
 // ============================================
-func main() {
-	pythonModelLoaded = true
 
-	if err := initDatabase(); err != nil {
-		log.Printf("⚠️ Не удалось подключиться к БД: %v (работа продолжится без БД)", err)
+// GetUsersList — список всех пользователей с пагинацией
+func GetUsersList(page, limit int) ([]UserCard, int, error) {
+	if db == nil {
+		return nil, 0, fmt.Errorf("база данных не подключена")
 	}
-	defer CloseDB()
 
-	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	// Считаем общее количество
+	var total int
+	db.QueryRow("SELECT COUNT(*) FROM clients").Scan(&total)
 
-	http.HandleFunc("/", homePage)
-	http.HandleFunc("/check", checkHandler)
-	http.HandleFunc("/settings", settingsPage)
-	http.HandleFunc("/history", historyPage)
-	http.HandleFunc("/api/client/", apiGetClient)
-	http.HandleFunc("/api/order/", apiGetOrder)
-	http.HandleFunc("/api/stats", apiGetStats)
+	offset := (page - 1) * limit
 
-	port := getEnv("PORT", ":8081")
-	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
+	query := `
+		SELECT
+			c.client_id,
+			c.account_age_days,
+			c.total_orders,
+			c.total_returns,
+			c.global_return_rate,
+			c.avg_order_amount,
+			CASE
+				WHEN c.global_return_rate > 30 THEN 'high'
+				WHEN c.global_return_rate > 15 THEN 'warning'
+				ELSE 'active'
+			END as risk_level,
+			MAX(o.order_timestamp) as last_activity
+		FROM clients c
+		LEFT JOIN orders o ON c.client_id = o.client_id
+		GROUP BY c.client_id
+		ORDER BY last_activity DESC NULLS LAST
+		LIMIT $1 OFFSET $2
+	`
 
-	err := http.ListenAndServe(port, nil)
+	rows, err := db.Query(query, limit, offset)
 	if err != nil {
-		log.Fatal("❌ Ошибка запуска сервера:", err)
+		return nil, 0, err
 	}
+	defer rows.Close()
+
+	var users []UserCard
+	for rows.Next() {
+		var u UserCard
+		var lastActivity sql.NullTime
+		err := rows.Scan(
+			&u.ClientID, &u.AccountAgeDays, &u.TotalOrders,
+			&u.TotalReturns, &u.GlobalReturnRate, &u.AvgOrderAmount,
+			&u.RiskLevel, &lastActivity,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+		if lastActivity.Valid {
+			u.LastActivity = lastActivity.Time.Format("02.01.2006")
+		} else {
+			u.LastActivity = "—"
+		}
+		u.Status = u.RiskLevel
+		users = append(users, u)
+	}
+
+	return users, total, nil
+}
+
+// GetUserOrders — заказы конкретного пользователя
+func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
+	if db == nil {
+		return nil, fmt.Errorf("база данных не подключена")
+	}
+
+	query := `
+		SELECT order_id, order_amount, items_count, payment_method,
+		       order_timestamp, amount_deviation
+		FROM orders
+		WHERE client_id = $1
+		ORDER BY order_timestamp DESC
+		LIMIT $2
+	`
+
+	rows, err := db.Query(query, clientID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var orders []DBRecord
+	for rows.Next() {
+		var record DBRecord = make(DBRecord)
+		var ts time.Time
+
+		var orderID int
+		var orderAmount sql.NullFloat64
+		var itemsCount int
+		var paymentMethod sql.NullString
+		var amountDev sql.NullFloat64
+
+		err := rows.Scan(
+			&orderID, &orderAmount, &itemsCount,
+			&paymentMethod, &ts, &amountDev,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		record["order_id"] = orderID
+		if orderAmount.Valid {
+			record["order_amount"] = orderAmount.Float64
+		}
+		record["items_count"] = itemsCount
+		if paymentMethod.Valid {
+			record["payment_method"] = paymentMethod.String
+		}
+		record["order_timestamp"] = ts.Format("02.01.2006 15:04")
+		if amountDev.Valid {
+			record["amount_deviation"] = amountDev.Float64
+		}
+
+		orders = append(orders, record)
+	}
+	return orders, nil
+}
+
+// GetUserReturns — возвраты конкретного пользователя
+func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
+	if db == nil {
+		return nil, fmt.Errorf("база данных не подключена")
+	}
+
+	query := `
+		SELECT return_id, order_id, days_since_purchase, return_channel,
+		       has_receipt, tags_removed, missing_components, created_at
+		FROM returns
+		WHERE client_id = $1
+		ORDER BY created_at DESC
+		LIMIT $2
+	`
+
+	rows, err := db.Query(query, clientID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var returns []DBRecord
+	for rows.Next() {
+		var record DBRecord = make(DBRecord)
+		var ts time.Time
+
+		var returnID int
+		var orderID int
+		var daysSincePurchase int
+		var returnChannel sql.NullString
+		var hasReceipt bool
+		var tagsRemoved bool
+		var missingComponents bool
+
+		err := rows.Scan(
+			&returnID, &orderID, &daysSincePurchase,
+			&returnChannel, &hasReceipt,
+			&tagsRemoved, &missingComponents, &ts,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		record["return_id"] = returnID
+		record["order_id"] = orderID
+		record["days_since_purchase"] = daysSincePurchase
+		if returnChannel.Valid {
+			record["return_channel"] = returnChannel.String
+		}
+		record["has_receipt"] = hasReceipt
+		record["tags_removed"] = tagsRemoved
+		record["missing_components"] = missingComponents
+		record["created_at"] = ts.Format("02.01.2006 15:04")
+
+		returns = append(returns, record)
+	}
+	return returns, nil
 }
 
 // ============================================
-// 📄 Обработчики страниц
+// 🔗 API HANDLERS
 // ============================================
+
+func apiGetClient(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/client/")
+	clientID, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid client ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	client, err := GetClientByID(clientID)
+	if err != nil {
+		http.Error(w, `{"error": "Client not found"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(client)
+}
+
+func apiGetOrder(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/order/")
+	orderID, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, `{"error": "Invalid order ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	order, err := GetOrderByID(orderID)
+	if err != nil {
+		http.Error(w, `{"error": "Order not found"}`, http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(order)
+}
+
+func apiGetStats(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	stats, err := GetStats()
+	if err != nil {
+		http.Error(w, `{"error": "Failed to get stats"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(stats)
+}
+
+// apiGetUsers — GET /api/users?page=1&limit=20
+func apiGetUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	page := 1
+	limit := 20
+
+	if p := r.URL.Query().Get("page"); p != "" {
+		page, _ = strconv.Atoi(p)
+		if page < 1 {
+			page = 1
+		}
+	}
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, _ = strconv.Atoi(l)
+		if limit < 1 || limit > 100 {
+			limit = 20
+		}
+	}
+
+	users, total, err := GetUsersList(page, limit)
+	if err != nil {
+		http.Error(w, `{"error":"Failed to fetch users"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"users": users,
+		"pagination": map[string]int{
+			"page":  page,
+			"limit": limit,
+			"total": total,
+			"pages": (total + limit - 1) / limit,
+		},
+	})
+}
+
+// apiGetUserDetail — GET /api/users/{id}
+func apiGetUserDetail(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/users/")
+	clientID, err := strconv.Atoi(path)
+	if err != nil {
+		http.Error(w, `{"error":"Invalid user ID"}`, http.StatusBadRequest)
+		return
+	}
+
+	client, err := GetClientByID(clientID)
+	if err != nil {
+		http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+		return
+	}
+
+	orders, _ := GetUserOrders(clientID, 5)
+	returns, _ := GetUserReturns(clientID, 5)
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"client":         client,
+		"recent_orders":  orders,
+		"recent_returns": returns,
+	})
+}
+
+// apiSearchUsers — GET /api/search/users?q=...
+func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	query := r.URL.Query().Get("q")
+	if query == "" {
+		http.Error(w, `{"error":"Search query is required"}`, http.StatusBadRequest)
+		return
+	}
+
+	limit := 10
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, _ = strconv.Atoi(l)
+	}
+
+	if id, err := strconv.Atoi(query); err == nil {
+		user, err := GetClientByID(id)
+		if err != nil {
+			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+			return
+		}
+
+		risk := "active"
+		if rate, ok := (*user)["global_return_rate"].(float64); ok {
+			if rate > 30 {
+				risk = "high"
+			} else if rate > 15 {
+				risk = "warning"
+			}
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"results": []UserCard{{
+				ClientID:         id,
+				AccountAgeDays:   (*user)["account_age_days"].(int),
+				TotalOrders:      (*user)["total_orders"].(int),
+				TotalReturns:     (*user)["total_returns"].(int),
+				GlobalReturnRate: (*user)["global_return_rate"].(float64),
+				AvgOrderAmount:   (*user)["avg_order_amount"].(float64),
+				RiskLevel:        risk,
+				Status:           risk,
+				LastActivity:     (*user)["created_at"].(string),
+			}},
+			"query": query,
+			"limit": limit,
+		})
+		return
+	}
+
+	http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+}
+
+// ============================================
+// 📄 ОБРАБОТЧИКИ СТРАНИЦ
+// ============================================
+
 func homePage(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
 	if err != nil {
@@ -480,74 +847,59 @@ func historyPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// ============================================
-// 🔗 API Handlers
-// ============================================
-func apiGetClient(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	path := strings.TrimPrefix(r.URL.Path, "/api/client/")
-	clientID, err := strconv.Atoi(path)
+// usersPage — Страница админ-панели пользователей
+func usersPage(w http.ResponseWriter, r *http.Request) {
+	users, total, err := GetUsersList(1, 20)
 	if err != nil {
-		http.Error(w, `{"error": "Invalid client ID"}`, http.StatusBadRequest)
-		return
+		users = []UserCard{}
+		log.Printf("⚠️ Не удалось загрузить пользователей: %v", err)
 	}
 
-	client, err := GetClientByID(clientID)
+	// Подсчитываем статистику по уровням риска
+	activeCount := 0
+	warningCount := 0
+	highRiskCount := 0
+	for _, u := range users {
+		switch u.RiskLevel {
+		case "active":
+			activeCount++
+		case "warning":
+			warningCount++
+		case "high":
+			highRiskCount++
+		}
+	}
+
+	data := map[string]interface{}{
+		"Users":         users,
+		"Total":         total,
+		"Page":          1,
+		"Limit":         20,
+		"ActiveCount":   activeCount,
+		"WarningCount":  warningCount,
+		"HighRiskCount": highRiskCount,
+	}
+
+	funcMap := template.FuncMap{
+		"sub": func(a, b int) int { return a - b },
+		"add": func(a, b int) int { return a + b },
+	}
+
+	tmpl, err := template.New("users.html").Funcs(funcMap).ParseFiles("templates/users.html")
 	if err != nil {
-		http.Error(w, `{"error": "Client not found"}`, http.StatusNotFound)
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(client)
-}
-
-func apiGetOrder(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
+	if err := tmpl.Execute(w, data); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
 	}
-
-	path := strings.TrimPrefix(r.URL.Path, "/api/order/")
-	orderID, err := strconv.Atoi(path)
-	if err != nil {
-		http.Error(w, `{"error": "Invalid order ID"}`, http.StatusBadRequest)
-		return
-	}
-
-	order, err := GetOrderByID(orderID)
-	if err != nil {
-		http.Error(w, `{"error": "Order not found"}`, http.StatusNotFound)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(order)
-}
-
-func apiGetStats(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	stats, err := GetStats()
-	if err != nil {
-		http.Error(w, `{"error": "Failed to get stats"}`, http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(stats)
 }
 
 // ============================================
-// 🧮 Логика расчёта риска
+// 🧮 ЛОГИКА РАСЧЁТА РИСКА
 // ============================================
+
 func calculateRisk(f FormData) ResultData {
 	features := prepareFeatures(f)
 
@@ -722,99 +1074,43 @@ func prepareFeatures(f FormData) []float32 {
 	}
 	features[11] = reasonMap[f.Reason]
 
-	// 12. discount_percent
-	features[12] = 5.0
+	// 12-41. Остальные признаки (дефолтные значения)
+	features[12] = 5.0 // discount_percent
+	features[13] = 0.0 // promo_code_used
+	features[14] = 0.0 // first_order_discount_abuse
 
-	// 13. promo_code_used
-	features[13] = 0.0
-
-	// 14. first_order_discount_abuse
-	features[14] = 0.0
-
-	// 15. is_electronics
 	if f.Category == "electronics" {
 		features[15] = 1.0
 	} else {
 		features[15] = 0.0
 	}
 
-	// 16. items_in_order
-	features[16] = 2.0
-
-	// 17. payment_method_risk
-	features[17] = 0.2
-
-	// 18. chargeback_history_90d
-	features[18] = 0.0
-
-	// 19. card_bin_country_mismatch
-	features[19] = 0.0
-
-	// 20. shipping_region_risk
-	features[20] = 0.2
-
-	// 21. delivery_address_type
-	features[21] = 0.0
-
-	// 22. distance_from_registration_city
-	features[22] = 50.0
-
-	// 23. order_hour
-	features[23] = 12.0
-
-	// 24. order_time_night
-	features[24] = 0.0
-
-	// 25. ip_velocity_24h
-	features[25] = 2.0
-
-	// 26. ip_velocity_7d
-	features[26] = 5.0
-
-	// 27. accounts_per_ip
-	features[27] = 1.0
-
-	// 28. accounts_per_phone
-	features[28] = 1.0
-
-	// 29. accounts_per_device
-	features[29] = 1.0
-
-	// 30. device_is_emulator
-	features[30] = 0.0
-
-	// 31. device_trust_score
-	features[31] = 0.8
-
-	// 32. ip_trust_score
-	features[32] = 0.8
-
-	// 33. avg_order_amount
-	features[33] = float32(f.OrderAmount) / 200000.0
-
-	// 34. return_rate_30d
-	features[34] = float32(f.ReturnRate) / 100.0
-
-	// 35. refund_velocity_7d
-	features[35] = 1.0
-
-	// 36. refund_velocity_30d
-	features[36] = 3.0
-
-	// 37. support_ticket_count_30d
-	features[37] = 1.0
-
-	// 38. review_count_30d
-	features[38] = 2.0
-
-	// 39. negative_review_cluster
-	features[39] = 0.0
-
-	// 40. threat_language_detected
-	features[40] = 0.0
-
-	// 41. legal_claim_threat
-	features[41] = 0.0
+	features[16] = 2.0                               // items_in_order
+	features[17] = 0.2                               // payment_method_risk
+	features[18] = 0.0                               // chargeback_history_90d
+	features[19] = 0.0                               // card_bin_country_mismatch
+	features[20] = 0.2                               // shipping_region_risk
+	features[21] = 0.0                               // delivery_address_type
+	features[22] = 50.0                              // distance_from_registration_city
+	features[23] = 12.0                              // order_hour
+	features[24] = 0.0                               // order_time_night
+	features[25] = 2.0                               // ip_velocity_24h
+	features[26] = 5.0                               // ip_velocity_7d
+	features[27] = 1.0                               // accounts_per_ip
+	features[28] = 1.0                               // accounts_per_phone
+	features[29] = 1.0                               // accounts_per_device
+	features[30] = 0.0                               // device_is_emulator
+	features[31] = 0.8                               // device_trust_score
+	features[32] = 0.8                               // ip_trust_score
+	features[33] = float32(f.OrderAmount) / 200000.0 // avg_order_amount
+	features[34] = float32(f.ReturnRate) / 100.0     // return_rate_30d
+	features[35] = 1.0                               // refund_velocity_7d
+	features[36] = 3.0                               // refund_velocity_30d
+	features[37] = 1.0                               // support_ticket_count_30d
+	features[38] = 2.0                               // review_count_30d
+	features[39] = 0.0                               // negative_review_cluster
+	features[40] = 0.0                               // threat_language_detected
+	features[41] = 0.0                               // legal_claim_threat
 
 	return features
 }
@@ -890,8 +1186,9 @@ func getRiskFactors(f FormData) []string {
 }
 
 // ============================================
-// 🐍 Python ONNX интеграция
+// 🐍 PYTHON ONNX ИНТЕГРАЦИЯ
 // ============================================
+
 func loadModel(modelPath string) error {
 	cmd := exec.Command("python", "model.py", "--load", modelPath)
 	output, err := cmd.CombinedOutput()
@@ -990,4 +1287,43 @@ func parseFloat(value string) float64 {
 		return 0
 	}
 	return f
+}
+
+// ============================================
+// 🚀 ОСНОВНОЙ СЕРВЕР
+// ============================================
+
+func main() {
+	pythonModelLoaded = true
+
+	if err := initDatabase(); err != nil {
+		log.Printf("⚠️ Не удалось подключиться к БД: %v (работа продолжится без БД)", err)
+	}
+	defer CloseDB()
+
+	fs := http.FileServer(http.Dir("static"))
+	http.Handle("/static/", http.StripPrefix("/static/", fs))
+
+	// Страницы
+	http.HandleFunc("/", homePage)
+	http.HandleFunc("/check", checkHandler)
+	http.HandleFunc("/settings", settingsPage)
+	http.HandleFunc("/history", historyPage)
+	http.HandleFunc("/users", usersPage)
+
+	// API endpoints
+	http.HandleFunc("/api/client/", apiGetClient)
+	http.HandleFunc("/api/order/", apiGetOrder)
+	http.HandleFunc("/api/stats", apiGetStats)
+	http.HandleFunc("/api/users", apiGetUsers)
+	http.HandleFunc("/api/users/", apiGetUserDetail)
+	http.HandleFunc("/api/search/users", apiSearchUsers)
+
+	port := getEnv("PORT", ":8081")
+	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
+
+	err := http.ListenAndServe(port, nil)
+	if err != nil {
+		log.Fatal("❌ Ошибка запуска сервера:", err)
+	}
 }

@@ -3,14 +3,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Проверка возврата — FraudReturn Shield</title>
+    <title>Проверка — FraudReturn Shield</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
         .autocomplete-container { position: relative; }
         .autocomplete-dropdown {
             position: absolute; top: 100%; left: 0; right: 0;
-            background: white; border: 2px solid var(--primary);
+            background: white; border: 2px solid var(--wb-purple);
             border-radius: var(--radius); max-height: 300px;
             overflow-y: auto; z-index: 1000;
             box-shadow: var(--shadow-lg); margin-top: 4px;
@@ -18,11 +18,9 @@
         .autocomplete-item {
             padding: 12px 16px; cursor: pointer;
             border-bottom: 1px solid var(--gray-100);
-            transition: all var(--transition-fast);
+            transition: var(--transition-fast);
         }
-        .autocomplete-item:hover {
-            background: var(--primary); color: white;
-        }
+        .autocomplete-item:hover { background: var(--wb-purple); color: white; }
         .autocomplete-item strong { display: block; margin-bottom: 4px; }
         .autocomplete-item small { color: var(--gray-500); font-size: 0.85rem; }
         .search-icon {
@@ -31,19 +29,10 @@
             pointer-events: none;
         }
         .form-group input.search-input { padding-right: 45px; }
-        .badge-info {
-            display: inline-block; padding: 4px 8px;
-            background: var(--primary-bg); color: var(--primary);
-            border-radius: 4px; font-size: 0.85rem; margin-left: 8px;
-        }
         .auto-fill-indicator {
             display: inline-flex; align-items: center; gap: 6px;
             color: var(--success); font-size: 0.85rem; margin-left: 10px;
             animation: fadeIn 0.3s ease;
-        }
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-5px); }
-            to { opacity: 1; transform: translateY(0); }
         }
     </style>
 </head>
@@ -53,16 +42,17 @@
         <nav class="navbar">
             <div class="container">
                 <a href="/" class="nav-logo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     FraudReturn Shield
                 </a>
                 <ul class="nav-links">
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/check" class="active">Проверка</a></li>
-                    <li><a href="/settings">Настройки</a></li>
-                    <li><a href="/history">История</a></li>
+                    <li><a href="/">🏠 Главная</a></li>
+                    <li><a href="/check" class="active">🔍 Проверка</a></li>
+                    <li><a href="/settings">⚙️ Настройки</a></li>
+                    <li><a href="/history">📜 История</a></li>
+                    <li><a href="/users">👥 Пользователи</a></li>
                 </ul>
             </div>
         </nav>
@@ -72,7 +62,7 @@
             <div class="container">
                 <div class="hero-badge">🛡️ AI-Powered Fraud Detection v3.0</div>
                 <h1>Проверка возврата</h1>
-                <p>Заполните форму для оценки риска мошеннического возврата с использованием ONNX-модели</p>
+                <p>Заполните форму для оценки риска мошеннического возврата</p>
             </div>
         </section>
 
@@ -86,7 +76,7 @@
                     </div>
                     <div class="card-body">
                         <form class="form" action="/check" method="POST" id="fraudForm">
-                            <!-- 🔹 Секция 1: Основные идентификаторы -->
+                            <!-- Секция 1: Идентификаторы -->
                             <div class="form-section">
                                 <h3>🔑 Идентификаторы</h3>
                                 <div class="form-row">
@@ -117,7 +107,7 @@
                                 </div>
                             </div>
 
-                            <!-- 🔹 Секция 2: Данные клиента -->
+                            <!-- Секция 2: Данные клиента -->
                             <div class="form-section">
                                 <h3>👤 Данные клиента
                                     <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
@@ -143,7 +133,7 @@
                                 </div>
                             </div>
 
-                            <!-- 🔹 Секция 3: Параметры заказа -->
+                            <!-- Секция 3: Параметры заказа -->
                             <div class="form-section">
                                 <h3>📦 Параметры заказа
                                     <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
@@ -177,7 +167,7 @@
                                 </div>
                             </div>
 
-                            <!-- 🔹 Секция 4: Дополнительные параметры -->
+                            <!-- Секция 4: Дополнительные параметры -->
                             <div class="form-section">
                                 <h3>⚙️ Дополнительные параметры</h3>
                                 <div class="checkbox-group">
@@ -196,7 +186,7 @@
                                 </div>
                             </div>
 
-                            <!-- 🔹 Секция 5: Состояние товара -->
+                            <!-- Секция 5: Состояние товара -->
                             <div class="form-section">
                                 <h3>✅ Состояние товара</h3>
                                 <div class="checkbox-group">
@@ -219,7 +209,7 @@
                                 </div>
                             </div>
 
-                            <!-- 🔹 Секция 6: Причина возврата -->
+                            <!-- Секция 6: Причина возврата -->
                             <div class="form-section">
                                 <h3>❓ Причина возврата *</h3>
                                 <div class="form-group">
@@ -235,45 +225,49 @@
                                 </div>
                             </div>
 
-                            <!-- 🔹 Секция 7: Детали возврата -->
-                            <div class="form-section">
-                                <h3>⏱️ Детали возврата</h3>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="daysSincePurchase">Дней с покупки</label>
-                                        <input type="number" id="daysSincePurchase" name="daysSincePurchase" min="0" max="365" value="7">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="returnChannel">Канал возврата</label>
-                                        <select id="returnChannel" name="returnChannel">
-                                            <option value="online">Онлайн</option>
-                                            <option value="store">В магазине</option>
-                                            <option value="app">Через приложение</option>
-                                            <option value="phone">По телефону</option>
-                                        </select>
-                                    </div>
-                                </div>
-                                <div class="checkbox-group" style="margin-top: 15px;">
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="tagsRemoved" id="tagsRemoved">
-                                        <span>🔴 Бирка срезана</span>
-                                    </label>
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="missingComponents" id="missingComponents">
-                                        <span>⚠ Нет комплектующих</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- 🔹 Кнопки -->
+                            <!-- Кнопки -->
                             <div style="display: flex; gap: 15px; margin-top: 25px;">
                                 <button type="submit" class="btn btn-primary" style="flex: 1;">
-                                    🔍 Оценить риск (ONNX)
+                                    🔍 Оценить риск
                                 </button>
                                 <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
-                                <a href="/" class="btn btn-secondary">🏠 На главную</a>
                             </div>
                         </form>
+                    </div>
+                </div>
+
+                <!-- Результат -->
+                <div id="resultCard" class="card result-card" style="display: none;">
+                    <div class="card-header">
+                        <h2>📊 Результат анализа</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="risk-gauge">
+                            <div class="gauge-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle class="gauge-bg" cx="50" cy="50" r="45"/>
+                                    <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="45"/>
+                                </svg>
+                                <div class="gauge-value" id="riskScore">0%</div>
+                            </div>
+                            <div class="risk-badge" id="riskBadge">
+                                <span>🟢</span>
+                                <span id="riskText">Низкий риск</span>
+                            </div>
+                        </div>
+                        <div class="recommendation">
+                            <strong>Рекомендация</strong>
+                            <p id="recommendationText">✅ Автоматическое одобрение возврата</p>
+                        </div>
+                        <div class="factors">
+                            <h3>🔍 Факторы риска</h3>
+                            <ul class="factor-list" id="shapList"></ul>
+                        </div>
+                        <div style="display: flex; gap: 15px; margin-top: 25px;">
+                            <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;">✅ Одобрить</button>
+                            <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;">⚠️ На проверку</button>
+                            <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;">❌ Отклонить</button>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -287,105 +281,50 @@
         </footer>
     </div>
 
-    <!-- 🔹 JavaScript для автозаполнения и уведомлений -->
+    <!-- Скрипты для check.html -->
     <script>
         // Поиск клиентов с autocomplete
         async function searchClients(query) {
             const dropdown = document.getElementById('clientDropdown');
-            if (!query || query.length === 0) {
-                dropdown.style.display = 'none';
-                return;
-            }
+            if (!query || query.length === 0) { dropdown.style.display = 'none'; return; }
             try {
                 const response = await fetch(`/api/client/${query}`);
                 if (response.ok) {
                     const client = await response.json();
-                    dropdown.innerHTML = `
-                        <div class="autocomplete-item" onclick="fillClientData(${client.client_id})">
-                            <strong>Клиент #${client.client_id}</strong>
-                            <small>
-                                Заказов: ${client.total_orders} |
-                                Возвратов: ${client.total_returns} (${client.global_return_rate || 0}%)
-                            </small>
-                        </div>
-                    `;
+                    dropdown.innerHTML = `<div class="autocomplete-item" onclick="fillClientData(${client.client_id})"><strong>Клиент #${client.client_id}</strong><small>Заказов: ${client.total_orders} | Возвратов: ${client.total_returns} (${client.global_return_rate || 0}%)</small></div>`;
                     dropdown.style.display = 'block';
-                } else {
-                    dropdown.style.display = 'none';
-                }
-            } catch (err) {
-                dropdown.style.display = 'none';
-            }
+                } else { dropdown.style.display = 'none'; }
+            } catch (err) { dropdown.style.display = 'none'; }
         }
 
         // Поиск заказов с autocomplete
         async function searchOrders(query) {
             const dropdown = document.getElementById('orderDropdown');
-            if (!query || query.length === 0) {
-                dropdown.style.display = 'none';
-                return;
-            }
+            if (!query || query.length === 0) { dropdown.style.display = 'none'; return; }
             try {
                 const response = await fetch(`/api/order/${query}`);
                 if (response.ok) {
                     const order = await response.json();
-                    dropdown.innerHTML = `
-                        <div class="autocomplete-item" onclick="fillOrderData(${order.order_id})">
-                            <strong>Заказ #${order.order_id}</strong>
-                            <small>
-                                Сумма: ${order.order_amount || 0} ₽ |
-                                Товаров: ${order.items_count}
-                            </small>
-                        </div>
-                    `;
+                    dropdown.innerHTML = `<div class="autocomplete-item" onclick="fillOrderData(${order.order_id})"><strong>Заказ #${order.order_id}</strong><small>Сумма: ${order.order_amount || 0} ₽ | Товаров: ${order.items_count}</small></div>`;
                     dropdown.style.display = 'block';
-                } else {
-                    dropdown.style.display = 'none';
-                }
-            } catch (err) {
-                dropdown.style.display = 'none';
-            }
+                } else { dropdown.style.display = 'none'; }
+            } catch (err) { dropdown.style.display = 'none'; }
         }
 
-        // Заполнение данных клиента
-        async function fillClientData(clientId) {
-            try {
-                const response = await fetch(`/api/client/${clientId}`);
-                if (!response.ok) return;
-                const client = await response.json();
-                document.getElementById('clientID').value = client.client_id;
-                document.getElementById('accountAgeDays').value = client.account_age_days || '';
-                document.getElementById('totalOrders').value = client.total_orders || '';
-                document.getElementById('returnRate').value = client.global_return_rate || '';
-                document.getElementById('clientDropdown').style.display = 'none';
-                document.getElementById('clientFillIndicator').style.display = 'inline-flex';
-                showToast('Данные клиента загружены', 'success');
-            } catch (err) {
-                console.error(err);
-            }
+        function fillClientData(clientId) {
+            document.getElementById('clientID').value = clientId;
+            document.getElementById('clientDropdown').style.display = 'none';
+            document.getElementById('clientFillIndicator').style.display = 'inline-flex';
+            showToast('Данные клиента загружены', 'success');
         }
 
-        // Заполнение данных заказа
-        async function fillOrderData(orderId) {
-            try {
-                const response = await fetch(`/api/order/${orderId}`);
-                if (!response.ok) return;
-                const order = await response.json();
-                document.getElementById('orderID').value = order.order_id;
-                document.getElementById('orderAmount').value = order.order_amount || '';
-                document.getElementById('orderDropdown').style.display = 'none';
-                document.getElementById('orderFillIndicator').style.display = 'inline-flex';
-                showToast('Данные заказа загружены', 'success');
-                // Загрузить клиента этого заказа
-                if (order.client_id) {
-                    fillClientData(order.client_id);
-                }
-            } catch (err) {
-                console.error(err);
-            }
+        function fillOrderData(orderId) {
+            document.getElementById('orderID').value = orderId;
+            document.getElementById('orderDropdown').style.display = 'none';
+            document.getElementById('orderFillIndicator').style.display = 'inline-flex';
+            showToast('Данные заказа загружены', 'success');
         }
 
-        // Загрузка случайных данных
         function loadRandomData() {
             document.getElementById('accountAgeDays').value = Math.floor(Math.random() * 365) + 1;
             document.getElementById('totalOrders').value = Math.floor(Math.random() * 50) + 1;
@@ -395,17 +334,16 @@
             showToast('Случайные данные загружены', 'success');
         }
 
-        // Очистка формы
         function clearForm() {
             if (confirm('Очистить все поля формы?')) {
                 document.getElementById('fraudForm').reset();
+                document.getElementById('resultCard').style.display = 'none';
                 document.getElementById('clientFillIndicator').style.display = 'none';
                 document.getElementById('orderFillIndicator').style.display = 'none';
                 showToast('Форма очищена', 'success');
             }
         }
 
-        // Уведомления (toast)
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -417,7 +355,6 @@
             }, 3000);
         }
 
-        // Закрытие dropdown при клике вне
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.autocomplete-container')) {
                 document.getElementById('clientDropdown').style.display = 'none';

@@ -1,3 +1,4 @@
+<!-- index.html - обновлённая версия -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,36 +7,201 @@
     <title>FraudReturn Shield — Главная</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Градиентный фон с анимацией */
+        .hero {
+            background: linear-gradient(-45deg, #667eea, #764ba2, #f093fb, #667eea);
+            background-size: 400% 400%;
+            animation: gradientShift 15s ease infinite;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .hero::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.05'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+            opacity: 0.3;
+        }
+        
+        @keyframes gradientShift {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        
+        .hero-badge {
+            background: rgba(255, 255, 255, 0.25);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            animation: float 3s ease-in-out infinite;
+        }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-10px); }
+        }
+        
+        .hero h1 {
+            text-shadow: 0 4px 20px rgba(0,0,0,0.2);
+            animation: fadeInUp 1s ease-out;
+        }
+        
+        .hero p {
+            animation: fadeInUp 1s ease-out 0.2s backwards;
+        }
+        
+        .hero-buttons {
+            animation: fadeInUp 1s ease-out 0.4s backwards;
+        }
+        
+        /* Кнопки с эффектами */
+        .btn-primary {
+            background: linear-gradient(135deg, #ff6b6b, #ee5a6f);
+            box-shadow: 0 8px 20px rgba(238, 90, 111, 0.4);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(238, 90, 111, 0.5);
+        }
+        
+        .btn-secondary {
+            background: white;
+            color: var(--primary);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+        }
+        
+        .btn-secondary:hover {
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+            transform: translateY(-3px);
+        }
+        
+        /* Статистика с анимацией */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+            margin: 60px auto;
+            max-width: 1200px;
+            padding: 0 20px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 40px 30px;
+            border-radius: 20px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.1);
+            text-align: center;
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .stat-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 5px;
+            background: linear-gradient(90deg, var(--primary), var(--primary-light));
+            transform: scaleX(0);
+            transition: transform 0.4s ease;
+        }
+        
+        .stat-card:hover::before {
+            transform: scaleX(1);
+        }
+        
+        .stat-card:hover {
+            transform: translateY(-10px);
+            box-shadow: 0 20px 60px rgba(99, 102, 241, 0.2);
+        }
+        
+        .stat-value {
+            font-size: 4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 10px;
+            animation: countUp 2s ease-out;
+        }
+        
+        @keyframes countUp {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .stat-label {
+            color: var(--gray-600);
+            font-weight: 600;
+            font-size: 1rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        /* Иконки */
+        .hero-badge svg {
+            animation: pulse 2s infinite;
+        }
+        
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+    </style>
 </head>
 <body>
     <div class="wrapper">
+        <!-- Навигация -->
         <nav class="navbar">
             <div class="container">
                 <a href="/" class="nav-logo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     FraudReturn Shield
                 </a>
                 <ul class="nav-links">
-                    <li><a href="/" class="active">Главная</a></li>
-                    <li><a href="/check">Проверка</a></li>
-                    <li><a href="/settings">Настройки</a></li>
-                    <li><a href="/history">История</a></li>
+                    <li><a href="/" class="active">🏠 Главная</a></li>
+                    <li><a href="/check">🔍 Проверка</a></li>
+                    <li><a href="/settings">⚙️ Настройки</a></li>
+                    <li><a href="/history">📜 История</a></li>
+                    <li><a href="/users">👥 Пользователи</a></li>
                 </ul>
             </div>
         </nav>
 
+        <!-- Hero Section -->
         <section class="hero">
-            <div class="container">
+            <div class="container" style="position: relative; z-index: 1;">
                 <div class="hero-badge">
                     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
                     </svg>
-                    AI-Powered Fraud Detection
+                    AI-Powered Fraud Detection v3.0
                 </div>
                 <h1>Защитите свой бизнес<br>от мошеннических возвратов</h1>
-                <p>Интеллектуальная система оценки риска на основе машинного обучения.
+                <p>Интеллектуальная система оценки риска на основе машинного обучения.<br>
                 Анализируйте возвраты в реальном времени с точностью до 95%.</p>
                 <div class="hero-buttons">
                     <a href="/check" class="btn btn-primary btn-lg">
@@ -56,27 +222,29 @@
             </div>
         </section>
 
+        <!-- Statistics -->
         <div class="container">
             <div class="stats-grid">
                 <div class="stat-card">
                     <div class="stat-value">{{.Stats.total_clients}}</div>
-                    <div class="stat-label">Клиентов в БД</div>
+                    <div class="stat-label">👥 Клиентов в БД</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">{{.Stats.total_orders}}</div>
-                    <div class="stat-label">Заказов</div>
+                    <div class="stat-label">📦 Заказов</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">{{.Stats.total_returns}}</div>
-                    <div class="stat-label">Возвратов</div>
+                    <div class="stat-label">↩️ Возвратов</div>
                 </div>
                 <div class="stat-card">
                     <div class="stat-value">{{.Stats.high_risk}}</div>
-                    <div class="stat-label">Высокий риск</div>
+                    <div class="stat-label">⚠️ Высокий риск</div>
                 </div>
             </div>
         </div>
 
+        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn Shield. Учебный проект</p>

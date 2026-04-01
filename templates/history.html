@@ -5,74 +5,107 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>История — FraudReturn Shield</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="wrapper">
+        <!-- Навигация -->
         <nav class="navbar">
             <div class="container">
                 <a href="/" class="nav-logo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     FraudReturn Shield
                 </a>
                 <ul class="nav-links">
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/check">Проверка</a></li>
-                    <li><a href="/settings">Настройки</a></li>
-                    <li><a href="/history" class="active">История</a></li>
+                    <li><a href="/">🏠 Главная</a></li>
+                    <li><a href="/check">🔍 Проверка</a></li>
+                    <li><a href="/settings">⚙️ Настройки</a></li>
+                    <li><a href="/history" class="active">📜 История</a></li>
+                    <li><a href="/users">👥 Пользователи</a></li>
                 </ul>
             </div>
         </nav>
 
+        <!-- Основной контент -->
         <main class="main">
             <div class="container">
                 <div class="card">
                     <div class="card-header">
                         <h2>📜 История возвратов</h2>
+                        <button class="btn btn-secondary btn-sm" onclick="clearHistory()">🗑️ Очистить</button>
                     </div>
                     <div class="card-body">
-                        {{if .UseDatabase}}
                         <table class="history-table">
                             <thead>
                                 <tr>
                                     <th>Дата</th>
                                     <th>Заказ</th>
                                     <th>Клиент</th>
-                                    <th>Канал</th>
-                                    <th>Чек</th>
-                                    <th>Бирка</th>
+                                    <th>Сумма</th>
+                                    <th>Риск</th>
+                                    <th>Решение</th>
                                 </tr>
                             </thead>
-                            <tbody>
-                                {{range .Returns}}
+                            <tbody id="historyTableBody">
                                 <tr>
-                                    <td>{{.created_at}}</td>
-                                    <td>#{{.order_id}}</td>
-                                    <td>#{{.client_id}}</td>
-                                    <td>{{.return_channel}}</td>
-                                    <td>{{if .has_receipt}}✓{{else}}✗{{end}}</td>
-                                    <td>{{if .tags_removed}}🔴{{else}}🟢{{end}}</td>
+                                    <td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">
+                                        Нет данных в истории
+                                    </td>
                                 </tr>
-                                {{end}}
                             </tbody>
                         </table>
-                        {{else}}
-                        <p style="text-align: center; color: var(--gray-500); padding: 40px;">
-                            Нет данных в истории
-                        </p>
-                        {{end}}
                     </div>
                 </div>
             </div>
         </main>
 
+        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn Shield. Учебный проект</p>
             </div>
         </footer>
     </div>
+
+    <script>
+        function loadHistory() {
+            const fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+            const tbody = document.getElementById('historyTableBody');
+            if (fraudHistory.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">Нет данных в истории</td></tr>';
+                return;
+            }
+            tbody.innerHTML = fraudHistory.map(item => {
+                const date = new Date(item.timestamp).toLocaleDateString('ru-RU');
+                const riskClass = item.result.riskClass;
+                const riskBadge = riskClass === 'low' ? '🟢 Низкий' : riskClass === 'medium' ? '🟡 Средний' : '🔴 Высокий';
+                const decision = item.decision ? (item.decision === 'approved' ? '✅ Одобрено' : item.decision === 'rejected' ? '❌ Отклонено' : '⚠️ Проверка') : '—';
+                return `<tr><td>${date}</td><td>#${item.data.orderID}</td><td>#${item.data.clientID}</td><td>${item.data.orderAmount.toLocaleString()} ₽</td><td><span class="user-badge ${riskClass}">${riskBadge}</span></td><td>${decision}</td></tr>`;
+            }).join('');
+        }
+
+        function clearHistory() {
+            if (confirm('Очистить всю историю?')) {
+                localStorage.setItem('fraudHistory', JSON.stringify([]));
+                loadHistory();
+                showToast('История очищена', 'success');
+            }
+        }
+
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.5s ease-out forwards';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
+
+        document.addEventListener('DOMContentLoaded', loadHistory);
+    </script>
 </body>
 </html>

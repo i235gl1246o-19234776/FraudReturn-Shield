@@ -5,27 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Результат — FraudReturn Shield</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 </head>
 <body>
     <div class="wrapper">
+        <!-- Навигация -->
         <nav class="navbar">
             <div class="container">
                 <a href="/" class="nav-logo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
                     </svg>
                     FraudReturn Shield
                 </a>
                 <ul class="nav-links">
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/check">Проверка</a></li>
-                    <li><a href="/settings">Настройки</a></li>
-                    <li><a href="/history">История</a></li>
+                    <li><a href="/">🏠 Главная</a></li>
+                    <li><a href="/check">🔍 Проверка</a></li>
+                    <li><a href="/settings">⚙️ Настройки</a></li>
+                    <li><a href="/history">📜 История</a></li>
+                    <li><a href="/users">👥 Пользователи</a></li>
                 </ul>
             </div>
         </nav>
 
+        <!-- Основной контент -->
         <main class="main">
             <div class="container">
                 <div class="card result-card {{.RiskClass}}">
@@ -38,8 +41,7 @@
                             <div class="gauge-circle">
                                 <svg viewBox="0 0 100 100">
                                     <circle class="gauge-bg" cx="50" cy="50" r="45"/>
-                                    <circle class="gauge-fill {{.RiskClass}}" cx="50" cy="50" r="45"
-                                        style="stroke-dashoffset: {{.StrokeDashOffset}}"/>
+                                    <circle class="gauge-fill {{.RiskClass}}" cx="50" cy="50" r="45" style="stroke-dashoffset: {{.StrokeDashOffset}}"/>
                                 </svg>
                                 <div class="gauge-value">{{.RiskPercent}}%</div>
                             </div>
@@ -48,23 +50,18 @@
                                 <span>{{.RiskLevel}} риск</span>
                             </div>
                         </div>
-
                         <div class="recommendation">
                             <strong>Рекомендация</strong>
                             <p>{{.Recommendation}}</p>
                         </div>
-
                         {{if .TopFactors}}
                         <div class="factors">
                             <h3>🔍 Факторы риска</h3>
                             <ul class="factor-list">
-                                {{range .TopFactors}}
-                                <li>{{.}}</li>
-                                {{end}}
+                                {{range .TopFactors}}<li>{{.}}</li>{{end}}
                             </ul>
                         </div>
                         {{end}}
-
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
                             <a href="/history" class="btn btn-secondary" style="flex: 1;">В историю</a>
                             <a href="/" class="btn btn-primary" style="flex: 1;">На главную</a>
@@ -74,6 +71,7 @@
             </div>
         </main>
 
+        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn Shield. Учебный проект</p>
