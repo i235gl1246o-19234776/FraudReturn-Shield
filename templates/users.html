@@ -147,6 +147,7 @@
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 20px;
             margin-bottom: 40px;
+            margin-top: 40px;
         }
 
         .stat-card {
@@ -360,11 +361,11 @@
                     FraudReturn Shield
                 </a>
                 <ul class="nav-links">
-                    <li><a href="/">🏠 Главная</a></li>
-                    <li><a href="/check">🔍 Проверка</a></li>
-                    <li><a href="/settings">⚙️ Настройки</a></li>
-                    <li><a href="/history">📜 История</a></li>
-                    <li><a href="/users" class="active">👥 Пользователи</a></li>
+                    <li><a href="/">Главная</a></li>
+                    <li><a href="/check">Проверка</a></li>
+                    <li><a href="/settings">Настройки</a></li>
+                    <li><a href="/history">История</a></li>
+                    <li><a href="/users" class="active">Пользователи</a></li>
                 </ul>
             </div>
         </nav>
@@ -372,7 +373,7 @@
         <!-- Hero -->
         <section class="hero">
             <div class="container">
-                <div class="hero-badge">🛡️ Админ-панель</div>
+                <div class="hero-badge">Админ-панель</div>
                 <h1>Управление пользователями</h1>
                 <p>Мониторинг, поиск и анализ поведения клиентов</p>
             </div>
@@ -383,7 +384,7 @@
             <div class="container">
                 <!-- Поиск -->
                 <div class="search-bar">
-                    <input type="text" id="userSearch" placeholder="🔍 Поиск по ID...">
+                    <input type="text" id="userSearch" placeholder="Поиск по ID...">
                     <button onclick="searchUsers()">Найти</button>
                     <button class="btn btn-secondary" onclick="loadUsers(1)">Сбросить</button>
                 </div>
@@ -638,7 +639,7 @@
                             <div class="stat-item"><div class="stat-value">${(c.global_return_rate || 0).toFixed(1)}%</div><div class="stat-label">% возвратов</div></div>
                             <div class="stat-item"><div class="stat-value">${Math.round(c.avg_order_amount || 0)}₽</div><div class="stat-label">Средний чек</div></div>
                         </div>
-                        <div class="section-title">📦 Последние заказы</div>
+                        <div class="section-title">Последние заказы</div>
                         ${ordersHtml}
                     </div>
                 `;

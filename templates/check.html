@@ -48,11 +48,11 @@
                     FraudReturn Shield
                 </a>
                 <ul class="nav-links">
-                    <li><a href="/">🏠 Главная</a></li>
-                    <li><a href="/check" class="active">🔍 Проверка</a></li>
-                    <li><a href="/settings">⚙️ Настройки</a></li>
-                    <li><a href="/history">📜 История</a></li>
-                    <li><a href="/users">👥 Пользователи</a></li>
+                    <li><a href="/">Главная</a></li>
+                    <li><a href="/check" class="active">Проверка</a></li>
+                    <li><a href="/settings">Настройки</a></li>
+                    <li><a href="/history">История</a></li>
+                    <li><a href="/users">Пользователи</a></li>
                 </ul>
             </div>
         </nav>
@@ -60,7 +60,7 @@
         <!-- Hero -->
         <section class="hero">
             <div class="container">
-                <div class="hero-badge">🛡️ AI-Powered Fraud Detection v3.0</div>
+                <div class="hero-badge">AI-Powered Fraud Detection v3.0</div>
                 <h1>Проверка возврата</h1>
                 <p>Заполните форму для оценки риска мошеннического возврата</p>
             </div>
@@ -71,14 +71,14 @@
             <div class="container">
                 <div class="card">
                     <div class="card-header">
-                        <h2>📋 Данные возврата</h2>
+                        <h2>Данные возврата</h2>
                         <button type="button" class="btn btn-secondary btn-sm" onclick="loadRandomData()">🎲 Случайные данные</button>
                     </div>
                     <div class="card-body">
                         <form class="form" action="/check" method="POST" id="fraudForm">
                             <!-- Секция 1: Идентификаторы -->
                             <div class="form-section">
-                                <h3>🔑 Идентификаторы</h3>
+                                <h3>Идентификаторы</h3>
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="clientID">ID клиента *</label>
@@ -90,7 +90,7 @@
                                             </svg>
                                             <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
                                         </div>
-                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">💡 Введите ID для автозаполнения</small>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
                                     </div>
                                     <div class="form-group">
                                         <label for="orderID">ID заказа *</label>
@@ -102,14 +102,14 @@
                                             </svg>
                                             <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
                                         </div>
-                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">💡 Введите ID для автозаполнения</small>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">ведите ID для автозаполнения</small>
                                     </div>
                                 </div>
                             </div>
 
                             <!-- Секция 2: Данные клиента -->
                             <div class="form-section">
-                                <h3>👤 Данные клиента
+                                <h3>Данные клиента
                                     <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="20 6 9 17 4 12"/>
@@ -135,7 +135,7 @@
 
                             <!-- Секция 3: Параметры заказа -->
                             <div class="form-section">
-                                <h3>📦 Параметры заказа
+                                <h3>Параметры заказа
                                     <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="20 6 9 17 4 12"/>
@@ -169,7 +169,7 @@
 
                             <!-- Секция 4: Дополнительные параметры -->
                             <div class="form-section">
-                                <h3>⚙️ Дополнительные параметры</h3>
+                                <h3>Дополнительные параметры</h3>
                                 <div class="checkbox-group">
                                     <label class="checkbox">
                                         <input type="checkbox" name="addressMatch" id="addressMatch" checked>
@@ -177,18 +177,18 @@
                                     </label>
                                     <label class="checkbox">
                                         <input type="checkbox" name="deviceNew" id="deviceNew">
-                                        <span>📱 Новое устройство</span>
+                                        <span>Новое устройство</span>
                                     </label>
                                     <label class="checkbox">
                                         <input type="checkbox" name="isWeekend" id="isWeekend">
-                                        <span>📅 Выходной день</span>
+                                        <span>Выходной день</span>
                                     </label>
                                 </div>
                             </div>
 
                             <!-- Секция 5: Состояние товара -->
                             <div class="form-section">
-                                <h3>✅ Состояние товара</h3>
+                                <h3>Состояние товара</h3>
                                 <div class="checkbox-group">
                                     <label class="checkbox">
                                         <input type="checkbox" name="hasTag" id="hasTag" checked>
@@ -200,18 +200,18 @@
                                     </label>
                                     <label class="checkbox">
                                         <input type="checkbox" name="hasDamage" id="hasDamage">
-                                        <span>⚠ Есть повреждения</span>
+                                        <span>Есть повреждения</span>
                                     </label>
                                     <label class="checkbox">
                                         <input type="checkbox" name="isUsed" id="isUsed">
-                                        <span>⚠ Есть следы использования</span>
+                                        <span>Есть следы использования</span>
                                     </label>
                                 </div>
                             </div>
 
                             <!-- Секция 6: Причина возврата -->
                             <div class="form-section">
-                                <h3>❓ Причина возврата *</h3>
+                                <h3>Причина возврата *</h3>
                                 <div class="form-group">
                                     <select id="reason" name="reason" required>
                                         <option value="">Выберите причину</option>
@@ -228,7 +228,7 @@
                             <!-- Кнопки -->
                             <div style="display: flex; gap: 15px; margin-top: 25px;">
                                 <button type="submit" class="btn btn-primary" style="flex: 1;">
-                                    🔍 Оценить риск
+                                    Оценить риск
                                 </button>
                                 <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
                             </div>
@@ -239,7 +239,7 @@
                 <!-- Результат -->
                 <div id="resultCard" class="card result-card" style="display: none;">
                     <div class="card-header">
-                        <h2>📊 Результат анализа</h2>
+                        <h2>Результат анализа</h2>
                     </div>
                     <div class="card-body">
                         <div class="risk-gauge">
@@ -257,10 +257,10 @@
                         </div>
                         <div class="recommendation">
                             <strong>Рекомендация</strong>
-                            <p id="recommendationText">✅ Автоматическое одобрение возврата</p>
+                            <p id="recommendationText">✅Автоматическое одобрение возврата</p>
                         </div>
                         <div class="factors">
-                            <h3>🔍 Факторы риска</h3>
+                            <h3>Факторы риска</h3>
                             <ul class="factor-list" id="shapList"></ul>
                         </div>
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
