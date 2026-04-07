@@ -23,11 +23,14 @@ import (
 // ============================================
 
 // FormData — данные формы проверки
+// FormData — данные формы проверки (ОБНОВЛЁННАЯ ВЕРСИЯ)
 type FormData struct {
+	// === Основные поля из формы ===
 	OrderNumber       string  `json:"orderNumber"`
 	OrderAmount       float64 `json:"orderAmount"`
 	AccountAgeDays    int     `json:"accountAgeDays"`
 	TotalOrders       int     `json:"totalOrders"`
+	TotalReturns      int     `json:"totalReturns"` // 🔧 ДОБАВЛЕНО
 	ReturnRate        float64 `json:"returnRate"`
 	DaysToReturn      int     `json:"daysToReturn"`
 	Category          string  `json:"category"`
@@ -45,6 +48,50 @@ type FormData struct {
 	ReturnChannel     string  `json:"returnChannel"`
 	TagsRemoved       bool    `json:"tagsRemoved"`
 	MissingComponents bool    `json:"missingComponents"`
+
+	// === Скрытые поля (из формы или БД) ===
+	DiscountPercent         float64 `json:"discountPercent"`
+	PromoCodeUsed           bool    `json:"promoCodeUsed"`
+	FirstOrderDiscountAbuse bool    `json:"firstOrderDiscountAbuse"` // 🔧 ДОБАВЛЕНО
+	ItemsInOrder            int     `json:"itemsInOrder"`
+	IsElectronics           bool    `json:"isElectronics"`
+
+	// === Риски и геолокация ===
+	PaymentMethodRisk        float64 `json:"paymentMethodRisk"`
+	ChargebackHistory90d     bool    `json:"chargebackHistory90d"`   // 🔧 ДОБАВЛЕНО
+	CardBinCountryMismatch   bool    `json:"cardBinCountryMismatch"` // 🔧 ДОБАВЛЕНО
+	ShippingRegionRisk       float64 `json:"shippingRegionRisk"`
+	DeliveryAddressType      int     `json:"deliveryAddressType"` // 🔧 ДОБАВЛЕНО
+	DistanceFromRegistration float64 `json:"distanceFromRegistration"`
+
+	// === Время заказа ===
+	OrderHour      int  `json:"orderHour"`      // 🔧 ДОБАВЛЕНО
+	OrderTimeNight bool `json:"orderTimeNight"` // 🔧 ДОБАВЛЕНО
+
+	// === IP/Device velocity ===
+	IPVelocity24h     int  `json:"ipVelocity24h"`    // 🔧 ДОБАВЛЕНО
+	IPVelocity7d      int  `json:"ipVelocity7d"`     // 🔧 ДОБАВЛЕНО
+	AccountsPerIP     int  `json:"accountsPerIP"`    // 🔧 ДОБАВЛЕНО
+	AccountsPerPhone  int  `json:"accountsPerPhone"` // 🔧 ДОБАВЛЕНО
+	AccountsPerDevice int  `json:"accountsPerDevice"`
+	DeviceIsEmulator  bool `json:"deviceIsEmulator"` // 🔧 ДОБАВЛЕНО
+
+	// === Trust scores ===
+	DeviceTrustScore float64 `json:"deviceTrustScore"`
+	IPTrustScore     float64 `json:"ipTrustScore"`
+
+	// === История и активность ===
+	AvgOrderAmount    float64 `json:"avgOrderAmount"`    // 🔧 ДОБАВЛЕНО
+	ReturnRate30d     float64 `json:"returnRate30d"`     // 🔧 ДОБАВЛЕНО
+	RefundVelocity7d  int     `json:"refundVelocity7d"`  // 🔧 ДОБАВЛЕНО
+	RefundVelocity30d int     `json:"refundVelocity30d"` // 🔧 ДОБАВЛЕНО
+	SupportTickets30d int     `json:"supportTickets30d"`
+	ReviewCount30d    int     `json:"reviewCount30d"`
+
+	// === Контент и угрозы ===
+	NegativeReviewCluster  bool `json:"negativeReviewCluster"`
+	ThreatLanguageDetected bool `json:"threatLanguageDetected"`
+	LegalClaimThreat       bool `json:"legalClaimThreat"`
 }
 
 // ResultData — результат расчёта риска
@@ -83,10 +130,6 @@ var (
 	db                *sql.DB
 )
 
-// ============================================
-// 🔌 ПОДКЛЮЧЕНИЕ К POSTGRESQL
-// ============================================
-
 func initDatabase() error {
 	dbHost := getEnv("DB_HOST", "localhost")
 	dbPort := getEnv("DB_PORT", "5432")
@@ -117,10 +160,6 @@ func getEnv(key, defaultValue string) string {
 	}
 	return defaultValue
 }
-
-// ============================================
-// 🗄️ ФУНКЦИИ РАБОТЫ С БД
-// ============================================
 
 func GetClientByID(clientID int) (*DBRecord, error) {
 	if db == nil {
@@ -342,6 +381,175 @@ func CloseDB() {
 		db.Close()
 		log.Println("🔌 Соединение с БД закрыто")
 	}
+}
+
+// apiGetOrders — GET /api/orders?client_id=1&q=...
+func apiGetOrders(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	clientID := r.URL.Query().Get("client_id")
+	query := r.URL.Query().Get("q")
+
+	var orders []DBRecord
+	var err error
+
+	if clientID != "" {
+		// 🔥 Поиск заказов конкретного клиента
+		orders, err = GetOrdersByClientID(clientID, query)
+	} else if query != "" {
+		// Поиск по ID заказа
+		order, err := GetOrderByID(parseInt(query))
+		if err != nil {
+			http.Error(w, `{"error":"Order not found"}`, http.StatusNotFound)
+			return
+		}
+		orders = []DBRecord{*order}
+	} else {
+		// Последние 20 заказов
+		orders, err = GetRecentOrders(20)
+	}
+
+	if err != nil {
+		http.Error(w, `{"error":"Failed to fetch orders"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"orders": orders,
+	})
+}
+
+// GetOrdersByClientID — получает заказы клиента с опциональным поиском
+func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
+	if db == nil {
+		return nil, fmt.Errorf("база данных не подключена")
+	}
+
+	var querySQL string
+	var args []interface{}
+
+	if query != "" {
+		querySQL = `
+            SELECT order_id, client_id, order_amount, items_count, 
+                   payment_method, order_timestamp, amount_deviation
+            FROM orders 
+            WHERE client_id = $1 AND order_id::TEXT LIKE $2
+            ORDER BY order_timestamp DESC
+            LIMIT 20
+        `
+		args = []interface{}{clientID, "%" + query + "%"}
+	} else {
+		querySQL = `
+            SELECT order_id, client_id, order_amount, items_count, 
+                   payment_method, order_timestamp, amount_deviation
+            FROM orders 
+            WHERE client_id = $1
+            ORDER BY order_timestamp DESC
+            LIMIT 20
+        `
+		args = []interface{}{clientID}
+	}
+
+	rows, err := db.Query(querySQL, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []DBRecord
+	for rows.Next() {
+		var record DBRecord = make(DBRecord)
+		var ts time.Time
+		var orderID, clientID, itemsCount int
+		var orderAmount, amountDev sql.NullFloat64
+		var paymentMethod sql.NullString
+
+		err := rows.Scan(
+			&orderID, &clientID, &orderAmount, &itemsCount,
+			&paymentMethod, &ts, &amountDev,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		record["order_id"] = orderID
+		record["client_id"] = clientID
+		if orderAmount.Valid {
+			record["order_amount"] = orderAmount.Float64
+		}
+		record["items_count"] = itemsCount
+		if paymentMethod.Valid {
+			record["payment_method"] = paymentMethod.String
+		}
+		record["order_timestamp"] = ts.Format("02.01.2006 15:04")
+		if amountDev.Valid {
+			record["amount_deviation"] = amountDev.Float64
+		}
+
+		results = append(results, record)
+	}
+
+	return results, nil
+}
+
+// GetRecentOrders — последние заказы
+func GetRecentOrders(limit int) ([]DBRecord, error) {
+	if db == nil {
+		return nil, fmt.Errorf("база данных не подключена")
+	}
+
+	query := `
+        SELECT order_id, client_id, order_amount, items_count, 
+               payment_method, order_timestamp, amount_deviation
+        FROM orders 
+        ORDER BY order_timestamp DESC
+        LIMIT $1
+    `
+
+	rows, err := db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []DBRecord
+	for rows.Next() {
+		var record DBRecord = make(DBRecord)
+		var ts time.Time
+		var orderID, clientID, itemsCount int
+		var orderAmount, amountDev sql.NullFloat64
+		var paymentMethod sql.NullString
+
+		err := rows.Scan(
+			&orderID, &clientID, &orderAmount, &itemsCount,
+			&paymentMethod, &ts, &amountDev,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		record["order_id"] = orderID
+		record["client_id"] = clientID
+		if orderAmount.Valid {
+			record["order_amount"] = orderAmount.Float64
+		}
+		record["items_count"] = itemsCount
+		if paymentMethod.Valid {
+			record["payment_method"] = paymentMethod.String
+		}
+		record["order_timestamp"] = ts.Format("02.01.2006 15:04")
+		if amountDev.Valid {
+			record["amount_deviation"] = amountDev.Float64
+		}
+
+		results = append(results, record)
+	}
+
+	return results, nil
 }
 
 // ============================================
@@ -767,51 +975,276 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodPost {
 		r.ParseForm()
 
+		// 1. Собираем базовые данные из формы
 		form := FormData{
-			OrderNumber:       r.FormValue("orderNumber"),
-			OrderAmount:       parseFloat(r.FormValue("orderAmount")),
-			AccountAgeDays:    parseInt(r.FormValue("accountAgeDays")),
-			TotalOrders:       parseInt(r.FormValue("totalOrders")),
-			ReturnRate:        parseFloat(r.FormValue("returnRate")),
-			DaysToReturn:      parseInt(r.FormValue("daysToReturn")),
+			ClientID:          parseInt(r.FormValue("clientID")),
+			OrderID:           parseInt(r.FormValue("orderID")),
 			Category:          r.FormValue("category"),
+			Reason:            r.FormValue("reason"),
 			AddressMatch:      r.FormValue("addressMatch") == "on",
 			DeviceNew:         r.FormValue("deviceNew") == "on",
 			IsWeekend:         r.FormValue("isWeekend") == "on",
-			ClientID:          parseInt(r.FormValue("clientID")),
-			OrderID:           parseInt(r.FormValue("orderID")),
 			HasTag:            r.FormValue("hasTag") == "on",
 			HasReceipt:        r.FormValue("hasReceipt") == "on",
 			HasDamage:         r.FormValue("hasDamage") == "on",
 			IsUsed:            r.FormValue("isUsed") == "on",
-			Reason:            r.FormValue("reason"),
-			DaysSincePurchase: parseInt(r.FormValue("daysSincePurchase")),
-			ReturnChannel:     r.FormValue("returnChannel"),
 			TagsRemoved:       r.FormValue("tagsRemoved") == "on",
 			MissingComponents: r.FormValue("missingComponents") == "on",
+			DaysToReturn:      parseInt(r.FormValue("daysToReturn")),
 		}
 
+		// 2. 🔥 ЗАГРУЖАЕМ ВСЕ ОСТАЛЬНЫЕ ПРИЗНАКИ ИЗ БД
+		if err := EnrichFromDB(&form); err != nil {
+			log.Printf("[WARN] %v (используем дефолты)", err)
+		}
+
+		log.Printf("[DEBUG] 📝 Raw form: %+v", form)
+
+		// 3. Лог для отладки
+		log.Printf("[DEBUG] Final FormData: %+v", form)
+
+		// 4. Сохраняем возврат
 		if form.OrderID > 0 && form.ClientID > 0 {
 			if err := SaveReturnToDB(form); err != nil {
-				log.Printf("⚠️ Не удалось сохранить возврат в БД: %v", err)
+				log.Printf("⚠️ DB Save error: %v", err)
 			}
 		}
 
+		// 5. Считаем риск
 		result := calculateRisk(form)
 
+		// 6. Рендерим
 		tmpl, err := template.ParseFiles("templates/result.html")
 		if err != nil {
-			http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+			http.Error(w, "Template error: "+err.Error(), 500)
 			return
 		}
-
-		if err := tmpl.Execute(w, result); err != nil {
-			http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-		}
+		tmpl.Execute(w, result)
 		return
 	}
 
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+}
+
+// EnrichFromDB загружает ВСЕ признаки из PostgreSQL
+func EnrichFromDB(f *FormData) error {
+	if db == nil || f.ClientID <= 0 || f.OrderID <= 0 {
+		return fmt.Errorf("БД не подключена или не указаны ClientID/OrderID")
+	}
+
+	// ===== 1. Данные клиента =====
+	clientQuery := `
+		SELECT 
+			account_age_days, 
+			total_orders, 
+			total_returns,
+			global_return_rate,
+			avg_order_amount,
+			address_change_frequency
+		FROM clients 
+		WHERE client_id = $1
+	`
+
+	var accountAge, totalOrders, totalReturns int
+	var globalRate, avgOrderAmt, addrFreq sql.NullFloat64
+
+	err := db.QueryRow(clientQuery, f.ClientID).Scan(
+		&accountAge, &totalOrders, &totalReturns,
+		&globalRate, &avgOrderAmt, &addrFreq,
+	)
+	if err == nil {
+		f.AccountAgeDays = accountAge
+		f.TotalOrders = totalOrders
+		if globalRate.Valid {
+			// Если в БД значение > 100, значит это уже проценты
+			// Если <= 1.0, значит это доля (0.4 = 40%)
+			if globalRate.Float64 <= 1.0 {
+				f.ReturnRate = globalRate.Float64 * 100 // 0.4 → 40
+			} else if globalRate.Float64 > 1000 {
+				// Совсем кринж, но на всякий случай
+				f.ReturnRate = globalRate.Float64 / 100 // 4000 → 40
+			} else {
+				f.ReturnRate = globalRate.Float64 // уже проценты
+			}
+		}
+		if avgOrderAmt.Valid {
+			f.AvgOrderAmount = avgOrderAmt.Float64
+		}
+	}
+
+	// ===== 2. Данные заказа =====
+	orderQuery := `
+		SELECT 
+			order_amount,
+			items_count,
+			discount_amount,
+			payment_method,
+			order_timestamp
+		FROM orders 
+		WHERE order_id = $1 AND client_id = $2
+	`
+
+	var orderAmt, discAmt sql.NullFloat64
+	var itemsCount int
+	var payMethod sql.NullString
+	var orderTS time.Time
+
+	err = db.QueryRow(orderQuery, f.OrderID, f.ClientID).Scan(
+		&orderAmt, &itemsCount, &discAmt, &payMethod, &orderTS,
+	)
+	if err == nil {
+		if orderAmt.Valid {
+			f.OrderAmount = orderAmt.Float64
+		}
+		f.ItemsInOrder = itemsCount
+		if discAmt.Valid && f.OrderAmount > 0 {
+			f.DiscountPercent = (discAmt.Float64 / f.OrderAmount) * 100
+		}
+
+		// Время заказа
+		f.OrderHour = orderTS.Hour()
+		f.IsWeekend = orderTS.Weekday() == time.Saturday || orderTS.Weekday() == time.Sunday
+		if f.OrderHour >= 0 && f.OrderHour <= 5 {
+			f.OrderTimeNight = true
+		}
+	}
+
+	// ===== 3. Velocity признаки (из returns) =====
+	velocityQuery := `
+		SELECT COUNT(*) 
+		FROM returns 
+		WHERE client_id = $1 
+		AND created_at > NOW() - INTERVAL '30 days'
+	`
+	var refundVelocity30d int
+	db.QueryRow(velocityQuery, f.ClientID).Scan(&refundVelocity30d)
+	f.RefundVelocity30d = refundVelocity30d
+
+	// ===== 4. IP/Device velocity (из orders) =====
+	ipVelocityQuery := `
+		SELECT COUNT(DISTINCT o2.order_id)
+		FROM orders o2
+		WHERE o2.client_id = $1 
+		AND o2.order_timestamp > NOW() - INTERVAL '24 hours'
+	`
+	var ipVel24h int
+	db.QueryRow(ipVelocityQuery, f.ClientID).Scan(&ipVel24h)
+	f.IPVelocity24h = ipVel24h
+
+	ipVelocity7dQuery := `
+		SELECT COUNT(DISTINCT o2.order_id)
+		FROM orders o2
+		WHERE o2.client_id = $1 
+		AND o2.order_timestamp > NOW() - INTERVAL '7 days'
+	`
+	var ipVel7d int
+	db.QueryRow(ipVelocity7dQuery, f.ClientID).Scan(&ipVel7d)
+	f.IPVelocity7d = ipVel7d
+
+	// ===== 5. Support tickets (из returns с проблемами) =====
+	ticketsQuery := `
+		SELECT COUNT(*) 
+		FROM returns 
+		WHERE client_id = $1 
+		AND created_at > NOW() - INTERVAL '30 days'
+		AND (tags_removed = true OR missing_components = true)
+	`
+	var supportTickets int
+	db.QueryRow(ticketsQuery, f.ClientID).Scan(&supportTickets)
+	f.SupportTickets30d = supportTickets
+
+	// ===== 6. Accounts per IP/Device/Phone (агрегация) =====
+	accountsPerIPQuery := `
+		SELECT COUNT(DISTINCT o3.client_id)
+		FROM orders o3
+		JOIN orders o4 ON o3.client_id != o4.client_id
+		WHERE o4.client_id = $1
+		AND o3.order_timestamp > NOW() - INTERVAL '30 days'
+		GROUP BY o3.client_id
+		LIMIT 1
+	`
+
+	var accountsPerIP int
+	err = db.QueryRow(accountsPerIPQuery, f.ClientID).Scan(&accountsPerIP)
+	if err == nil && accountsPerIP > 0 {
+		f.AccountsPerIP = accountsPerIP
+	} else {
+		f.AccountsPerIP = 1
+	}
+	f.AccountsPerDevice = 1
+	f.AccountsPerPhone = 1
+
+	// Упрощённая версия — берём из clients если есть
+	if addrFreq.Valid {
+		f.AccountsPerIP = int(addrFreq.Float64) + 1
+	} else {
+		f.AccountsPerIP = 1
+	}
+	f.AccountsPerDevice = 1
+	f.AccountsPerPhone = 1
+
+	// ===== 7. Payment method risk =====
+	if payMethod.Valid {
+		switch strings.ToLower(payMethod.String) {
+		case "card", "online", "elektronno":
+			f.PaymentMethodRisk = 0.1
+		case "cash", "nalichnie", "cod":
+			f.PaymentMethodRisk = 0.3
+		default:
+			f.PaymentMethodRisk = 0.2
+		}
+	}
+
+	// ===== 8. Shipping region risk =====
+	if addrFreq.Valid && addrFreq.Float64 > 2.0 {
+		f.ShippingRegionRisk = 0.4
+	} else {
+		f.ShippingRegionRisk = 0.2
+	}
+
+	// ===== 9. Distance =====
+	if addrFreq.Valid {
+		f.DistanceFromRegistration = addrFreq.Float64 * 100
+	} else {
+		f.DistanceFromRegistration = 50
+	}
+
+	// ===== 10. Trust scores (вычисляем из истории) =====
+	if f.TotalOrders > 0 {
+		returnRate := float64(f.TotalReturns) / float64(f.TotalOrders)
+		f.DeviceTrustScore = 1.0 - (returnRate * 0.5)
+		f.IPTrustScore = 1.0 - (returnRate * 0.5)
+		if f.DeviceTrustScore < 0.3 {
+			f.DeviceTrustScore = 0.3
+		}
+		if f.IPTrustScore < 0.3 {
+			f.IPTrustScore = 0.3
+		}
+	} else {
+		f.DeviceTrustScore = 0.75
+		f.IPTrustScore = 0.75
+	}
+
+	// ===== 11. Promo code used =====
+	f.PromoCodeUsed = (f.DiscountPercent > 10)
+
+	// ===== 12. First order discount abuse =====
+	if f.TotalOrders == 1 && f.DiscountPercent > 20 {
+		f.FirstOrderDiscountAbuse = true
+	}
+
+	// ===== 13. Review count =====
+	f.ReviewCount30d = f.TotalOrders / 3 // примерная оценка
+
+	// ===== 14. Return rate 30d =====
+	if f.TotalOrders > 0 {
+		f.ReturnRate30d = float64(refundVelocity30d) / float64(f.TotalOrders)
+	}
+
+	log.Printf("[DEBUG] DB-Enriched: AccountAge=%d, Orders=%d, Returns=%d, Velocity30d=%d",
+		f.AccountAgeDays, f.TotalOrders, f.TotalReturns, refundVelocity30d)
+
+	return nil
 }
 
 func settingsPage(w http.ResponseWriter, r *http.Request) {
@@ -921,7 +1354,7 @@ func calculateRisk(f FormData) ResultData {
 		score = 1
 	}
 
-	// Обогащение из БД
+	// // Обогащение из БД
 	if db != nil && f.ClientID > 0 {
 		enrichedScore, _ := enrichRiskFromDB(f.ClientID, float64(score))
 		score = float32(enrichedScore)
@@ -1002,122 +1435,93 @@ func getRiskLevel(score float32) (string, string, string) {
 func prepareFeatures(f FormData) []float32 {
 	features := make([]float32, 42)
 
-	// 0. account_age_days
+	// 0-4: Основные (НОРМАЛИЗОВАННЫЕ как в обучении!)
 	features[0] = float32(f.AccountAgeDays) / 730.0
-
-	// 1. total_purchases
 	features[1] = float32(f.TotalOrders) / 100.0
-
-	// 2. total_returns
-	features[2] = float32(f.TotalOrders) * float32(f.ReturnRate) / 100.0
-
-	// 3. customer_return_rate
+	features[2] = float32(f.TotalReturns) / 50.0
 	features[3] = float32(f.ReturnRate) / 100.0
-
-	// 4. order_amount
 	features[4] = float32(f.OrderAmount) / 200000.0
 
-	// 5. category
-	categoryMap := map[string]float32{
-		"electronics": 0,
-		"clothing":    1,
-		"cosmetics":   2,
-		"books":       3,
-		"sports":      4,
-		"home":        5,
+	// 5: Category
+	catMap := map[string]float32{
+		"electronics": 0, "clothing": 1, "cosmetics": 2,
+		"books": 3, "sports": 4, "home": 5,
 	}
-	features[5] = categoryMap[f.Category]
+	features[5] = catMap[f.Category]
 
-	// 6. high_value_flag
-	if f.OrderAmount > 30000 {
-		features[6] = 1.0
-	} else {
-		features[6] = 0.0
-	}
+	// 6-11: Флаги
+	features[6] = b2f(f.OrderAmount > 30000)
+	features[7] = b2f(f.IsWeekend)
+	features[8] = b2f(f.AddressMatch)
+	features[9] = b2f(f.DeviceNew)
+	features[10] = b2f(f.HasReceipt)
 
-	// 7. weekend_purchase
-	if f.IsWeekend {
-		features[7] = 1.0
-	} else {
-		features[7] = 0.0
-	}
-
-	// 8. address_match
-	if f.AddressMatch {
-		features[8] = 1.0
-	} else {
-		features[8] = 0.0
-	}
-
-	// 9. device_new
-	if f.DeviceNew {
-		features[9] = 1.0
-	} else {
-		features[9] = 0.0
-	}
-
-	// 10. receipt_provided
-	if f.HasReceipt {
-		features[10] = 1.0
-	} else {
-		features[10] = 0.0
-	}
-
-	// 11. claimed_reason
 	reasonMap := map[string]float32{
-		"defect":       2,
-		"size":         0,
-		"color":        1,
-		"quality":      2,
-		"changed_mind": 1,
-		"other":        14,
+		"defect": 2, "size": 0, "color": 1,
+		"quality": 2, "changed_mind": 1, "other": 14,
 	}
 	features[11] = reasonMap[f.Reason]
 
-	// 12-41. Остальные признаки (дефолтные значения)
-	features[12] = 5.0 // discount_percent
-	features[13] = 0.0 // promo_code_used
-	features[14] = 0.0 // first_order_discount_abuse
+	// 12-16: Заказ
+	features[12] = float32(f.DiscountPercent) / 50.0
+	features[13] = b2f(f.PromoCodeUsed)
+	features[14] = b2f(f.FirstOrderDiscountAbuse)
+	features[15] = b2f(f.Category == "electronics")
+	features[16] = float32(f.ItemsInOrder) / 10.0
 
-	if f.Category == "electronics" {
-		features[15] = 1.0
-	} else {
-		features[15] = 0.0
-	}
+	// 17-22: Риски
+	features[17] = float32(f.PaymentMethodRisk)
+	features[18] = b2f(f.ChargebackHistory90d)
+	features[19] = b2f(f.CardBinCountryMismatch)
+	features[20] = float32(f.ShippingRegionRisk)
+	features[21] = float32(f.DeliveryAddressType) / 2.0
+	features[22] = float32(f.DistanceFromRegistration) / 2000.0
 
-	features[16] = 2.0                               // items_in_order
-	features[17] = 0.2                               // payment_method_risk
-	features[18] = 0.0                               // chargeback_history_90d
-	features[19] = 0.0                               // card_bin_country_mismatch
-	features[20] = 0.2                               // shipping_region_risk
-	features[21] = 0.0                               // delivery_address_type
-	features[22] = 50.0                              // distance_from_registration_city
-	features[23] = 12.0                              // order_hour
-	features[24] = 0.0                               // order_time_night
-	features[25] = 2.0                               // ip_velocity_24h
-	features[26] = 5.0                               // ip_velocity_7d
-	features[27] = 1.0                               // accounts_per_ip
-	features[28] = 1.0                               // accounts_per_phone
-	features[29] = 1.0                               // accounts_per_device
-	features[30] = 0.0                               // device_is_emulator
-	features[31] = 0.8                               // device_trust_score
-	features[32] = 0.8                               // ip_trust_score
-	features[33] = float32(f.OrderAmount) / 200000.0 // avg_order_amount
-	features[34] = float32(f.ReturnRate) / 100.0     // return_rate_30d
-	features[35] = 1.0                               // refund_velocity_7d
-	features[36] = 3.0                               // refund_velocity_30d
-	features[37] = 1.0                               // support_ticket_count_30d
-	features[38] = 2.0                               // review_count_30d
-	features[39] = 0.0                               // negative_review_cluster
-	features[40] = 0.0                               // threat_language_detected
-	features[41] = 0.0                               // legal_claim_threat
+	// 23-24: Время
+	features[23] = float32(f.OrderHour) / 23.0
+	features[24] = b2f(f.OrderTimeNight)
+
+	// 25-29: IP/Accounts
+	features[25] = float32(f.IPVelocity24h) / 20.0
+	features[26] = float32(f.IPVelocity7d) / 50.0
+	features[27] = float32(f.AccountsPerIP) / 10.0
+	features[28] = float32(f.AccountsPerPhone) / 10.0
+	features[29] = float32(f.AccountsPerDevice) / 10.0
+
+	// 30-32: Trust
+	features[30] = b2f(f.DeviceIsEmulator)
+	features[31] = float32(f.DeviceTrustScore)
+	features[32] = float32(f.IPTrustScore)
+
+	// 33-34: История
+	features[33] = float32(f.AvgOrderAmount) / 200000.0
+	features[34] = float32(f.ReturnRate30d)
+
+	// 35-38: Активность
+	features[35] = float32(f.RefundVelocity7d) / 10.0
+	features[36] = float32(f.RefundVelocity30d) / 20.0
+	features[37] = float32(f.SupportTickets30d) / 10.0
+	features[38] = float32(f.ReviewCount30d) / 20.0
+
+	// 39-41: Контент
+	features[39] = b2f(f.NegativeReviewCluster)
+	features[40] = b2f(f.ThreatLanguageDetected)
+	features[41] = b2f(f.LegalClaimThreat)
 
 	return features
+}
+
+func b2f(b bool) float32 {
+	if b {
+		return 1.0
+	}
+	return 0.0
 }
 
 func calculateRiskFallback(f FormData) float32 {
 	score := 0.0
 
+	// Признаки из формы
 	if !f.HasTag {
 		score += 0.25
 	}
@@ -1130,6 +1534,14 @@ func calculateRiskFallback(f FormData) float32 {
 	if f.IsUsed {
 		score += 0.25
 	}
+	if f.TagsRemoved {
+		score += 0.20
+	}
+	if f.MissingComponents {
+		score += 0.18
+	}
+
+	// Поведенческие признаки
 	if f.Reason == "changed_mind" {
 		score += 0.15
 	}
@@ -1142,9 +1554,33 @@ func calculateRiskFallback(f FormData) float32 {
 	if f.ReturnRate > 30 {
 		score += 0.18
 	}
+	if f.OrderAmount > 30000 {
+		score += 0.10
+	}
 
+	// Дополнительные риски из формы
+	if f.PaymentMethodRisk > 0.5 {
+		score += 0.10
+	}
+	if f.ShippingRegionRisk > 0.5 {
+		score += 0.08
+	}
+	if f.DistanceFromRegistration > 500 {
+		score += 0.07
+	}
+	if f.DeviceTrustScore < 0.5 {
+		score += 0.10
+	}
+	if f.IPTrustScore < 0.5 {
+		score += 0.10
+	}
+
+	// Ограничиваем 0-1
 	if score > 1.0 {
 		score = 1.0
+	}
+	if score < 0.0 {
+		score = 0.0
 	}
 
 	return float32(score)
@@ -1190,7 +1626,14 @@ func getRiskFactors(f FormData) []string {
 // ============================================
 
 func loadModel(modelPath string) error {
-	cmd := exec.Command("python", "model.py", "--load", modelPath)
+
+	wd, _ := os.Getwd()
+
+	pythonPath := `C:\Users\44252\AppData\Local\Programs\Python\Python313\python.exe`
+	scriptPath := filepath.Join(wd, "model.py")
+
+	cmd := exec.Command(pythonPath, scriptPath, "--load", modelPath)
+	cmd.Dir = wd
 	output, err := cmd.CombinedOutput()
 
 	jsonStart := bytes.IndexByte(output, '{')
@@ -1227,10 +1670,15 @@ func predictRisk(features []float32) (float32, error) {
 		featuresStr.WriteString(fmt.Sprintf("%.6f", f))
 	}
 
+	log.Printf("[DEBUG] 🚀 Features sent to ONNX:\n%s", featuresStr.String())
+
 	wd, _ := os.Getwd()
 	modelPath := filepath.Join(wd, "fraud_model_v3_27patterns.onnx")
 
-	cmd := exec.Command("python", "model.py", "--predict", modelPath, featuresStr.String())
+	pythonPath := `C:\Users\44252\AppData\Local\Programs\Python\Python313\python.exe`
+	scriptPath := filepath.Join(wd, "model.py")
+
+	cmd := exec.Command(pythonPath, scriptPath, "--predict", modelPath, featuresStr.String())
 	cmd.Dir = wd
 	output, err := cmd.CombinedOutput()
 
@@ -1314,6 +1762,7 @@ func main() {
 	// API endpoints
 	http.HandleFunc("/api/client/", apiGetClient)
 	http.HandleFunc("/api/order/", apiGetOrder)
+	http.HandleFunc("/api/orders/", apiGetOrders)
 	http.HandleFunc("/api/stats", apiGetStats)
 	http.HandleFunc("/api/users", apiGetUsers)
 	http.HandleFunc("/api/users/", apiGetUserDetail)

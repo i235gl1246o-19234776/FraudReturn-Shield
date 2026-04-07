@@ -7,85 +7,89 @@ import numpy as np
 _session = None
 _input_name = None
 
+def _log(msg):
+    """ВСЕ логи ТОЛЬКО в stderr"""
+    print(msg, file=sys.stderr)
+
 def load_model(model_path):
     """Загружает ONNX модель"""
     global _session, _input_name
     try:
-        model_abs = os.path.abspath(model_path)
+        model_abs = os.path.abspath(model_path).replace('\\', '/')
         if not os.path.exists(model_abs):
-            return {
-                'success': False,
-                'error': f'File not found: {model_abs}',
-            }
+            _log(f"[ERROR] File not found: {model_abs}")
+            return {'success': False, 'error': f'File not found: {model_abs}'}
         
-        _session = ort.InferenceSession(
-            model_abs,
-            providers=['CPUExecutionProvider']
-        )
+        _session = ort.InferenceSession(model_abs, providers=['CPUExecutionProvider'])
         inputs = _session.get_inputs()
         _input_name = inputs[0].name if len(inputs) > 0 else 'input_0'
         
-        print(f"Model loaded: {model_abs}", file=sys.stderr)
+        _log(f"[INFO] Model loaded: {model_abs}")
         return {'success': True, 'error': '', 'input_name': _input_name}
     
     except Exception as e:
-        print(f"Load error: {str(e)}", file=sys.stderr)
+        _log(f"[ERROR] Load error: {str(e)}")
         return {'success': False, 'error': str(e)}
 
+
 def predict(features):
-    """Выполняет предсказание — ИСПРАВЛЕННАЯ ВЕРСИЯ"""
+    """Выполняет предсказание"""
     global _session, _input_name
+    
     if _session is None:
         return {'success': False, 'score': None, 'error': 'Model not loaded'}
+    
     try:
         input_data = np.array(features, dtype=np.float32).reshape(1, -1)
         outputs = _session.run(None, {_input_name: input_data})
         
-        # 🔧 DEBUG: показываем структуру
-        print(f"DEBUG: outputs count: {len(outputs)}", file=sys.stderr)
-        for i, out in enumerate(outputs):
-            if hasattr(out, 'shape'):
-                print(f"DEBUG: outputs[{i}] shape={out.shape}, value={out}", file=sys.stderr)
-            else:
-                print(f"DEBUG: outputs[{i}] type={type(out)}, value={out}", file=sys.stderr)
+        _log(f"[DEBUG] outputs count: {len(outputs)}")
         
-        # 🔧 ИСПРАВЛЕНИЕ: берём вероятности из outputs[1]
+        score = None
+        
+        # Пробуем извлечь вероятность из outputs[1]
         if len(outputs) >= 2:
-            # outputs[1] содержит словарь {класс: вероятность}
-            prob_dict = outputs[1][0] if isinstance(outputs[1], (list, np.ndarray)) else outputs[1]
+            prob_output = outputs[1]
+            
+            if isinstance(prob_output, (list, np.ndarray)) and len(prob_output) > 0:
+                prob_dict = prob_output[0]
+            else:
+                prob_dict = prob_output
             
             if isinstance(prob_dict, dict):
-                # Извлекаем вероятность фрода (класс 1)
-                fraud_prob = prob_dict.get(1, prob_dict.get('1', 0.0))
-                score = float(fraud_prob)
-                print(f"DEBUG: Using dict probabilities, fraud_prob={score}", file=sys.stderr)
-            else:
-                # Fallback: если не словарь, пробуем стандартный подход
-                probs = outputs[0][0] if len(outputs[0].shape) > 1 else outputs[0]
-                if len(probs) >= 2:
-                    score = float(probs[1])
-                else:
-                    score = float(probs[0])
-        else:
-            # Fallback для моделей с одним выходом
-            probs = outputs[0][0] if len(outputs[0].shape) > 1 else outputs[0]
-            if len(probs) >= 2:
+                fraud_prob = prob_dict.get(1) or prob_dict.get('1') or prob_dict.get(1.0)
+                if fraud_prob is not None:
+                    score = float(fraud_prob)
+                    _log(f"[DEBUG] fraud_prob={score}")
+        
+        # Fallback
+        if score is None and len(outputs) >= 1:
+            probs = outputs[0]
+            if hasattr(probs, 'shape') and len(probs.shape) > 1 and probs.shape[-1] >= 2:
+                score = float(probs[0][1])
+            elif hasattr(probs, '__len__') and len(probs) >= 2:
                 score = float(probs[1])
             else:
-                score = float(probs[0])
+                score = float(probs[0] if hasattr(probs, '__len__') else probs)
+            _log(f"[DEBUG] fallback score={score}")
         
-        # Нормализация
+        if score is None:
+            return {'success': False, 'score': None, 'error': 'Could not extract probability'}
+        
         score = max(0.0, min(1.0, score))
-        print(f"DEBUG: final score={score}", file=sys.stderr)
+        _log(f"[DEBUG] final score={score}")
         
         return {'success': True, 'score': score, 'error': ''}
         
     except Exception as e:
-        print(f"Predict error: {str(e)}", file=sys.stderr)
+        _log(f"[ERROR] Predict error: {str(e)}")
         import traceback
         traceback.print_exc(file=sys.stderr)
         return {'success': False, 'score': None, 'error': str(e)}
     
+
+
+
 if __name__ == '__main__':
     if len(sys.argv) < 2:
         print(json.dumps({'success': False, 'error': 'Usage: --load or --predict'}))
@@ -96,7 +100,7 @@ if __name__ == '__main__':
     if mode == '--load':
         model_path = sys.argv[2] if len(sys.argv) > 2 else 'fraud_model_v3_27patterns.onnx'
         result = load_model(model_path)
-        print(json.dumps(result))
+        print(json.dumps(result))  # ← ЕДИНСТВЕННОЕ в stdout
         sys.exit(0 if result['success'] else 1)
     
     elif mode == '--predict':
@@ -115,7 +119,7 @@ if __name__ == '__main__':
             sys.exit(1)
         
         prediction = predict(features)
-        print(json.dumps(prediction))
+        print(json.dumps(prediction))  # ← ЕДИНСТВЕННОЕ в stdout
         sys.exit(0 if prediction['success'] else 1)
     
     else:

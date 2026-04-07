@@ -232,6 +232,38 @@
                                 </button>
                                 <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
                             </div>
+
+                            <!-- 🔧 СКРЫТЫЕ ПОЛЯ для недостающих признаков модели (42 total) -->
+                            <input type="hidden" name="discountPercent" value="0">
+                            <input type="hidden" name="promoCodeUsed" value="0">
+                            <input type="hidden" name="firstOrderDiscountAbuse" value="0">
+                            <input type="hidden" name="paymentMethodRisk" value="0.2">
+                            <input type="hidden" name="chargebackHistory90d" value="0">
+                            <input type="hidden" name="cardBinCountryMismatch" value="0">
+                            <input type="hidden" name="shippingRegionRisk" value="0.2">
+                            <input type="hidden" name="deliveryAddressType" value="0">
+                            <input type="hidden" name="distanceFromRegistrationCity" value="50">
+                            <input type="hidden" name="orderHour" value="12">
+                            <input type="hidden" name="orderTimeNight" value="0">
+                            <input type="hidden" name="ipVelocity24h" value="2">
+                            <input type="hidden" name="ipVelocity7d" value="5">
+                            <input type="hidden" name="accountsPerIp" value="1">
+                            <input type="hidden" name="accountsPerPhone" value="1">
+                            <input type="hidden" name="accountsPerDevice" value="1">
+                            <input type="hidden" name="deviceIsEmulator" value="0">
+                            <input type="hidden" name="deviceTrustScore" value="0.75">
+                            <input type="hidden" name="ipTrustScore" value="0.75">
+                            <input type="hidden" name="avgOrderAmount" value="0">
+                            <input type="hidden" name="returnRate30d" value="0">
+                            <input type="hidden" name="refundVelocity7d" value="0">
+                            <input type="hidden" name="refundVelocity30d" value="1">
+                            <input type="hidden" name="supportTicketCount30d" value="1">
+                            <input type="hidden" name="reviewCount30d" value="2">
+                            <input type="hidden" name="negativeReviewCluster" value="0">
+                            <input type="hidden" name="threatLanguageDetected" value="0">
+                            <input type="hidden" name="legalClaimThreat" value="0">
+                            <input type="hidden" name="itemsInOrder" value="1">
+                            <input type="hidden" name="isElectronics" value="0">
                         </form>
                     </div>
                 </div>
@@ -281,86 +313,254 @@
         </footer>
     </div>
 
-    <!-- Скрипты для check.html -->
     <script>
-        // Поиск клиентов с autocomplete
-        async function searchClients(query) {
-            const dropdown = document.getElementById('clientDropdown');
-            if (!query || query.length === 0) { dropdown.style.display = 'none'; return; }
-            try {
-                const response = await fetch(`/api/client/${query}`);
-                if (response.ok) {
-                    const client = await response.json();
-                    dropdown.innerHTML = `<div class="autocomplete-item" onclick="fillClientData(${client.client_id})"><strong>Клиент #${client.client_id}</strong><small>Заказов: ${client.total_orders} | Возвратов: ${client.total_returns} (${client.global_return_rate || 0}%)</small></div>`;
-                    dropdown.style.display = 'block';
-                } else { dropdown.style.display = 'none'; }
-            } catch (err) { dropdown.style.display = 'none'; }
-        }
 
-        // Поиск заказов с autocomplete
-        async function searchOrders(query) {
-            const dropdown = document.getElementById('orderDropdown');
-            if (!query || query.length === 0) { dropdown.style.display = 'none'; return; }
-            try {
-                const response = await fetch(`/api/order/${query}`);
-                if (response.ok) {
-                    const order = await response.json();
-                    dropdown.innerHTML = `<div class="autocomplete-item" onclick="fillOrderData(${order.order_id})"><strong>Заказ #${order.order_id}</strong><small>Сумма: ${order.order_amount || 0} ₽ | Товаров: ${order.items_count}</small></div>`;
-                    dropdown.style.display = 'block';
-                } else { dropdown.style.display = 'none'; }
-            } catch (err) { dropdown.style.display = 'none'; }
-        }
+    let selectedClientId = null;
+    let selectedOrderId = null;
 
-        function fillClientData(clientId) {
-            document.getElementById('clientID').value = clientId;
-            document.getElementById('clientDropdown').style.display = 'none';
-            document.getElementById('clientFillIndicator').style.display = 'inline-flex';
-            showToast('Данные клиента загружены', 'success');
+    async function searchClients(query) {
+        const dropdown = document.getElementById('clientDropdown');
+        if (!query || query.length === 0) {
+            dropdown.style.display = 'none';
+            return;
         }
-
-        function fillOrderData(orderId) {
-            document.getElementById('orderID').value = orderId;
-            document.getElementById('orderDropdown').style.display = 'none';
-            document.getElementById('orderFillIndicator').style.display = 'inline-flex';
-            showToast('Данные заказа загружены', 'success');
-        }
-
-        function loadRandomData() {
-            document.getElementById('accountAgeDays').value = Math.floor(Math.random() * 365) + 1;
-            document.getElementById('totalOrders').value = Math.floor(Math.random() * 50) + 1;
-            document.getElementById('returnRate').value = (Math.random() * 30).toFixed(1);
-            document.getElementById('orderAmount').value = Math.floor(Math.random() * 50000) + 1000;
-            document.getElementById('category').value = ['electronics', 'clothing', 'cosmetics', 'books', 'sports', 'home'][Math.floor(Math.random() * 6)];
-            showToast('Случайные данные загружены', 'success');
-        }
-
-        function clearForm() {
-            if (confirm('Очистить все поля формы?')) {
-                document.getElementById('fraudForm').reset();
-                document.getElementById('resultCard').style.display = 'none';
-                document.getElementById('clientFillIndicator').style.display = 'none';
-                document.getElementById('orderFillIndicator').style.display = 'none';
-                showToast('Форма очищена', 'success');
+        
+        try {
+            const res = await fetch(`/api/client/${query}`);
+            if (res.ok) {
+                const client = await res.json();
+                dropdown.innerHTML = `
+                    <div class="autocomplete-item" onclick="selectClient(${client.client_id})">
+                        <strong>Клиент #${client.client_id}</strong>
+                        <small>Заказов: ${client.total_orders || 0} | Возвратов: ${client.total_returns || 0}</small>
+                    </div>
+                `;
+                dropdown.style.display = 'block';
+            } else {
+                dropdown.style.display = 'none';
             }
+        } catch (err) {
+            console.error('Ошибка поиска клиента:', err);
+            dropdown.style.display = 'none';
         }
+    }
 
-        function showToast(message, type = 'success') {
-            const toast = document.createElement('div');
-            toast.className = `toast ${type}`;
-            toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span><span>${message}</span>`;
-            document.body.appendChild(toast);
-            setTimeout(() => {
-                toast.style.animation = 'fadeOut 0.5s ease-out forwards';
-                setTimeout(() => toast.remove(), 500);
-            }, 3000);
+    // Выбор клиента
+    async function selectClient(clientId) {
+        selectedClientId = clientId;
+        document.getElementById('clientID').value = clientId;
+        document.getElementById('clientDropdown').style.display = 'none';
+        document.getElementById('clientFillIndicator').style.display = 'inline-flex';
+        
+        await loadClientData(clientId);
+        
+        await searchOrders('', clientId);
+        
+        showToast('Данные клиента загружены', 'success');
+    }
+
+    // Загрузка данных клиента из БД
+    async function loadClientData(clientId) {
+        try {
+            const res = await fetch(`/api/client/${clientId}`);
+            if (res.ok) {
+                const client = await res.json();
+                
+                // Заполняем поля формы
+                if (client.account_age_days) {
+                    document.getElementById('accountAgeDays').value = client.account_age_days;
+                }
+                if (client.total_orders) {
+                    document.getElementById('totalOrders').value = client.total_orders;
+                }
+                if (client.global_return_rate !== undefined) {
+                    document.getElementById('returnRate').value = client.global_return_rate;
+                }
+                if (client.avg_order_amount) {
+                    // Можно использовать для подсказки суммы заказа
+                    console.log('Средняя сумма заказа:', client.avg_order_amount);
+                }
+            }
+        } catch (err) {
+            console.error('Ошибка загрузки данных клиента:', err);
         }
+    }
 
+    async function searchOrders(query, clientId = null) {
+        const dropdown = document.getElementById('orderDropdown');
+        
+        if (clientId === null) {
+            clientId = selectedClientId;
+        }
+        
+        if (dropdown === null) {
+            console.error('orderDropdown не найден');
+            return;
+        }
+        
+        try {
+            const url = clientId 
+                ? `/api/orders?client_id=${clientId}&q=${encodeURIComponent(query)}`
+                : `/api/orders?q=${encodeURIComponent(query)}`;
+            
+            const res = await fetch(url);
+            if (res.ok) {
+                const data = await res.json();
+                
+                if (data.orders && data.orders.length > 0) {
+                    dropdown.innerHTML = data.orders.map(order => `
+                        <div class="autocomplete-item" onclick="selectOrder(${order.order_id})">
+                            <strong>Заказ #${order.order_id}</strong>
+                            <small>Сумма: ${order.order_amount?.toFixed(0) || 0} ₽ | Товаров: ${order.items_count || 0}</small>
+                        </div>
+                    `).join('');
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.innerHTML = '<div class="autocomplete-item" style="color: var(--gray-500)">Заказы не найдены</div>';
+                    dropdown.style.display = 'block';
+                }
+            } else {
+                dropdown.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('Ошибка поиска заказов:', err);
+            dropdown.style.display = 'none';
+        }
+    }
+
+    async function selectOrder(orderId) {
+        selectedOrderId = orderId;
+        document.getElementById('orderID').value = orderId;
+        document.getElementById('orderDropdown').style.display = 'none';
+        document.getElementById('orderFillIndicator').style.display = 'inline-flex';
+        
+        await loadOrderData(orderId);
+        
+        showToast('Данные заказа загружены', 'success');
+    }
+
+    async function loadOrderData(orderId) {
+        try {
+            const res = await fetch(`/api/order/${orderId}`);
+            if (res.ok) {
+                const order = await res.json();
+                
+                if (order.order_amount) {
+                    document.getElementById('orderAmount').value = order.order_amount;
+                }
+                if (order.items_count) {
+                    console.log('Товаров в заказе:', order.items_count);
+                }
+                if (order.order_timestamp) {
+                    const date = new Date(order.order_timestamp);
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                    document.getElementById('isWeekend').checked = isWeekend;
+                }
+            }
+        } catch (err) {
+            console.error('Ошибка загрузки данных заказа:', err);
+        }
+    }
+
+    function loadRandomData() {
+        document.getElementById('accountAgeDays').value = Math.floor(Math.random() * 365) + 1;
+        document.getElementById('totalOrders').value = Math.floor(Math.random() * 50) + 1;
+        document.getElementById('returnRate').value = (Math.random() * 30).toFixed(1);
+        document.getElementById('orderAmount').value = Math.floor(Math.random() * 50000) + 1000;
+        document.getElementById('category').value = ['electronics', 'clothing', 'cosmetics', 'books', 'sports', 'home'][Math.floor(Math.random() * 6)];
+        showToast('Случайные данные загружены', 'success');
+    }
+
+    function clearForm() {
+    if (confirm('Очистить все поля формы?')) {
+        document.getElementById('fraudForm').reset();
+
+        const resultCard = document.getElementById('resultCard');
+        if (resultCard) {
+            resultCard.style.display = 'none';
+        }
+        
+        document.getElementById('clientFillIndicator').style.display = 'none';
+        document.getElementById('orderFillIndicator').style.display = 'none';
+        selectedClientId = null;
+        selectedOrderId = null;
+        showToast('Форма очищена', 'success');
+    }
+}
+
+    function showToast(message, type = 'success') {
+        const toast = document.createElement('div');
+        toast.className = `toast ${type}`;
+        toast.innerHTML = `
+            <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span>
+            <span>${message}</span>
+        `;
+        document.body.appendChild(toast);
+        setTimeout(() => {
+            toast.style.animation = 'fadeOut 0.5s ease-out forwards';
+            setTimeout(() => toast.remove(), 500);
+        }, 3000);
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        const clientInput = document.getElementById('clientID');
+        const clientDropdown = document.getElementById('clientDropdown');
+        
+        if (clientInput) {
+            clientInput.addEventListener('input', (e) => {
+                searchClients(e.target.value);
+            });
+            
+            clientInput.addEventListener('focus', (e) => {
+                if (e.target.value) {
+                    searchClients(e.target.value);
+                }
+            });
+        }
+        
+        const orderInput = document.getElementById('orderID');
+        const orderDropdown = document.getElementById('orderDropdown');
+        
+        if (orderInput) {
+            orderInput.addEventListener('input', (e) => {
+                searchOrders(e.target.value);
+            });
+            
+            orderInput.addEventListener('focus', (e) => {
+                if (e.target.value) {
+                    searchOrders(e.target.value);
+                }
+            });
+        }
+        
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.autocomplete-container')) {
-                document.getElementById('clientDropdown').style.display = 'none';
-                document.getElementById('orderDropdown').style.display = 'none';
+                if (clientDropdown) clientDropdown.style.display = 'none';
+                if (orderDropdown) orderDropdown.style.display = 'none';
             }
         });
-    </script>
+        
+        const userModal = document.getElementById('userModal');
+        if (userModal) {
+            userModal.addEventListener('click', (e) => {
+                if (e.target.id === 'userModal') {
+                    userModal.classList.remove('active');
+                }
+            });
+        }
+        
+        const userSearch = document.getElementById('userSearch');
+        if (userSearch) {
+            userSearch.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const searchUsers = window.searchUsers;
+                    if (typeof searchUsers === 'function') {
+                        searchUsers();
+                    }
+                }
+            });
+        }
+    });
+</script>
 </body>
 </html>
