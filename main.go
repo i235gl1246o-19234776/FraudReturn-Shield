@@ -1805,7 +1805,7 @@ func callPythonModelForChat(message string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("[ERROR] Python chat: %s", string(output))
-		return "Модель не ответила. Проверь консоль сервера.", nil
+		return "model.onnx не ответил. Проверь консоль сервера.", nil
 	}
 
 	jsonStart := bytes.IndexByte(output, '{')
