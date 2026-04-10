@@ -1731,6 +1731,114 @@ func parseFloat(value string) float64 {
 }
 
 // ============================================
+// 💬 CHAT API
+// ============================================
+
+// ChatRequest — запрос к чату
+type ChatRequest struct {
+	Message string `json:"message"`
+}
+
+// ChatResponse — ответ от чата
+type ChatResponse struct {
+	Response string `json:"response,omitempty"`
+	Error    string `json:"error,omitempty"`
+}
+
+// handleChat — обработчик запросов к AI-помощнику
+func handleChat(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(ChatResponse{Error: "Method not allowed"})
+		return
+	}
+
+	var req ChatRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ChatResponse{Error: "Invalid request body"})
+		return
+	}
+
+	if req.Message == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(ChatResponse{Error: "Message is required"})
+		return
+	}
+
+	// Вызов Python-скрипта с ONNX моделью для генерации ответа
+	response, err := callPythonModelForChat(req.Message)
+	if err != nil {
+		log.Printf("[ERROR] Chat model error: %v", err)
+		json.NewEncoder(w).Encode(ChatResponse{
+			Response: "Извините, я пока учусь и не могу ответить на этот вопрос. Попробуйте спросить что-то другое!",
+		})
+		return
+	}
+
+	json.NewEncoder(w).Encode(ChatResponse{Response: response})
+}
+
+// callPythonModelForChat — вызов Python-скрипта для обработки сообщения чата
+func callPythonModelForChat(message string) (string, error) {
+	wd, err := os.Getwd()
+	if err != nil {
+		return "", fmt.Errorf("не удалось получить рабочую директорию: %w", err)
+	}
+
+	pythonPath := getEnv("PYTHON_PATH", "python3")
+	scriptPath := filepath.Join(wd, "model.py")
+	modelPath := filepath.Join(wd, "model.onnx")
+
+	// Проверяем существование модели
+	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
+		return "Модель не найдена. Пожалуйста, убедитесь, что model.onnx существует.", nil
+	}
+
+	cmd := exec.Command(pythonPath, scriptPath, "--chat", modelPath, message)
+	cmd.Dir = wd
+	output, err := cmd.CombinedOutput()
+
+	if err != nil {
+		log.Printf("[ERROR] Python chat output: %s", string(output))
+		// Возвращаем дефолтный ответ вместо ошибки
+		return "Я пока не могу обработать ваш запрос, но я учусь! Попробуйте задать вопрос о проверке возвратов или рисках мошенничества.", nil
+	}
+
+	// Пытаемся распарсить JSON из вывода
+	jsonStart := bytes.IndexByte(output, '{')
+	jsonEnd := bytes.LastIndexByte(output, '}')
+
+	if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
+		jsonBytes := output[jsonStart : jsonEnd+1]
+		var result map[string]interface{}
+		if err := json.Unmarshal(jsonBytes, &result); err == nil {
+			if response, ok := result["response"].(string); ok {
+				return response, nil
+			}
+		}
+	}
+
+	// Если не JSON, возвращаем как текст
+	response := strings.TrimSpace(string(output))
+	if response == "" {
+		return "Спасибо за ваш вопрос! Я анализирую его и скоро отвечу.", nil
+	}
+
+	return response, nil
+}
+
+// ============================================
 // 🚀 ОСНОВНОЙ СЕРВЕР
 // ============================================
 
@@ -1760,6 +1868,7 @@ func main() {
 	http.HandleFunc("/api/users", apiGetUsers)
 	http.HandleFunc("/api/users/", apiGetUserDetail)
 	http.HandleFunc("/api/search/users", apiSearchUsers)
+	http.HandleFunc("/api/chat", handleChat)
 
 	port := getEnv("PORT", ":8081")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
