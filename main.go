@@ -1668,7 +1668,10 @@ func predictRisk(features []float32) (float32, error) {
 	wd, _ := os.Getwd()
 	modelPath := filepath.Join(wd, "fraud_model_v3_27patterns.onnx")
 
-	pythonPath := `C:\Users\44252\AppData\Local\Programs\Python\Python313\python.exe`
+	pythonPath := "python3"
+	if _, err := exec.LookPath("python3"); err != nil {
+		pythonPath = "python"
+	}
 	scriptPath := filepath.Join(wd, "model.py")
 
 	cmd := exec.Command(pythonPath, scriptPath, "--predict", modelPath, featuresStr.String())

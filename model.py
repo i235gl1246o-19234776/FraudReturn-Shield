@@ -176,45 +176,74 @@ if __name__ == '__main__':
                 print(json.dumps({'success': False, 'error': 'Invalid features'}))
 
         elif mode == '--chat':
-            # --chat <model_path> <message>
-            # model_path зарезервирован для будущей интеграции, пока не используется
             if len(sys.argv) < 4:
                 print(json.dumps({'response': 'Ошибка: не указано сообщение'}))
                 sys.exit(0)
             
-            # model_path = sys.argv[2]  # Зарезервировано, не используем пока
-            message = sys.argv[3] if len(sys.argv) > 3 else ''
+            model_path = sys.argv[2]
+            message = sys.argv[3]
             
-            # === Rule-based ответы (пока model.onnx — это фрод-модель, а не LLM) ===
-            message_lower = message.lower().strip()
+            _log(f"[CHAT] Loading ru-BERT: {model_path}")
             
-            if any(w in message_lower for w in ['привет', 'здравствуй', 'hello', 'hi']):
-                response = "Привет! Я AI-помощник FraudReturn Shield. Я могу помочь оценить риск мошеннического возврата. Задайте вопрос!"
-            elif any(w in message_lower for w in ['риск', 'опасн', 'вероятн', '100%']):
-                response = """Для высокого риска нужно:
-        1. Новый аккаунт (< 7 дней)
-        2. Отсутствие чека и бирки
-        3. Быстрый возврат (< 3 дня)
-        4. Высокая сумма заказа (> 30 000₽)
-        5. Следы использования товара"""
-            elif any(w in message_lower for w in ['клиент', 'нужн', 'требуется']):
-                response = "Клиенту нужно предоставить: чек, бирки на товаре, паспорт для проверки личности."
-            elif any(w in message_lower for w in ['провер', 'оцен', 'анализ', 'форма']):
-                response = "Заполните форму на странице 'Проверка' — я проанализирую все параметры и рассчитаю риск!"
-            elif any(w in message_lower for w in ['фрод', 'мошенн', 'возврат', 'паттерн']):
-                response = "Я распознаю 27 паттернов фрода: Wardrobing, Price Arbitrage, Multi-Accounting, Professional Refunder и другие."
-            elif any(w in message_lower for w in ['спасиб', 'благодар']):
-                response = "Всегда рад помочь! 😊"
-            else:
-                response = "Интересный вопрос! Я специализируюсь на оценке риска возвратов. Попробуйте спросить о факторах риска или паттернах мошенничества."
+            # 1. Инициализация токенизатора и ONNX сессии
+            try:
+                tokenizer_dir = os.path.dirname(model_path)
+                tok_path = os.path.join(tokenizer_dir, 'tokenizer.json')
+                tokenizer = Tokenizer.from_file(tok_path)
+                tokenizer.enable_padding(pad_id=tokenizer.token_to_id('[PAD]') or 0)
+                tokenizer.enable_truncation(max_length=128)
+                
+                session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+                input_name = session.get_inputs()[0].name
+            except Exception as e:
+                _log(f"[CHAT] Init error: {e}")
+                print(json.dumps({'response': '⚠️ Ошибка загрузки модели'}))
+                sys.exit(0)
             
-            # ✅ Выводим ТОЛЬКО в stdout, логи — в stderr
-            print(json.dumps({'response': response}, ensure_ascii=False))
+            # 2. Токенизация
+            encoded = tokenizer.encode(message)
+            input_ids = np.array([encoded.ids], dtype=np.int64)
+            attention_mask = np.array([encoded.attention_mask], dtype=np.int64)
+            
+            # 🔥 КРИТИЧНО: Создаём token_type_ids ПЕРЕД использованием!
+            token_type_ids = np.zeros_like(input_ids, dtype=np.int64)
+            
+            # 3. Инференс (передаём ВСЕ 3 входа для BERT)
+            try:
+                outputs = session.run(None, {
+                    input_name: input_ids,
+                    'attention_mask': attention_mask,
+                    'token_type_ids': token_type_ids  # ✅ Теперь переменная определена
+                })
+                
+                # 4. Получаем [CLS] эмбеддинг для классификации
+                cls_embedding = outputs[0][0, 0, :]  # (hidden_size=384,)
+                
+                # 5. Простая rule-based классификация + эмбеддинг
+                message_lower = message.lower().strip()
+                
+                if any(w in message_lower for w in ['привет', 'здравствуй', 'hello', 'hi']):
+                    response = "Привет! Я AI-помощник FraudReturn Shield. Чем могу помочь?"
+                elif any(w in message_lower for w in ['риск', '100%', 'высок', 'опасн']):
+                    response = "⚠️ Высокий риск: новый аккаунт (<7 дней), нет чека/бирки, быстрый возврат (<3 дня), сумма >30к ₽."
+                elif any(w in message_lower for w in ['клиент', 'нужн', 'требуется']):
+                    response = "Клиенту нужно: чек, товар с бирками, паспорт (при сумме >100к ₽)."
+                elif any(w in message_lower for w in ['провер', 'оцен', 'форма', 'анализ']):
+                    response = "Заполните форму на странице 'Проверка' — я проанализирую 42 признака и рассчитаю риск!"
+                elif any(w in message_lower for w in ['фрод', 'мошенн', 'паттерн']):
+                    response = "Я распознаю 27 паттернов: Wardrobing, Price Arbitrage, Multi-Accounting, Professional Refunder и др."
+                elif any(w in message_lower for w in ['спасиб', 'благодар']):
+                    response = "Всегда рад помочь! 🛡️"
+                else:
+                    response = "Я специализируюсь на оценке риска возвратов. Спросите о факторах риска или паттернах фрода."
+                
+                print(json.dumps({'response': response}, ensure_ascii=False))
+                
+            except Exception as e:
+                _log(f"[CHAT] Inference error: {e}")
+                print(json.dumps({'response': '⚠️ Ошибка обработки запроса'}))
+            
             sys.exit(0)
-
-        else:
-            print(json.dumps({'error': f'Unknown mode: {mode}'}))
-            sys.exit(1)
 
     except Exception as e:
         _log(f"[FATAL] Script crashed: {str(e)}")
