@@ -1055,17 +1055,10 @@ func EnrichFromDB(f *FormData) error {
 	if err == nil {
 		f.AccountAgeDays = accountAge
 		f.TotalOrders = totalOrders
-		if globalRate.Valid {
-			// Если в БД значение > 100, значит это уже проценты
-			// Если <= 1.0, значит это доля (0.4 = 40%)
-			if globalRate.Float64 <= 1.0 {
-				f.ReturnRate = globalRate.Float64 * 100 // 0.4 → 40
-			} else if globalRate.Float64 > 1000 {
-				// Совсем кринж, но на всякий случай
-				f.ReturnRate = globalRate.Float64 / 100 // 4000 → 40
-			} else {
-				f.ReturnRate = globalRate.Float64 // уже проценты
-			}
+		if totalOrders > 0 {
+			f.ReturnRate = float64(totalReturns) / float64(totalOrders) * 100
+		} else {
+			f.ReturnRate = 0
 		}
 		if avgOrderAmt.Valid {
 			f.AvgOrderAmount = avgOrderAmt.Float64

@@ -359,32 +359,6 @@
         showToast('Данные клиента загружены', 'success');
     }
 
-    // Загрузка данных клиента из БД
-    async function loadClientData(clientId) {
-        try {
-            const res = await fetch(`/api/client/${clientId}`);
-            if (res.ok) {
-                const client = await res.json();
-                
-                // Заполняем поля формы
-                if (client.account_age_days) {
-                    document.getElementById('accountAgeDays').value = client.account_age_days;
-                }
-                if (client.total_orders) {
-                    document.getElementById('totalOrders').value = client.total_orders;
-                }
-                if (client.global_return_rate !== undefined) {
-                    document.getElementById('returnRate').value = client.global_return_rate;
-                }
-                if (client.avg_order_amount) {
-                    // Можно использовать для подсказки суммы заказа
-                    console.log('Средняя сумма заказа:', client.avg_order_amount);
-                }
-            }
-        } catch (err) {
-            console.error('Ошибка загрузки данных клиента:', err);
-        }
-    }
 
     async function searchOrders(query, clientId = null) {
         const dropdown = document.getElementById('orderDropdown');
@@ -439,27 +413,138 @@
         showToast('Данные заказа загружены', 'success');
     }
 
-    async function loadOrderData(orderId) {
-        try {
-            const res = await fetch(`/api/order/${orderId}`);
-            if (res.ok) {
-                const order = await res.json();
-                
-                if (order.order_amount) {
-                    document.getElementById('orderAmount').value = order.order_amount;
-                }
-                if (order.items_count) {
-                    console.log('Товаров в заказе:', order.items_count);
-                }
-                if (order.order_timestamp) {
-                    const date = new Date(order.order_timestamp);
-                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    document.getElementById('isWeekend').checked = isWeekend;
-                }
+    // 🔧 ЗАМЕНИТЕ функцию loadClientData на эту версию:
+async function loadClientData(clientId) {
+    try {
+        const res = await fetch(`/api/client/${clientId}`);
+        if (res.ok) {
+            const client = await res.json();
+            
+            // === Видимые поля ===
+            if (client.account_age_days) {
+                document.getElementById('accountAgeDays').value = client.account_age_days;
             }
-        } catch (err) {
-            console.error('Ошибка загрузки данных заказа:', err);
+            if (client.total_orders) {
+                document.getElementById('totalOrders').value = client.total_orders;
+            }
+            if (client.global_return_rate !== undefined) {
+                document.getElementById('returnRate').value = client.global_return_rate;
+            }
+            
+            // === СКРЫТЫЕ ПОЛЯ — заполняем из БД ===
+            setHiddenField('avgOrderAmount', client.avg_order_amount);
+            setHiddenField('totalReturns', client.total_returns);
+            setHiddenField('addressChangeFrequency', client.address_change_frequency);
+            setHiddenField('categoryReturnsCount', client.category_returns_count);
+            
+            // 🎯 Вычисляем производные признаки (как в Go EnrichFromDB)
+            const totalOrders = parseInt(client.total_orders) || 0;
+            const totalReturns = parseInt(client.total_returns) || 0;
+            
+            // ReturnRate30d (упрощённо: общий % возвратов)
+            if (totalOrders > 0) {
+                const returnRate30d = (totalReturns / totalOrders) * 100;
+                setHiddenField('returnRate30d', returnRate30d.toFixed(2));
+            }
+            
+            // Trust scores (базовая эвристика)
+            const trustScore = totalOrders > 0 ? Math.max(0.3, 1 - (totalReturns / totalOrders) * 0.5) : 0.75;
+            setHiddenField('deviceTrustScore', trustScore.toFixed(2));
+            setHiddenField('ipTrustScore', trustScore.toFixed(2));
+            
+            // Accounts per IP/Device (если есть address_change_frequency)
+            if (client.address_change_frequency) {
+                const freq = parseFloat(client.address_change_frequency);
+                setHiddenField('accountsPerIP', Math.min(10, Math.floor(freq) + 1));
+                setHiddenField('distanceFromRegistrationCity', (freq * 100).toFixed(0));
+            }
+            
+            console.log('✅ Клиент загружен:', client);
+            showToast('Данные клиента обновлены', 'success');
         }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки клиента:', err);
+    }
+}
+
+// 🔧 ЗАМЕНИТЕ функцию loadOrderData на эту версию:
+async function loadOrderData(orderId) {
+    try {
+        const res = await fetch(`/api/order/${orderId}`);
+        if (res.ok) {
+            const order = await res.json();
+            
+            // === Видимые поля ===
+            if (order.order_amount) {
+                document.getElementById('orderAmount').value = order.order_amount;
+            }
+            if (order.items_count) {
+                setHiddenField('itemsInOrder', order.items_count);
+            }
+            
+            // === СКРЫТЫЕ ПОЛЯ из заказа ===
+            setHiddenField('paymentMethodRisk', getPaymentRisk(order.payment_method));
+            setHiddenField('amountDeviation', order.amount_deviation);
+            setHiddenField('ordersLast30d', order.orders_last_30d);
+            
+            // === Время заказа → признаки ===
+            if (order.order_timestamp) {
+                const date = new Date(order.order_timestamp);
+                const hour = date.getHours();
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const isNight = hour >= 0 && hour <= 5;
+                
+                document.getElementById('isWeekend').checked = isWeekend;
+                setHiddenField('orderHour', hour);
+                setHiddenField('orderTimeNight', isNight ? 1 : 0);
+            }
+            
+            // === Электроника? ===
+            const category = document.getElementById('category')?.value;
+            setHiddenField('isElectronics', category === 'electronics' ? 1 : 0);
+            
+            // === Velocity признаки (упрощённо) ===
+            const orders30d = parseInt(order.orders_last_30d) || 0;
+            setHiddenField('ipVelocity24h', Math.min(orders30d, 20));
+            setHiddenField('ipVelocity7d', Math.min(orders30d * 2, 50));
+            setHiddenField('refundVelocity30d', orders30d);
+            
+            // === Promo / Discount ===
+            const orderAmount = parseFloat(order.order_amount) || 0;
+            const discount = parseFloat(order.discount_amount) || 0;
+            if (orderAmount > 0 && discount > 0) {
+                const discountPercent = (discount / orderAmount) * 100;
+                setHiddenField('discountPercent', discountPercent.toFixed(2));
+                setHiddenField('promoCodeUsed', discountPercent > 10 ? 1 : 0);
+                setHiddenField('firstOrderDiscountAbuse', 
+                    (orders30d === 1 && discountPercent > 20) ? 1 : 0);
+            }
+            
+            console.log('✅ Заказ загружен:', order);
+            showToast('Данные заказа обновлены', 'success');
+        }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки заказа:', err);
+    }
+}
+
+    // 🆕 Вспомогательная функция для скрытых полей
+    function setHiddenField(name, value) {
+        const field = document.querySelector(`input[name="${name}"]`);
+        if (field && value !== undefined && value !== null) {
+            field.value = value;
+            // 🔍 Отладка: раскомментируйте, чтобы видеть в консоли
+            // console.log(`[HIDDEN] ${name} = ${value}`);
+        }
+    }
+
+    // 🆕 Helper: риск платёжного метода
+    function getPaymentRisk(method) {
+        if (!method) return 0.2;
+        const m = method.toLowerCase();
+        if (['card', 'online', 'elektronno'].includes(m)) return 0.1;
+        if (['cash', 'nalichnie', 'cod'].includes(m)) return 0.3;
+        return 0.2;
     }
 
     function loadRandomData() {
