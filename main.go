@@ -1789,36 +1789,24 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(ChatResponse{Response: response})
 }
 
-// callPythonModelForChat — вызов Python-скрипта для обработки сообщения чата
 func callPythonModelForChat(message string) (string, error) {
-	wd, err := os.Getwd()
-	if err != nil {
-		return "", fmt.Errorf("не удалось получить рабочую директорию: %w", err)
-	}
-
-	pythonPath := getEnv("PYTHON_PATH", "python3")
+	wd, _ := os.Getwd()
+	pythonPath := `C:\Users\44252\AppData\Local\Programs\Python\Python313\python.exe`
 	scriptPath := filepath.Join(wd, "model.py")
-	modelPath := filepath.Join(wd, "model.onnx")
-
-	// Проверяем существование модели
-	if _, err := os.Stat(modelPath); os.IsNotExist(err) {
-		return "Модель не найдена. Пожалуйста, убедитесь, что model.onnx существует.", nil
-	}
+	modelPath := filepath.Join(wd, "model.onnx") // <-- ТОЧНО ОН
 
 	cmd := exec.Command(pythonPath, scriptPath, "--chat", modelPath, message)
 	cmd.Dir = wd
-	output, err := cmd.CombinedOutput()
+	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8")
 
+	output, err := cmd.CombinedOutput()
 	if err != nil {
-		log.Printf("[ERROR] Python chat output: %s", string(output))
-		// Возвращаем дефолтный ответ вместо ошибки
-		return "Я пока не могу обработать ваш запрос, но я учусь! Попробуйте задать вопрос о проверке возвратов или рисках мошенничества.", nil
+		log.Printf("[ERROR] Python chat: %s", string(output))
+		return "model.onnx не ответил. Проверь консоль сервера.", nil
 	}
 
-	// Пытаемся распарсить JSON из вывода
 	jsonStart := bytes.IndexByte(output, '{')
 	jsonEnd := bytes.LastIndexByte(output, '}')
-
 	if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
 		jsonBytes := output[jsonStart : jsonEnd+1]
 		var result map[string]interface{}
@@ -1828,14 +1816,7 @@ func callPythonModelForChat(message string) (string, error) {
 			}
 		}
 	}
-
-	// Если не JSON, возвращаем как текст
-	response := strings.TrimSpace(string(output))
-	if response == "" {
-		return "Спасибо за ваш вопрос! Я анализирую его и скоро отвечу.", nil
-	}
-
-	return response, nil
+	return string(output), nil
 }
 
 // ============================================
@@ -1850,9 +1831,26 @@ func main() {
 	}
 	defer CloseDB()
 
-	fs := http.FileServer(http.Dir("static"))
+	execDir, err := os.Getwd()
+	if err != nil {
+		log.Fatalf("Не удалось получить рабочую директорию: %v", err)
+	}
+	staticDir := filepath.Join(execDir, "static")
+
+	// Проверяем существование директории
+	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
+		log.Fatalf("Директория static не найдена по пути: %s", staticDir)
+	}
+
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
-		path := filepath.Join("static", r.URL.Path[len("/static/"):])
+		relativePath := strings.TrimPrefix(r.URL.Path, "/static/")
+		path := filepath.Join(staticDir, relativePath)
+
+		// Проверяем, что файл существует
+		if _, err := os.Stat(path); os.IsNotExist(err) {
+			http.NotFound(w, r)
+			return
+		}
 
 		// Устанавливаем правильные MIME-типы
 		if strings.HasSuffix(path, ".css") {
@@ -1869,7 +1867,7 @@ func main() {
 			w.Header().Set("Content-Type", "image/x-icon")
 		}
 
-		fs.ServeHTTP(w, r)
+		http.ServeFile(w, r, path)
 	})
 
 	// Страницы
@@ -1889,11 +1887,10 @@ func main() {
 	http.HandleFunc("/api/search/users", apiSearchUsers)
 	http.HandleFunc("/api/chat", handleChat)
 
-	port := getEnv("PORT", ":8081")
+	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
 
-	err := http.ListenAndServe(port, nil)
-	if err != nil {
+	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatal("❌ Ошибка запуска сервера:", err)
 	}
 }

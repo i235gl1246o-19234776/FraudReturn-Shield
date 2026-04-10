@@ -134,20 +134,39 @@ if __name__ == '__main__':
         sys.exit(0 if result['success'] else 1)
 
     elif mode == '--chat':
-        # Режим чата: model.py --chat <model_path> <message>
-        # model_path может использоваться для будущей интеграции с NLP моделью
-        # Пока используем rule-based ответы
-        if len(sys.argv) < 4:
-            print(json.dumps({'response': 'Пожалуйста, задайте полный вопрос.'}))
-            sys.exit(0)
-
-        # model_path = sys.argv[2]  # Зарезервировано для будущей NLP модели
+        model_path = sys.argv[2] if len(sys.argv) > 2 else 'model.onnx'
         message = sys.argv[3] if len(sys.argv) > 3 else ''
-
-        response = chat_response(message)
-        print(json.dumps({'response': response}))
+        
+        # 1. Загружаем ИМЕННО model.onnx
+        load_res = load_model(model_path)
+        if not load_res['success']:
+            print(json.dumps({'response': f'❌ model.onnx не загружен: {load_res["error"]}'}))
+            sys.exit(0)
+        
+        # 2. Формируем вектор из 42 признаков (как требует модель)
+        # Если в сообщении есть числа — берём их, иначе нулевой вектор
+        import re
+        nums = re.findall(r'\d+\.?\d*', message)
+        features = [float(n) for n in nums[:42]]
+        features += [0.0] * (42 - len(features))
+        
+        # 3. Прогоняем через model.onnx
+        pred = predict(features)
+        if not pred['success']:
+            print(json.dumps({'response': f'❌ Предсказание не прошло: {pred["error"]}'}))
+            sys.exit(0)
+            
+        score = pred['score']
+        # 4. Формируем ответ на основе выхода model.onnx
+        if score > 0.65:
+            txt = f"🔴 model.onnx: высокий риск ({score:.1%}). Требуется ручная проверка."
+        elif score > 0.30:
+            txt = f"🟡 model.onnx: средний риск ({score:.1%}). Внимание оператора."
+        else:
+            txt = f"🟢 model.onnx: низкий риск ({score:.1%}). Можно одобрить."
+            
+        print(json.dumps({'response': txt}))
         sys.exit(0)
-
     
     elif mode == '--predict':
         model_path = sys.argv[2]
