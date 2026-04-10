@@ -106,11 +106,29 @@ def load_chat_model(model_path):
     global _chat_session
     try:
         _log(f"[INFO] Attempting to load Chat model: {model_path}")
+        if not os.path.exists(model_path):
+            _log(f"[ERROR] Chat model file not found: {model_path}")
+            return False
+
+        # Проверка размера файла (защита от LFS-заглушек)
+        file_size = os.path.getsize(model_path)
+        if file_size < 1024:  # Менее 1KB — скорее всего заглушка
+            _log(f"[ERROR] Chat model file too small ({file_size} bytes). Possible LFS pointer or corrupted file.")
+            _log("[WARN] Chat functionality disabled. Please download the real model file.")
+            return False
         _chat_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
         _log(f"[INFO] Chat model loaded successfully")
         return True
     except Exception as e:
         _log(f"[ERROR] Chat load failed: {str(e)}")
+        error_msg = str(e)
+        _log(f"[ERROR] Chat load failed: {error_msg}")
+
+        # Проверка на типичные ошибки
+        if "INVALID_PROTOBUF" in error_msg or "Protobuf parsing failed" in error_msg:
+            _log("[ERROR] Model file is corrupted or is a Git LFS pointer. Run 'git lfs pull' to download the actual model.")
+        elif "ORT_NO_SUCHFILE" in error_msg or "File not found" in error_msg:
+            _log("[ERROR] Model file does not exist at the specified path.")
         return False
 
 def generate_chat_response(message, model_path):
@@ -130,15 +148,29 @@ def generate_chat_response(message, model_path):
         
         # Попытка 1: Передача текста как есть (если модель принимает string/bytes)
         inputs = _chat_session.get_inputs()
-        input_name = inputs[0].name
-        
-        # Создаем тензор из текста. 
-        # dtype=object позволяет передать строку напрямую
-        input_tensor = np.array([message], dtype=object)
+        input_names = [inp.name for inp in inputs]
+
+        _log(f"[DEBUG] Model inputs: {input_names}")
+
+        # Токенизируем текст
+        tokenized = _tokenize_text(message, max_length=128)
+
+        # Формируем input_feed со всеми требуемыми входами
+        input_feed = {}
+        for name in input_names:
+            if name == 'input_ids':
+                input_feed[name] = tokenized['input_ids']
+            elif name == 'attention_mask':
+                input_feed[name] = tokenized['attention_mask']
+            elif name == 'token_type_ids':
+                input_feed[name] = tokenized['token_type_ids']
+            else:
+                # Для любых других входов используем дефолтные значения
+                input_feed[name] = np.zeros_like(tokenized['input_ids'])
         
         # 3. Запуск инференса
         _log(f"[DEBUG] Running inference with input: {message[:20]}...")
-        outputs = _chat_session.run(None, {input_name: input_tensor})
+        outputs = _chat_session.run(None, input_feed)
         
         # 4. Обработка результата
         # ONNX LLM обычно возвращает либо logits (числа), либо token ids, либо текст
