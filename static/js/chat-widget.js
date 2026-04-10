@@ -3,7 +3,7 @@
 
 +++ static/js/chat-widget.js (修改后)
 // ============================================
-// 💬 AI CHAT WIDGET
+// AI CHAT WIDGET
 // ============================================
 
 class ChatWidget {
@@ -48,7 +48,7 @@ class ChatWidget {
 
                 <div class="chat-widget-messages" id="chatWidgetMessages">
                     <div class="chat-message assistant">
-                        <div class="chat-message-avatar">🤖</div>
+                        <div class="chat-message-avatar">AI</div>
                         <div>
                             <div class="chat-message-content">
                                 Привет! Я AI-помощник FraudReturn Shield. Чем могу помочь?
@@ -167,7 +167,7 @@ class ChatWidget {
         } catch (error) {
             console.error('Chat error:', error);
             this.hideTypingIndicator();
-            this.addMessage('Извините, не удалось连接到服务器。Попробуйте позже.', 'assistant');
+            this.addMessage('Извините, не удалось подключиться к серверу. Попробуйте позже.', 'assistant');
         }
 
         this.isLoading = false;
@@ -179,7 +179,7 @@ class ChatWidget {
 
         const html = `
             <div class="chat-message ${type}">
-                <div class="chat-message-avatar">${type === 'user' ? '👤' : '🤖'}</div>
+                <div class="chat-message-avatar">${type === 'user' ? 'U' : 'AI'}</div>
                 <div>
                     <div class="chat-message-content">${this.escapeHtml(text)}</div>
                     <div class="chat-message-time">${time}</div>
@@ -198,7 +198,7 @@ class ChatWidget {
         const messagesContainer = document.getElementById('chatWidgetMessages');
         const html = `
             <div class="chat-message assistant" id="chatTypingIndicator">
-                <div class="chat-message-avatar">🤖</div>
+                <div class="chat-message-avatar">AI</div>
                 <div class="chat-typing-indicator">
                     <div class="chat-typing-dot"></div>
                     <div class="chat-typing-dot"></div>
@@ -271,7 +271,7 @@ class ChatWidget {
         const messagesContainer = document.getElementById('chatWidgetMessages');
         messagesContainer.innerHTML = `
             <div class="chat-message assistant">
-                <div class="chat-message-avatar">🤖</div>
+                <div class="chat-message-avatar">AI</div>
                 <div>
                     <div class="chat-message-content">
                         Привет! Я AI-помощник FraudReturn Shield. Чем могу помочь?
