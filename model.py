@@ -88,7 +88,37 @@ def predict(features):
         return {'success': False, 'score': None, 'error': str(e)}
     
 
+def chat_response(message):
+    """Генерирует ответ на сообщение пользователя используя простую логику"""
+    message_lower = message.lower().strip()
 
+    # Ответы на частые вопросы
+    if any(word in message_lower for word in ['привет', 'здравствуй', 'hello', 'hi']):
+        return "Привет! Я AI-помощник FraudReturn Shield. Я могу помочь вам оценить риск мошеннического возврата. Задайте мне вопрос!"
+
+    if any(word in message_lower for word in ['как работ', 'что дела', 'чем мож', 'возможн']):
+        return "Я анализирую данные о заказе и клиенте, используя машинное обучение. Введите данные в форме проверки, и я рассчитаю риск мошенничества."
+
+    if any(word in message_lower for word in ['риск', 'опасн', 'вероятн']):
+        return "Риск мошенничества рассчитывается по множеству факторов: история клиента, поведение при заказе, характеристики возврата. Оценка от 0 до 1, где выше 0.7 — высокий риск."
+
+    if any(word in message_lower for word in ['провер', 'оцен', 'анализ']):
+        return "Для проверки перейдите на страницу 'Проверка' и заполните форму. Я проанализирую все параметры и выдам оценку риска."
+
+    if any(word in message_lower for word in ['возврат', 'return', 'refund']):
+        return "Возвраты могут быть как легитимными, так и мошенническими. Я помогаю отличить их по паттернам поведения клиента и характеристикам заказа."
+
+    if any(word in message_lower for word in ['клиент', 'пользователь', 'customer']):
+        return "Данные о клиенте включают: возраст аккаунта, историю заказов, процент возвратов, среднюю сумму заказа. Это помогает оценить надёжность."
+
+    if any(word in message_lower for word in ['спасиб', 'благодар']):
+        return "Всегда рад помочь! Если возникнут ещё вопросы — обращайтесь."
+
+    if any(word in message_lower for word in ['пока', 'до свидани', 'goodbye', 'bye']):
+        return "До свидания! Будьте осторожны с мошенниками!"
+
+    # Ответ по умолчанию
+    return "Интересный вопрос! Я специализируюсь на оценке риска мошеннических возвратов. Попробуйте спросить о факторах риска, проверке клиентов или процессе анализа."
 
 if __name__ == '__main__':
     if len(sys.argv) < 2:
@@ -102,6 +132,22 @@ if __name__ == '__main__':
         result = load_model(model_path)
         print(json.dumps(result))  # ← ЕДИНСТВЕННОЕ в stdout
         sys.exit(0 if result['success'] else 1)
+
+    elif mode == '--chat':
+        # Режим чата: model.py --chat <model_path> <message>
+        # model_path может использоваться для будущей интеграции с NLP моделью
+        # Пока используем rule-based ответы
+        if len(sys.argv) < 4:
+            print(json.dumps({'response': 'Пожалуйста, задайте полный вопрос.'}))
+            sys.exit(0)
+
+        # model_path = sys.argv[2]  # Зарезервировано для будущей NLP модели
+        message = sys.argv[3] if len(sys.argv) > 3 else ''
+
+        response = chat_response(message)
+        print(json.dumps({'response': response}))
+        sys.exit(0)
+
     
     elif mode == '--predict':
         model_path = sys.argv[2]

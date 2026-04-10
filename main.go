@@ -1851,7 +1851,26 @@ func main() {
 	defer CloseDB()
 
 	fs := http.FileServer(http.Dir("static"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
+	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
+		path := filepath.Join("static", r.URL.Path[len("/static/"):])
+
+		// Устанавливаем правильные MIME-типы
+		if strings.HasSuffix(path, ".css") {
+			w.Header().Set("Content-Type", "text/css; charset=utf-8")
+		} else if strings.HasSuffix(path, ".js") {
+			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+		} else if strings.HasSuffix(path, ".png") {
+			w.Header().Set("Content-Type", "image/png")
+		} else if strings.HasSuffix(path, ".jpg") || strings.HasSuffix(path, ".jpeg") {
+			w.Header().Set("Content-Type", "image/jpeg")
+		} else if strings.HasSuffix(path, ".svg") {
+			w.Header().Set("Content-Type", "image/svg+xml")
+		} else if strings.HasSuffix(path, ".ico") {
+			w.Header().Set("Content-Type", "image/x-icon")
+		}
+
+		fs.ServeHTTP(w, r)
+	})
 
 	// Страницы
 	http.HandleFunc("/", homePage)
