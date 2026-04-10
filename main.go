@@ -1791,9 +1791,12 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 
 func callPythonModelForChat(message string) (string, error) {
 	wd, _ := os.Getwd()
-	pythonPath := `C:\Users\44252\AppData\Local\Programs\Python\Python313\python.exe`
+	pythonPath := "python3"
+	if _, err := exec.LookPath("python"); err == nil {
+		pythonPath = "python"
+	}
 	scriptPath := filepath.Join(wd, "model.py")
-	modelPath := filepath.Join(wd, "model.onnx") // <-- ТОЧНО ОН
+	modelPath := filepath.Join(wd, "model.onnx")
 
 	cmd := exec.Command(pythonPath, scriptPath, "--chat", modelPath, message)
 	cmd.Dir = wd
@@ -1802,7 +1805,7 @@ func callPythonModelForChat(message string) (string, error) {
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		log.Printf("[ERROR] Python chat: %s", string(output))
-		return "model.onnx не ответил. Проверь консоль сервера.", nil
+		return "Модель не ответила. Проверь консоль сервера.", nil
 	}
 
 	jsonStart := bytes.IndexByte(output, '{')

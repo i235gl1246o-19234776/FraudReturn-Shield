@@ -3,190 +3,231 @@ import json
 import os
 import onnxruntime as ort
 import numpy as np
+import traceback
 
-_session = None
-_input_name = None
+# ============================================
+# ГЛОБАЛЬНЫЕ СЕССИИ (КЭШИРОВАНИЕ)
+# ============================================
+_fraud_session = None
+_fraud_input_name = None
+_chat_session = None
+_chat_input_names = None
 
 def _log(msg):
-    """ВСЕ логи ТОЛЬКО в stderr"""
+    """Вывод лога ТОЛЬКО в stderr, чтобы не ломать JSON в stdout"""
     print(msg, file=sys.stderr)
 
-def load_model(model_path):
-    """Загружает ONNX модель"""
-    global _session, _input_name
+# ============================================
+# ЛОГИКА ФРОД-МОДЕЛИ (Fraud Detection)
+# ============================================
+def load_fraud_model(model_path):
+    global _fraud_session, _fraud_input_name
     try:
-        model_abs = os.path.abspath(model_path).replace('\\', '/')
-        if not os.path.exists(model_abs):
-            _log(f"[ERROR] File not found: {model_abs}")
-            return {'success': False, 'error': f'File not found: {model_abs}'}
+        if not os.path.exists(model_path):
+            return {'success': False, 'error': f'File not found: {model_path}'}
         
-        _session = ort.InferenceSession(model_abs, providers=['CPUExecutionProvider'])
-        inputs = _session.get_inputs()
-        _input_name = inputs[0].name if len(inputs) > 0 else 'input_0'
+        _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        inputs = _fraud_session.get_inputs()
+        _fraud_input_name = inputs[0].name if len(inputs) > 0 else 'input'
         
-        _log(f"[INFO] Model loaded: {model_abs}")
-        return {'success': True, 'error': '', 'input_name': _input_name}
-    
+        _log(f"[INFO] Fraud model loaded: {model_path}")
+        return {'success': True}
     except Exception as e:
-        _log(f"[ERROR] Load error: {str(e)}")
+        _log(f"[ERROR] Fraud load: {str(e)}")
         return {'success': False, 'error': str(e)}
 
-
-def predict(features):
-    """Выполняет предсказание"""
-    global _session, _input_name
-    
-    if _session is None:
+def predict_fraud(features_list):
+    global _fraud_session, _fraud_input_name
+    if _fraud_session is None:
         return {'success': False, 'score': None, 'error': 'Model not loaded'}
     
     try:
-        input_data = np.array(features, dtype=np.float32).reshape(1, -1)
-        outputs = _session.run(None, {_input_name: input_data})
+        input_data = np.array(features_list, dtype=np.float32).reshape(1, -1)
+        outputs = _fraud_session.run(None, {_fraud_input_name: input_data})
         
-        _log(f"[DEBUG] outputs count: {len(outputs)}")
-        
+        # Логика извлечения скора (зависит от структуры выхода модели)
         score = None
-        
-        # Пробуем извлечь вероятность из outputs[1]
         if len(outputs) >= 2:
-            prob_output = outputs[1]
-            
-            if isinstance(prob_output, (list, np.ndarray)) and len(prob_output) > 0:
-                prob_dict = prob_output[0]
+            # Если output[1] это вероятности
+            score = float(outputs[1][0][1])
+        elif len(outputs) >= 1:
+            # Если output[0] это вероятности
+            if outputs[0].shape[-1] >= 2:
+                score = float(outputs[0][0][1])
             else:
-                prob_dict = prob_output
-            
-            if isinstance(prob_dict, dict):
-                fraud_prob = prob_dict.get(1) or prob_dict.get('1') or prob_dict.get(1.0)
-                if fraud_prob is not None:
-                    score = float(fraud_prob)
-                    _log(f"[DEBUG] fraud_prob={score}")
+                score = float(outputs[0][0][0])
         
-        # Fallback
-        if score is None and len(outputs) >= 1:
-            probs = outputs[0]
-            if hasattr(probs, 'shape') and len(probs.shape) > 1 and probs.shape[-1] >= 2:
-                score = float(probs[0][1])
-            elif hasattr(probs, '__len__') and len(probs) >= 2:
-                score = float(probs[1])
-            else:
-                score = float(probs[0] if hasattr(probs, '__len__') else probs)
-            _log(f"[DEBUG] fallback score={score}")
-        
-        if score is None:
-            return {'success': False, 'score': None, 'error': 'Could not extract probability'}
-        
-        score = max(0.0, min(1.0, score))
-        _log(f"[DEBUG] final score={score}")
-        
-        return {'success': True, 'score': score, 'error': ''}
-        
+        return {'success': True, 'score': max(0.0, min(1.0, score))}
     except Exception as e:
-        _log(f"[ERROR] Predict error: {str(e)}")
-        import traceback
-        traceback.print_exc(file=sys.stderr)
+        _log(f"[ERROR] Fraud predict: {str(e)}")
         return {'success': False, 'score': None, 'error': str(e)}
-    
 
-def chat_response(message):
-    """Генерирует ответ на сообщение пользователя используя простую логику"""
-    message_lower = message.lower().strip()
+def _tokenize_text(text, max_length=128):
+    """Простая токенизация для BERT-подобных моделей без внешних зависимостей"""
+    # Базовая токенизация: разбиваем на слова и создаем простые ID
+    # Для реальной работы нужно использовать тот же токенизатор, что и при обучении модели
+    tokens = text.lower().split()
 
-    # Ответы на частые вопросы
-    if any(word in message_lower for word in ['привет', 'здравствуй', 'hello', 'hi']):
-        return "Привет! Я AI-помощник FraudReturn Shield. Я могу помочь вам оценить риск мошеннического возврата. Задайте мне вопрос!"
+    # Создаем простые токены (это упрощение, в идеале нужен настоящий токенизатор)
+    input_ids = [101]  # [CLS] токен
+    attention_mask = [1]
+    token_type_ids = [0]
 
-    if any(word in message_lower for word in ['как работ', 'что дела', 'чем мож', 'возможн']):
-        return "Я анализирую данные о заказе и клиенте, используя машинное обучение. Введите данные в форме проверки, и я рассчитаю риск мошенничества."
+    for token in tokens[:max_length - 2]:
+        # Простое хеширование токена в число (для демонстрации)
+        # В реальности здесь должен быть словарь токенов из обучения
+        token_id = abs(hash(token)) % 1000 + 102  # 102+ чтобы избежать специальных токенов
+        input_ids.append(token_id)
+        attention_mask.append(1)
+        token_type_ids.append(0)
 
-    if any(word in message_lower for word in ['риск', 'опасн', 'вероятн']):
-        return "Риск мошенничества рассчитывается по множеству факторов: история клиента, поведение при заказе, характеристики возврата. Оценка от 0 до 1, где выше 0.7 — высокий риск."
+    # Добавляем [SEP] токен
+    input_ids.append(102)
+    attention_mask.append(1)
+    token_type_ids.append(0)
 
-    if any(word in message_lower for word in ['провер', 'оцен', 'анализ']):
-        return "Для проверки перейдите на страницу 'Проверка' и заполните форму. Я проанализирую все параметры и выдам оценку риска."
+    # Pad до max_length
+    while len(input_ids) < max_length:
+        input_ids.append(0)
+        attention_mask.append(0)
+        token_type_ids.append(0)
 
-    if any(word in message_lower for word in ['возврат', 'return', 'refund']):
-        return "Возвраты могут быть как легитимными, так и мошенническими. Я помогаю отличить их по паттернам поведения клиента и характеристикам заказа."
+    return {
+        'input_ids': np.array([input_ids], dtype=np.int64),
+        'attention_mask': np.array([attention_mask], dtype=np.int64),
+        'token_type_ids': np.array([token_type_ids], dtype=np.int64)
+    }
 
-    if any(word in message_lower for word in ['клиент', 'пользователь', 'customer']):
-        return "Данные о клиенте включают: возраст аккаунта, историю заказов, процент возвратов, среднюю сумму заказа. Это помогает оценить надёжность."
 
-    if any(word in message_lower for word in ['спасиб', 'благодар']):
-        return "Всегда рад помочь! Если возникнут ещё вопросы — обращайтесь."
+# ============================================
+# ЛОГИКА ЧАТ-МОДЕЛИ (Chat AI)
+# ============================================
+def load_chat_model(model_path):
+    global _chat_session
+    try:
+        _log(f"[INFO] Attempting to load Chat model: {model_path}")
+        _chat_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        _log(f"[INFO] Chat model loaded successfully")
+        return True
+    except Exception as e:
+        _log(f"[ERROR] Chat load failed: {str(e)}")
+        return False
 
-    if any(word in message_lower for word in ['пока', 'до свидани', 'goodbye', 'bye']):
-        return "До свидания! Будьте осторожны с мошенниками!"
+def generate_chat_response(message, model_path):
+    """
+    Основная функция для генерации ответа через ONNX модель.
+    """
+    # 1. Загрузка модели (если еще не загружена)
+    if _chat_session is None:
+        if not load_chat_model(model_path):
+            return "Модель чата не загружена. Проверьте модель и консоль сервера."
 
-    # Ответ по умолчанию
-    return "Интересный вопрос! Я специализируюсь на оценке риска мошеннических возвратов. Попробуйте спросить о факторах риска, проверке клиентов или процессе анализа."
-
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print(json.dumps({'success': False, 'error': 'Usage: --load or --predict'}))
-        sys.exit(1)
-    
-    mode = sys.argv[1]
-    
-    if mode == '--load':
-        model_path = sys.argv[2] if len(sys.argv) > 2 else 'fraud_model_v3_27patterns.onnx'
-        result = load_model(model_path)
-        print(json.dumps(result))  # ← ЕДИНСТВЕННОЕ в stdout
-        sys.exit(0 if result['success'] else 1)
-
-    elif mode == '--chat':
-        model_path = sys.argv[2] if len(sys.argv) > 2 else 'model.onnx'
-        message = sys.argv[3] if len(sys.argv) > 3 else ''
+    try:
+        # 2. Подготовка входных данных (Токенизация)
+        # ВАЖНО: Здесь предполагается, что модель принимает текст или байты.
+        # Если ваша модель требует token_ids, этот шаг нужно адаптировать под ваш токенизатор.
+        # Для большинства LLM ONNX экспортов используется UTF-8 или простые ID.
         
-        # 1. Загружаем ИМЕННО model.onnx
-        load_res = load_model(model_path)
-        if not load_res['success']:
-            print(json.dumps({'response': f'❌ model.onnx не загружен: {load_res["error"]}'}))
-            sys.exit(0)
+        # Попытка 1: Передача текста как есть (если модель принимает string/bytes)
+        inputs = _chat_session.get_inputs()
+        input_name = inputs[0].name
         
-        # 2. Формируем вектор из 42 признаков (как требует модель)
-        # Если в сообщении есть числа — берём их, иначе нулевой вектор
-        import re
-        nums = re.findall(r'\d+\.?\d*', message)
-        features = [float(n) for n in nums[:42]]
-        features += [0.0] * (42 - len(features))
+        # Создаем тензор из текста. 
+        # dtype=object позволяет передать строку напрямую
+        input_tensor = np.array([message], dtype=object)
         
-        # 3. Прогоняем через model.onnx
-        pred = predict(features)
-        if not pred['success']:
-            print(json.dumps({'response': f'❌ Предсказание не прошло: {pred["error"]}'}))
-            sys.exit(0)
-            
-        score = pred['score']
-        # 4. Формируем ответ на основе выхода model.onnx
-        if score > 0.65:
-            txt = f"🔴 model.onnx: высокий риск ({score:.1%}). Требуется ручная проверка."
-        elif score > 0.30:
-            txt = f"🟡 model.onnx: средний риск ({score:.1%}). Внимание оператора."
+        # 3. Запуск инференса
+        _log(f"[DEBUG] Running inference with input: {message[:20]}...")
+        outputs = _chat_session.run(None, {input_name: input_tensor})
+        
+        # 4. Обработка результата
+        # ONNX LLM обычно возвращает либо logits (числа), либо token ids, либо текст
+        result_output = outputs[0]
+        
+        # Если это текст (массив байтов или строк)
+        if isinstance(result_output, np.ndarray) and result_output.dtype.kind in ['U', 'S', 'O']:
+            # Декодируем байты если нужно
+            if result_output.dtype == np.dtype('O'):
+                # Объектный массив, берем первый элемент
+                response = str(result_output.flatten()[0])
+            else:
+                response = result_output.flatten()[0]
+                if isinstance(response, bytes):
+                    response = response.decode('utf-8', errors='ignore')
         else:
-            txt = f"🟢 model.onnx: низкий риск ({score:.1%}). Можно одобрить."
+            # Если модель вернула числа (logits/ids) без декодера
+            # Мы не можем вернуть числа пользователю, поэтому выдаем фоллбэк
+            _log(f"[WARN] Model returned numeric data instead of text. Output shape: {result_output.shape}")
+            response = f"[Модель вернула данные, но нет декодера: {result_output.shape}]"
+
+        return response
+
+    except Exception as e:
+        _log(f"[CRITICAL ERROR] Chat inference failed: {str(e)}")
+        traceback.print_exc(file=sys.stderr)
+        
+        # Фоллбэк-ответ, чтобы UI не зависал
+        return "Произошла ошибка при генерации ответа. Попробуйте позже."
+
+# ============================================
+# MAIN (ТОЧКА ВХОДА)
+# ============================================
+if __name__ == '__main__':
+    # Обработка аргументов
+    if len(sys.argv) < 2:
+        print(json.dumps({'success': False, 'error': 'No mode specified'}))
+        sys.exit(1)
+
+    mode = sys.argv[1]
+
+    try:
+        if mode == '--load':
+            # Загрузка фрод-модели
+            path = sys.argv[2] if len(sys.argv) > 2 else 'fraud_model_v3_27patterns.onnx'
+            res = load_fraud_model(path)
+            print(json.dumps(res))
+
+        elif mode == '--predict':
+            # Предсказание фрода
+            path = sys.argv[2]
+            features_str = sys.argv[3]
             
-        print(json.dumps({'response': txt}))
-        sys.exit(0)
-    
-    elif mode == '--predict':
-        model_path = sys.argv[2]
-        features_str = sys.argv[3]
-        
-        load_result = load_model(model_path)
-        if not load_result['success']:
-            print(json.dumps(load_result))
+            load_res = load_fraud_model(path)
+            if not load_res['success']:
+                print(json.dumps(load_res))
+                sys.exit(1)
+            
+            try:
+                features = [float(x) for x in features_str.split(',')]
+                pred_res = predict_fraud(features)
+                print(json.dumps(pred_res))
+            except ValueError:
+                print(json.dumps({'success': False, 'error': 'Invalid features format'}))
+
+        elif mode == '--chat':
+            # Чат с моделью
+            # Аргументы: --chat <путь_к_model.onnx> <сообщение>
+            if len(sys.argv) < 4:
+                print(json.dumps({'response': 'Ошибка: не указано сообщение'}))
+                sys.exit(0)
+            
+            chat_model_path = sys.argv[2]
+            user_message = sys.argv[3]
+            
+            # Вызов функции генерации
+            reply = generate_chat_response(user_message, chat_model_path)
+            
+            # Вывод чистого JSON в stdout для Go-бэкенда
+            print(json.dumps({'response': reply}, ensure_ascii=False))
+            sys.exit(0)
+
+        else:
+            print(json.dumps({'error': f'Unknown mode: {mode}'}))
             sys.exit(1)
-        
-        try:
-            features = [float(x.strip()) for x in features_str.split(',')]
-        except ValueError:
-            print(json.dumps({'success': False, 'error': 'Invalid features'}))
-            sys.exit(1)
-        
-        prediction = predict(features)
-        print(json.dumps(prediction))  # ← ЕДИНСТВЕННОЕ в stdout
-        sys.exit(0 if prediction['success'] else 1)
-    
-    else:
-        print(json.dumps({'success': False, 'error': f'Unknown mode: {mode}'}))
+
+    except Exception as e:
+        _log(f"[FATAL] Script crashed: {str(e)}")
+        traceback.print_exc(file=sys.stderr)
+        # В случае краша скрипта возвращаем пустой JSON, чтобы Go не паниковал
+        print(json.dumps({'error': 'Internal script error'}))
         sys.exit(1)
