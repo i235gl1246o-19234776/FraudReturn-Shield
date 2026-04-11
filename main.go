@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"os"
@@ -1618,97 +1619,202 @@ func getRiskFactors(f FormData) []string {
 // 🐍 PYTHON ONNX ИНТЕГРАЦИЯ
 // ============================================
 
-func loadModel(modelPath string) error {
+var fastAPIURL = "http://localhost:8000"
 
-	wd, _ := os.Getwd()
+func callFastAPI(endpoint string, payload interface{}, result interface{}) error {
+	url := fastAPIURL + endpoint
 
-	pythonPath := `C:\Users\44252\AppData\Local\Programs\Python\Python313\python.exe`
-	scriptPath := filepath.Join(wd, "model.py")
-
-	cmd := exec.Command(pythonPath, scriptPath, "--load", modelPath)
-	cmd.Dir = wd
-	output, err := cmd.CombinedOutput()
-
-	jsonStart := bytes.IndexByte(output, '{')
-	jsonEnd := bytes.LastIndexByte(output, '}')
-	if jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart {
-		return fmt.Errorf("нет JSON в выводе: %s", string(output))
-	}
-
-	jsonBytes := output[jsonStart : jsonEnd+1]
-
+	jsonData, err := json.Marshal(payload)
 	if err != nil {
-		return fmt.Errorf("%s: %v", string(jsonBytes), err)
+		return fmt.Errorf("ошибка маршалинга JSON: %v", err)
 	}
 
-	var result map[string]interface{}
-	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		return fmt.Errorf("JSON ошибка: %v | output: %s", err, string(jsonBytes))
+	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		return fmt.Errorf("ошибка запроса к FastAPI: %v", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("ошибка чтения ответа: %v", err)
 	}
 
-	if result["success"] == false {
-		return fmt.Errorf("%v", result["error"])
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("FastAPI вернул статус %d: %s", resp.StatusCode, string(body))
 	}
 
-	log.Println("[INFO] Модель ONNX загружена")
+	if err := json.Unmarshal(body, result); err != nil {
+		return fmt.Errorf("ошибка парсинга JSON ответа: %v", err)
+	}
+
+	return nil
+}
+
+type FastAPILoadModelRequest struct {
+	ModelPath string `json:"model_path"`
+	ModelType string `json:"model_type"`
+}
+
+type FastAPILoadModelResponse struct {
+	Success bool   `json:"success"`
+	Error   string `json:"error,omitempty"`
+}
+
+type FastAPIFraudFeatures struct {
+	AccountAgeDays          int     `json:"account_age_days"`
+	TotalPurchases          int     `json:"total_purchases"`
+	TotalReturns            int     `json:"total_returns"`
+	CustomerReturnRate      float64 `json:"customer_return_rate"`
+	AvgOrderAmount          float64 `json:"avg_order_amount"`
+	OrderAmount             float64 `json:"order_amount"`
+	ItemsInOrder            int     `json:"items_in_order"`
+	DiscountPercent         float64 `json:"discount_percent"`
+	PaymentMethodRisk       float64 `json:"payment_method_risk"`
+	AmountDeviation         float64 `json:"amount_deviation"`
+	OrdersLast30d           int     `json:"orders_last_30d"`
+	ReturnRate30d           float64 `json:"return_rate_30d"`
+	RefundVelocity30d       int     `json:"refund_velocity_30d"`
+	DaysSinceLastReturn     int     `json:"days_since_last_return"`
+	DaysSincePurchase       int     `json:"days_since_purchase"`
+	HasReceipt              int     `json:"has_receipt"`
+	ReceiptProvided         int     `json:"receipt_provided"`
+	TagsRemoved             int     `json:"tags_removed"`
+	MissingComponents       int     `json:"missing_components"`
+	OrderHour               int     `json:"order_hour"`
+	HighValueFlag           int     `json:"high_value_flag"`
+	OrderTimeNight          int     `json:"order_time_night"`
+	FastReturnFlag          int     `json:"fast_return_flag"`
+	NewAccountFlag          int     `json:"new_account_flag"`
+	FirstOrderDiscountAbuse int     `json:"first_order_discount_abuse"`
+	IsElectronics           int     `json:"is_electronics"`
+	IPVelocity24h           int     `json:"ip_velocity_24h"`
+	IPVelocity7d            int     `json:"ip_velocity_7d"`
+	AccountsPerIP           int     `json:"accounts_per_ip"`
+	AccountsPerPhone        int     `json:"accounts_per_phone"`
+	AccountsPerDevice       int     `json:"accounts_per_device"`
+	DeviceIsEmulator        int     `json:"device_is_emulator"`
+	DeviceTrustScore        float64 `json:"device_trust_score"`
+	IPTrustScore            float64 `json:"ip_trust_score"`
+	AddressMatch            int     `json:"address_match"`
+	DeviceNew               int     `json:"device_new"`
+	PromoCodeUsed           int     `json:"promo_code_used"`
+	WeekendPurchase         int     `json:"weekend_purchase"`
+	RefundVelocity7d        int     `json:"refund_velocity_7d"`
+	SupportTicketCount30d   int     `json:"support_ticket_count_30d"`
+	ReviewCount30d          int     `json:"review_count_30d"`
+	NegativeReviewCluster   int     `json:"negative_review_cluster"`
+	ShippingRegionRisk      float64 `json:"shipping_region_risk"`
+	DistanceFromRegCity     float64 `json:"distance_from_registration_city"`
+	CardBinCountryMismatch  int     `json:"card_bin_country_mismatch"`
+	ChargebackHistory90d    int     `json:"chargeback_history_90d"`
+	ThreatLanguageDetected  int     `json:"threat_language_detected"`
+	LegalClaimThreat        int     `json:"legal_claim_threat"`
+}
+
+type FastAPIFraudPredictionResponse struct {
+	Success        bool    `json:"success"`
+	Score          float64 `json:"score,omitempty"`
+	Error          string  `json:"error,omitempty"`
+	RiskLevel      string  `json:"risk_level,omitempty"`
+	Recommendation string  `json:"recommendation,omitempty"`
+}
+
+type FastAPIChatRequest struct {
+	Message string `json:"message"`
+}
+
+type FastAPIChatResponse struct {
+	Response string `json:"response"`
+	Error    string `json:"error,omitempty"`
+}
+
+func loadModel(modelPath string) error {
+	req := FastAPILoadModelRequest{
+		ModelPath: modelPath,
+		ModelType: "fraud",
+	}
+	var resp FastAPILoadModelResponse
+
+	err := callFastAPI("/api/load-model", req, &resp)
+	if err != nil {
+		return fmt.Errorf("ошибка загрузки fraud модели: %v", err)
+	}
+
+	if !resp.Success {
+		return fmt.Errorf("%s", resp.Error)
+	}
+
+	log.Println("[INFO] Fraud модель ONNX загружена через FastAPI")
 	return nil
 }
 
 func predictRisk(features []float32) (float32, error) {
-	var featuresStr strings.Builder
-	for i, f := range features {
-		if i > 0 {
-			featuresStr.WriteString(",")
-		}
-		featuresStr.WriteString(fmt.Sprintf("%.6f", f))
+	// Преобразуем features в структуру для FastAPI
+	featuresStruct := FastAPIFraudFeatures{
+		AccountAgeDays:          int(features[0]),
+		TotalPurchases:          int(features[1]),
+		TotalReturns:            int(features[2]),
+		CustomerReturnRate:      float64(features[3]),
+		AvgOrderAmount:          float64(features[4]),
+		OrderAmount:             float64(features[5]),
+		ItemsInOrder:            int(features[6]),
+		DiscountPercent:         float64(features[7]),
+		PaymentMethodRisk:       float64(features[8]),
+		AmountDeviation:         float64(features[9]),
+		OrdersLast30d:           int(features[10]),
+		ReturnRate30d:           float64(features[11]),
+		RefundVelocity30d:       int(features[12]),
+		DaysSinceLastReturn:     int(features[13]),
+		DaysSincePurchase:       int(features[14]),
+		HasReceipt:              int(features[15]),
+		ReceiptProvided:         int(features[16]),
+		TagsRemoved:             int(features[17]),
+		MissingComponents:       int(features[18]),
+		OrderHour:               int(features[19]),
+		HighValueFlag:           int(features[20]),
+		OrderTimeNight:          int(features[21]),
+		FastReturnFlag:          int(features[22]),
+		NewAccountFlag:          int(features[23]),
+		FirstOrderDiscountAbuse: int(features[24]),
+		IsElectronics:           int(features[25]),
+		IPVelocity24h:           int(features[26]),
+		IPVelocity7d:            int(features[27]),
+		AccountsPerIP:           int(features[28]),
+		AccountsPerPhone:        int(features[29]),
+		AccountsPerDevice:       int(features[30]),
+		DeviceIsEmulator:        int(features[31]),
+		DeviceTrustScore:        float64(features[32]),
+		IPTrustScore:            float64(features[33]),
+		AddressMatch:            int(features[34]),
+		DeviceNew:               int(features[35]),
+		PromoCodeUsed:           int(features[36]),
+		WeekendPurchase:         int(features[37]),
+		RefundVelocity7d:        int(features[38]),
+		SupportTicketCount30d:   int(features[39]),
+		ReviewCount30d:          int(features[40]),
+		NegativeReviewCluster:   int(features[41]),
+		ShippingRegionRisk:      float64(features[42]),
+		DistanceFromRegCity:     float64(features[43]),
+		CardBinCountryMismatch:  int(features[44]),
+		ChargebackHistory90d:    int(features[45]),
+		ThreatLanguageDetected:  int(features[46]),
+		LegalClaimThreat:        int(features[47]),
 	}
 
-	log.Printf("[DEBUG] 🚀 Features sent to ONNX:\n%s", featuresStr.String())
-
-	wd, _ := os.Getwd()
-	modelPath := filepath.Join(wd, "fraud_model_v3_27patterns.onnx")
-
-	pythonPath := "python3"
-	if _, err := exec.LookPath("python3"); err != nil {
-		pythonPath = "python"
-	}
-	scriptPath := filepath.Join(wd, "model.py")
-
-	cmd := exec.Command(pythonPath, scriptPath, "--predict", modelPath, featuresStr.String())
-	cmd.Dir = wd
-	output, err := cmd.CombinedOutput()
-
-	jsonStart := bytes.IndexByte(output, '{')
-	jsonEnd := bytes.LastIndexByte(output, '}')
-	if jsonStart == -1 || jsonEnd == -1 || jsonEnd <= jsonStart {
-		return 0, fmt.Errorf("нет JSON в выводе: %s", string(output))
-	}
-
-	jsonBytes := output[jsonStart : jsonEnd+1]
-
+	var resp FastAPIFraudPredictionResponse
+	err := callFastAPI("/api/predict-fraud", featuresStruct, &resp)
 	if err != nil {
-		log.Printf("[ERROR] Python: %s", string(jsonBytes))
-		return 0, fmt.Errorf("%s: %v", string(jsonBytes), err)
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(jsonBytes, &result); err != nil {
-		log.Printf("[ERROR] JSON: %v | output: %s", err, string(jsonBytes))
+		log.Printf("[ERROR] FastAPI predict error: %v", err)
 		return 0, err
 	}
 
-	if result["success"] == false {
-		log.Printf("[ERROR] Модель: %v", result["error"])
-		return 0, fmt.Errorf("%v", result["error"])
+	if !resp.Success {
+		return 0, fmt.Errorf("%s", resp.Error)
 	}
 
-	score, ok := result["score"].(float64)
-	if !ok {
-		return 0, fmt.Errorf("неверный формат score")
-	}
-
-	log.Printf("[INFO] ONNX prediction: %.4f", score)
-	return float32(score), nil
+	log.Printf("[INFO] ONNX prediction: %.4f", resp.Score)
+	return float32(resp.Score), nil
 }
 
 func parseInt(value string) int {
@@ -1793,36 +1899,23 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 }
 
 func callPythonModelForChat(message string) (string, error) {
-	wd, _ := os.Getwd()
-	pythonPath := "python3"
-	if _, err := exec.LookPath("python"); err == nil {
-		pythonPath = "python"
+	req := FastAPIChatRequest{
+		Message: message,
 	}
-	scriptPath := filepath.Join(wd, "model.py")
-	modelPath := filepath.Join(wd, "model.onnx")
+	var resp FastAPIChatResponse
 
-	cmd := exec.Command(pythonPath, scriptPath, "--chat", modelPath, message)
-	cmd.Dir = wd
-	cmd.Env = append(os.Environ(), "PYTHONIOENCODING=utf-8")
-
-	output, err := cmd.CombinedOutput()
+	err := callFastAPI("/api/chat", req, &resp)
 	if err != nil {
-		log.Printf("[ERROR] Python chat: %s", string(output))
-		return "model.onnx не ответил. Проверь консоль сервера.", nil
+		log.Printf("[ERROR] FastAPI chat error: %v", err)
+		return "Сервис чата временно недоступен. Попробуйте позже.", nil
 	}
 
-	jsonStart := bytes.IndexByte(output, '{')
-	jsonEnd := bytes.LastIndexByte(output, '}')
-	if jsonStart != -1 && jsonEnd != -1 && jsonEnd > jsonStart {
-		jsonBytes := output[jsonStart : jsonEnd+1]
-		var result map[string]interface{}
-		if err := json.Unmarshal(jsonBytes, &result); err == nil {
-			if response, ok := result["response"].(string); ok {
-				return response, nil
-			}
-		}
+	if resp.Error != "" {
+		log.Printf("[ERROR] Chat API error: %s", resp.Error)
 	}
-	return string(output), nil
+
+	return resp.Response, nil
+
 }
 
 // ============================================
@@ -1832,6 +1925,7 @@ func callPythonModelForChat(message string) (string, error) {
 func main() {
 	pythonModelLoaded = true
 
+	go startFastAPIService()
 	if err := initDatabase(); err != nil {
 		log.Printf("⚠️ Не удалось подключиться к БД: %v (работа продолжится без БД)", err)
 	}
@@ -1895,8 +1989,29 @@ func main() {
 
 	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
+	fmt.Printf("🐍 FastAPI сервис запущен на http://localhost:8000\n")
 
 	if err := http.ListenAndServe(port, nil); err != nil {
 		log.Fatal("❌ Ошибка запуска сервера:", err)
+	}
+}
+
+func startFastAPIService() {
+	wd, _ := os.Getwd()
+	pythonPath := "python3"
+	if _, err := exec.LookPath("python"); err == nil {
+		pythonPath = "python"
+	}
+	scriptPath := filepath.Join(wd, "fraud_api.py")
+
+	cmd := exec.Command(pythonPath, scriptPath)
+	cmd.Dir = wd
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	log.Printf("[INFO] Запуск FastAPI сервиса: %s %s", pythonPath, scriptPath)
+
+	if err := cmd.Run(); err != nil {
+		log.Printf("[ERROR] FastAPI сервис остановился: %v", err)
 	}
 }

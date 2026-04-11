@@ -1,0 +1,590 @@
+# =============================================================================
+# FRAUDRETURN SHIELD — FASTAPI SERVICE
+# Объединённый сервис: Fraud модель + Chat + Feature Pipeline
+# =============================================================================
+
+import sys
+import json
+import os
+import re
+from typing import Dict, List, Optional, Any
+from datetime import datetime, timedelta
+from contextlib import asynccontextmanager
+
+import pandas as pd
+import numpy as np
+import onnxruntime as ort
+from tokenizers import Tokenizer
+from rank_bm25 import BM25Okapi
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, Field
+
+
+# =============================================================================
+# 🔧 ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
+# =============================================================================
+
+# Fraud модель
+_fraud_session = None
+_fraud_input_name = None
+
+# Chat модель
+_chat_session = None
+_chat_tokenizer = None
+_chat_input_names = None
+
+# QA данные
+_qa_data = None
+_qa_embeddings = None
+_bm25_index = None
+_qa_question_tokens = None
+_qa_answer_tokens = None
+
+
+def _log(msg: str):
+    print(msg, file=sys.stderr)
+
+
+# =============================================================================
+# 📊 PYDANTIC МОДЕЛИ ДЛЯ API
+# =============================================================================
+
+class FraudFeatures(BaseModel):
+    """Признаки для fraud модели"""
+    # Из clients
+    account_age_days: int = 0
+    total_purchases: int = 0
+    total_returns: int = 0
+    customer_return_rate: float = 0.0
+    avg_order_amount: float = 0.0
+
+    # Из orders
+    order_amount: float = 0.0
+    items_in_order: int = 1
+    discount_percent: float = 0.0
+    payment_method_risk: float = 0.3
+    amount_deviation: float = 0.0
+    orders_last_30d: int = 0
+
+    # Из returns
+    return_rate_30d: float = 0.0
+    refund_velocity_30d: int = 0
+    days_since_last_return: int = 999
+    days_since_purchase: int = 0
+    has_receipt: int = 1
+    receipt_provided: int = 1
+    tags_removed: int = 0
+    missing_components: int = 0
+    return_channel: str = "online"
+
+    # Временные признаки
+    order_hour: int = 12
+
+    # Флаги
+    high_value_flag: int = 0
+    order_time_night: int = 0
+    fast_return_flag: int = 0
+    new_account_flag: int = 0
+    first_order_discount_abuse: int = 0
+
+    # Категории
+    category: str = "Электроника"
+    is_electronics: int = 1
+    claimed_reason: str = "Брак"
+
+    # IP/Device stats
+    ip_velocity_24h: int = 0
+    ip_velocity_7d: int = 0
+    accounts_per_ip: int = 1
+    accounts_per_phone: int = 1
+    accounts_per_device: int = 1
+    device_is_emulator: int = 0
+    device_trust_score: float = 0.85
+    ip_trust_score: float = 0.80
+
+    # Дополнительные
+    address_match: int = 1
+    device_new: int = 0
+    promo_code_used: int = 0
+    weekend_purchase: int = 0
+    refund_velocity_7d: int = 0
+    support_ticket_count_30d: int = 0
+    review_count_30d: int = 0
+    negative_review_cluster: int = 0
+    shipping_region_risk: float = 0.3
+    delivery_address_type: str = "home"
+    distance_from_registration_city: float = 0.0
+    card_bin_country_mismatch: int = 0
+    chargeback_history_90d: int = 0
+    threat_language_detected: int = 0
+    legal_claim_threat: int = 0
+
+
+class FraudPredictionResponse(BaseModel):
+    success: bool
+    score: Optional[float] = None
+    error: Optional[str] = None
+    risk_level: Optional[str] = None
+    recommendation: Optional[str] = None
+
+
+class ChatRequest(BaseModel):
+    message: str
+
+
+class ChatResponse(BaseModel):
+    response: str
+    error: Optional[str] = None
+
+
+class LoadModelRequest(BaseModel):
+    model_path: str
+    model_type: str = "fraud"  # "fraud" или "chat"
+
+
+class LoadModelResponse(BaseModel):
+    success: bool
+    error: Optional[str] = None
+
+
+# =============================================================================
+# 🛡️ FRAUD МОДЕЛЬ
+# =============================================================================
+
+def load_fraud_model(model_path: str) -> Dict[str, Any]:
+    global _fraud_session, _fraud_input_name
+    try:
+        if not os.path.exists(model_path):
+            return {'success': False, 'error': f'File not found: {model_path}'}
+        _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        _fraud_input_name = _fraud_session.get_inputs()[0].name
+        _log(f"[INFO] Fraud model loaded: {model_path}")
+        return {'success': True}
+    except Exception as e:
+        _log(f"[ERROR] Fraud load: {str(e)}")
+        return {'success': False, 'error': str(e)}
+
+
+def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
+    global _fraud_session, _fraud_input_name
+    if _fraud_session is None:
+        return FraudPredictionResponse(success=False, score=None, error='Model not loaded')
+
+    try:
+        # Преобразуем features в список float32
+        feature_list = [
+            float(features.account_age_days),
+            float(features.total_purchases),
+            float(features.total_returns),
+            float(features.customer_return_rate),
+            float(features.avg_order_amount),
+            float(features.order_amount),
+            float(features.items_in_order),
+            float(features.discount_percent),
+            float(features.payment_method_risk),
+            float(features.amount_deviation),
+            float(features.orders_last_30d),
+            float(features.return_rate_30d),
+            float(features.refund_velocity_30d),
+            float(features.days_since_last_return),
+            float(features.days_since_purchase),
+            float(features.has_receipt),
+            float(features.receipt_provided),
+            float(features.tags_removed),
+            float(features.missing_components),
+            float(features.order_hour),
+            float(features.high_value_flag),
+            float(features.order_time_night),
+            float(features.fast_return_flag),
+            float(features.new_account_flag),
+            float(features.first_order_discount_abuse),
+            float(features.is_electronics),
+            float(features.ip_velocity_24h),
+            float(features.ip_velocity_7d),
+            float(features.accounts_per_ip),
+            float(features.accounts_per_phone),
+            float(features.accounts_per_device),
+            float(features.device_is_emulator),
+            float(features.device_trust_score),
+            float(features.ip_trust_score),
+            float(features.address_match),
+            float(features.device_new),
+            float(features.promo_code_used),
+            float(features.weekend_purchase),
+            float(features.refund_velocity_7d),
+            float(features.support_ticket_count_30d),
+            float(features.review_count_30d),
+            float(features.negative_review_cluster),
+            float(features.shipping_region_risk),
+            float(features.distance_from_registration_city),
+            float(features.card_bin_country_mismatch),
+            float(features.chargeback_history_90d),
+            float(features.threat_language_detected),
+            float(features.legal_claim_threat),
+        ]
+
+        input_data = np.array(feature_list, dtype=np.float32).reshape(1, -1)
+        outputs = _fraud_session.run(None, {_fraud_input_name: input_data})
+
+        score = None
+        if len(outputs) >= 2:
+            prob_map = outputs[1][0]
+            if isinstance(prob_map, dict):
+                score = float(prob_map.get(1, prob_map.get('1', list(prob_map.values())[1])))
+            else:
+                score = float(prob_map[1]) if len(prob_map) > 1 else float(prob_map[0])
+        elif len(outputs) >= 1:
+            score = float(outputs[0][0][1]) if outputs[0].shape[-1] >= 2 else float(outputs[0][0][0])
+
+        final_score = max(0.0, min(1.0, score)) if score is not None else 0.0
+
+        # Определяем уровень риска и рекомендацию
+        if final_score >= 0.7:
+            risk_level = "HIGH"
+            recommendation = "Отклонить возврат. Высокий риск мошенничества."
+        elif final_score >= 0.4:
+            risk_level = "MEDIUM"
+            recommendation = "Требуется дополнительная проверка."
+        else:
+            risk_level = "LOW"
+            recommendation = "Одобрить возврат. Низкий риск."
+
+        return FraudPredictionResponse(
+            success=True,
+            score=final_score,
+            risk_level=risk_level,
+            recommendation=recommendation
+        )
+    except Exception as e:
+        _log(f"[ERROR] Fraud predict: {str(e)}")
+        return FraudPredictionResponse(success=False, score=None, error=str(e))
+
+
+# =============================================================================
+# 💬 CHAT: ГИБРИДНЫЙ ПОИСК ПО QA
+# =============================================================================
+
+def _preprocess_text(text: str) -> List[str]:
+    """Простая токенизация: оставляем буквы и цифры, нижний регистр"""
+    return re.findall(r'[\wа-яё]+', text.lower())
+
+
+def _init_chat_model(model_path: str, tokenizer_dir: Optional[str] = None) -> bool:
+    global _chat_session, _chat_tokenizer, _chat_input_names
+    try:
+        tok_dir = tokenizer_dir or os.path.dirname(model_path)
+        tok_path = os.path.join(tok_dir, 'tokenizer.json')
+
+        if not os.path.exists(tok_path):
+            if os.path.exists('tokenizer.json'):
+                tok_path = 'tokenizer.json'
+            else:
+                raise FileNotFoundError(f"Tokenizer not found at: {tok_path} or current dir")
+
+        _chat_tokenizer = Tokenizer.from_file(tok_path)
+        pad_id = _chat_tokenizer.token_to_id('[PAD]') or 0
+        _chat_tokenizer.enable_padding(pad_id=pad_id)
+        _chat_tokenizer.enable_truncation(max_length=128)
+
+        _chat_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+        _chat_input_names = [i.name for i in _chat_session.get_inputs()]
+        _log(f"[CHAT] Model ready. Inputs: {_chat_input_names}")
+        return True
+    except Exception as e:
+        _log(f"[ERROR] Chat init: {e}")
+        return False
+
+
+def _get_embedding(text: str) -> np.ndarray:
+    global _chat_tokenizer, _chat_session, _chat_input_names
+
+    if _chat_tokenizer is None or _chat_session is None:
+        raise RuntimeError("Chat model not initialized")
+
+    encoded = _chat_tokenizer.encode(text)
+    input_ids = np.array([encoded.ids], dtype=np.int64)
+    attention_mask = np.array([encoded.attention_mask], dtype=np.int64)
+
+    model_inputs = {
+        _chat_input_names[0]: input_ids,
+        'attention_mask': attention_mask,
+    }
+
+    if 'token_type_ids' in _chat_input_names:
+        token_type_ids = np.zeros_like(input_ids, dtype=np.int64)
+        model_inputs['token_type_ids'] = token_type_ids
+
+    outputs = _chat_session.run(None, model_inputs)
+    last_hidden = outputs[0][0]
+
+    mask = np.array(encoded.attention_mask)[:, None].astype(np.float32)
+    sum_embeddings = np.sum(last_hidden * mask, axis=0)
+    count_embeddings = np.sum(mask) + 1e-9
+    pooled = sum_embeddings / count_embeddings
+
+    norm = np.linalg.norm(pooled)
+    if norm > 0:
+        pooled = pooled / norm
+
+    return pooled
+
+
+def _load_qa_data(qa_path: str) -> bool:
+    global _qa_data, _qa_embeddings, _bm25_index, _qa_question_tokens, _qa_answer_tokens
+
+    try:
+        with open(qa_path, 'r', encoding='utf-8') as f:
+            _qa_data = json.load(f)
+
+        if not _qa_data:
+            raise ValueError("QA file is empty")
+
+        questions = []
+        answers = []
+
+        for item in _qa_data:
+            questions.append(item.get('question', ''))
+            answers.append(item.get('answer', ''))
+
+        _log("[QA] Computing embeddings...")
+        if _chat_session is not None:
+            try:
+                _qa_embeddings = np.array([_get_embedding(a) for a in answers])
+            except Exception as e:
+                _log(f"[WARN] Embedding computation failed: {e}. Falling back to BM25 only.")
+                _qa_embeddings = None
+        else:
+            _qa_embeddings = None
+
+        def tokenize(t: str) -> List[str]:
+            return _preprocess_text(t)
+
+        _qa_question_tokens = [tokenize(q) for q in questions]
+        _qa_answer_tokens = [tokenize(a) for a in answers]
+
+        combined_corpus = []
+        for i in range(len(_qa_data)):
+            combined_tokens = _qa_question_tokens[i] + _qa_answer_tokens[i]
+            combined_corpus.append(combined_tokens)
+
+        _bm25_index = BM25Okapi(combined_corpus)
+
+        _log(f"[QA] Loaded {len(_qa_data)} Q&A pairs (BM25 index built on Q+A)")
+        return True
+    except Exception as e:
+        _log(f"[ERROR] QA load: {e}")
+        return False
+
+
+def _chat_fallback(message: str) -> str:
+    msg_lower = message.lower().strip()
+    if any(w in msg_lower for w in ['привет', 'здравствуй']):
+        return "Привет! Я AI-помощник FraudReturn Shield. Чем могу помочь?"
+    elif any(w in msg_lower for w in ['риск', 'мошенничество', '100%']):
+        return "⚠️ Высокий риск: новый аккаунт, нет чека, быстрый возврат, сумма >30к ₽."
+    elif any(w in msg_lower for w in ['штраф', 'накладная', 'приемка', 'возврат']):
+        return "Я могу найти ответ в базе знаний. Попробуйте спросить конкретнее, например: 'Как формируется накладная?'"
+    return "Я специализируюсь на оценке риска возвратов и документации. Спросите о факторах риска или процедурах."
+
+
+def _hybrid_search(query: str, top_k: int = 5) -> str:
+    """Гибридный поиск: Семантика + BM25 + Эвристика намерений"""
+    global _qa_data, _qa_embeddings, _bm25_index, _qa_question_tokens
+
+    if not _qa_data:
+        return _chat_fallback(query)
+
+    query_tokens = _preprocess_text(query)
+    if not query_tokens:
+        return "Пожалуйста, задайте вопрос словами."
+
+    semantic_scores = np.zeros(len(_qa_data))
+    use_semantic = False
+
+    if _chat_session is not None and _qa_embeddings is not None:
+        try:
+            query_emb = _get_embedding(query)
+            semantic_scores = np.dot(_qa_embeddings, query_emb)
+            use_semantic = True
+        except Exception as e:
+            _log(f"[SEARCH] Semantic search error: {e}")
+
+    bm25_scores = _bm25_index.get_scores(query_tokens)
+
+    final_scores = np.zeros(len(_qa_data))
+
+    if use_semantic:
+        max_bm25 = np.max(bm25_scores) if np.max(bm25_scores) > 0 else 1.0
+        norm_bm25 = bm25_scores / (max_bm25 + 1e-6)
+        final_scores = 0.6 * semantic_scores + 0.4 * norm_bm25
+    else:
+        final_scores = bm25_scores
+
+    top_indices = final_scores.argsort()[-top_k:][::-1]
+
+    _log(f"[SEARCH] 🔍 Query: '{query}'")
+    for i, idx in enumerate(top_indices):
+        q_text = _qa_data[idx].get('question', '')[:60]
+        s_score = semantic_scores[idx] if use_semantic else 0.0
+        b_score = bm25_scores[idx]
+        _log(f"[SEARCH] Top-{i+1}: sem={s_score:.3f}, bm25={b_score:.3f} | Q: {q_text}...")
+
+    SEMANTIC_THRESHOLD = 0.65
+    BM25_THRESHOLD = 5.0
+
+    best_candidate = None
+    best_score = -1.0
+
+    for idx in top_indices:
+        score = final_scores[idx]
+        sem_val = semantic_scores[idx] if use_semantic else 0.0
+        bm25_val = bm25_scores[idx]
+
+        candidate_quality = 0.0
+
+        if sem_val >= SEMANTIC_THRESHOLD:
+            candidate_quality = sem_val + 0.1
+        elif bm25_val >= BM25_THRESHOLD:
+            candidate_quality = 0.5 + (bm25_val / 20.0)
+        elif sem_val >= 0.4 and bm25_val >= 2.0:
+            candidate_quality = sem_val * 0.7 + (bm25_val / 20.0) * 0.3
+
+        if candidate_quality > best_score:
+            best_score = candidate_quality
+            best_candidate = _qa_data[idx].get('answer', '')
+
+    if best_candidate and best_score > 0.4:
+        return best_candidate
+
+    if len(top_indices) > 0 and bm25_scores[top_indices[0]] >= 3.0:
+        idx = top_indices[0]
+        _log(f"[SEARCH] ⚠️ Using weak BM25 match")
+        return _qa_data[idx].get('answer', '')
+
+    _log(f"[SEARCH] ❌ No good match found (best_score={best_score:.3f})")
+    return "🤷‍♂️ Не нашёл точного ответа. Попробуйте переформулировать вопрос, используя ключевые слова из документации (например: 'штраф', 'накладная', 'акт')."
+
+
+def chat_query(message: str, qa_path: Optional[str] = None, model_path: Optional[str] = None) -> str:
+    """Основной метод для чата"""
+    global _chat_session, _qa_data
+
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+
+    if model_path and _chat_session is None:
+        _init_chat_model(model_path)
+
+    if _qa_data is None:
+        if qa_path is None:
+            qa_path = os.path.join(script_dir, 'qa.json')
+            if not os.path.exists(qa_path):
+                qa_path = 'qa.json'
+
+        if os.path.exists(qa_path):
+            _load_qa_data(qa_path)
+
+    if _qa_data is None:
+        return _chat_fallback(message)
+
+    try:
+        response = _hybrid_search(message)
+        return response
+    except Exception as e:
+        _log(f"[ERROR] Search failed: {e}")
+        import traceback
+        traceback.print_exc(file=sys.stderr)
+        return _chat_fallback(message)
+
+
+# =============================================================================
+# 🚀 FASTAPI ПРИЛОЖЕНИЕ
+# =============================================================================
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Startup/Shutdown события"""
+    # Startup
+    _log("[INFO] Starting FraudReturn Shield API...")
+    yield
+    # Shutdown
+    _log("[INFO] Shutting down FraudReturn Shield API...")
+
+
+app = FastAPI(
+    title="FraudReturn Shield API",
+    description="API для оценки риска мошеннических возвратов и чат-помощник",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+# CORS middleware
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/")
+async def root():
+    return {
+        "service": "FraudReturn Shield API",
+        "status": "running",
+        "endpoints": {
+            "health": "/health",
+            "load_model": "/api/load-model",
+            "predict_fraud": "/api/predict-fraud",
+            "chat": "/api/chat"
+        }
+    }
+
+
+@app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "fraud_model_loaded": _fraud_session is not None,
+        "chat_model_loaded": _chat_session is not None,
+        "qa_data_loaded": _qa_data is not None
+    }
+
+
+@app.post("/api/load-model", response_model=LoadModelResponse)
+async def api_load_model(request: LoadModelRequest):
+    """Загрузка модели (fraud или chat)"""
+    if request.model_type == "fraud":
+        result = load_fraud_model(request.model_path)
+        return LoadModelResponse(success=result['success'], error=result.get('error'))
+    elif request.model_type == "chat":
+        success = _init_chat_model(request.model_path)
+        return LoadModelResponse(success=success, error=None if success else "Failed to initialize chat model")
+    else:
+        return LoadModelResponse(success=False, error=f"Unknown model type: {request.model_type}")
+
+
+@app.post("/api/predict-fraud", response_model=FraudPredictionResponse)
+async def api_predict_fraud(features: FraudFeatures):
+    """Предсказание риска мошенничества"""
+    return predict_fraud(features)
+
+
+@app.post("/api/chat", response_model=ChatResponse)
+async def api_chat(request: ChatRequest):
+    """Чат с AI-помощником"""
+    if not request.message.strip():
+        return ChatResponse(response="Пожалуйста, задайте вопрос.", error=None)
+
+    response = chat_query(request.message)
+    return ChatResponse(response=response, error=None)
+
+
+# =============================================================================
+# ЗАПУСК
+# =============================================================================
+
+if __name__ == "__main__":
+    import uvicorn
+    uvicorn.run(app, host="0.0.0.0", port=8000)
