@@ -4,6 +4,7 @@
 # =============================================================================
 
 import sys
+import asyncio
 import json
 import os
 import re
@@ -19,11 +20,14 @@ from rank_bm25 import BM25Okapi
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
+from concurrent.futures import ThreadPoolExecutor
 
 
 # =============================================================================
 # 🔧 ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 # =============================================================================
+
+_executor = ThreadPoolExecutor(max_workers=4)
 
 # Fraud модель
 _fraud_session = None
@@ -166,6 +170,11 @@ def load_fraud_model(model_path: str) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 
+async def load_fraud_model_async(model_path: str) -> Dict[str, Any]:
+    """Асинхронная загрузка fraud модели"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, load_fraud_model, model_path)
+
 def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
     global _fraud_session, _fraud_input_name
     if _fraud_session is None:
@@ -259,6 +268,12 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
     except Exception as e:
         _log(f"[ERROR] Fraud predict: {str(e)}")
         return FraudPredictionResponse(success=False, score=None, error=str(e))
+
+
+async def predict_fraud_async(features: FraudFeatures) -> FraudPredictionResponse:
+    """Асинхронное предсказание fraud модели"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, predict_fraud, features)
 
 
 # =============================================================================
@@ -497,6 +512,12 @@ def chat_query(message: str, qa_path: Optional[str] = None, model_path: Optional
         return _chat_fallback(message)
 
 
+
+async def chat_query_async(message: str, qa_path: Optional[str] = None, model_path: Optional[str] = None) -> str:
+    """Асинхронный метод для чата"""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(_executor, chat_query, message, qa_path, model_path)
+
 # =============================================================================
 # 🚀 FASTAPI ПРИЛОЖЕНИЕ
 # =============================================================================
@@ -567,8 +588,8 @@ async def api_load_model(request: LoadModelRequest):
 
 @app.post("/api/predict-fraud", response_model=FraudPredictionResponse)
 async def api_predict_fraud(features: FraudFeatures):
-    """Предсказание риска мошенничества"""
-    return predict_fraud(features)
+    """Предсказание риска мошенничества (асинхронно)"""
+    return await predict_fraud_async(features)
 
 
 @app.post("/api/chat", response_model=ChatResponse)
@@ -577,7 +598,7 @@ async def api_chat(request: ChatRequest):
     if not request.message.strip():
         return ChatResponse(response="Пожалуйста, задайте вопрос.", error=None)
 
-    response = chat_query(request.message)
+    response = await chat_query_async(request.message)
     return ChatResponse(response=response, error=None)
 
 

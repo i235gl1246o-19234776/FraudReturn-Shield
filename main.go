@@ -1427,7 +1427,7 @@ func getRiskLevel(score float32) (string, string, string) {
 }
 
 func prepareFeatures(f FormData) []float32 {
-	features := make([]float32, 42)
+	features := make([]float32, 48)
 
 	// 0-4: Основные (НОРМАЛИЗОВАННЫЕ как в обучении!)
 	features[0] = float32(f.AccountAgeDays) / 730.0
@@ -1501,6 +1501,13 @@ func prepareFeatures(f FormData) []float32 {
 	features[39] = b2f(f.NegativeReviewCluster)
 	features[40] = b2f(f.ThreatLanguageDetected)
 	features[41] = b2f(f.LegalClaimThreat)
+
+	features[42] = float32(f.ShippingRegionRisk)
+	features[43] = float32(f.DistanceFromRegistration) / 2000.0
+	features[44] = b2f(f.CardBinCountryMismatch)
+	features[45] = b2f(f.ChargebackHistory90d)
+	features[46] = b2f(f.ThreatLanguageDetected)
+	features[47] = b2f(f.LegalClaimThreat)
 
 	return features
 }
