@@ -163,7 +163,7 @@ def load_fraud_model(model_path: str) -> Dict[str, Any]:
             return {'success': False, 'error': f'File not found: {model_path}'}
         _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
         _fraud_input_name = _fraud_session.get_inputs()[0].name
-        _log(f"[INFO] Fraud model loaded: {model_path}")
+        _log(f"[INFO] Fraud models loaded: {model_path}")
         return {'success': True}
     except Exception as e:
         _log(f"[ERROR] Fraud load: {str(e)}")
@@ -292,8 +292,8 @@ def _init_chat_model(model_path: str, tokenizer_dir: Optional[str] = None) -> bo
         tok_path = os.path.join(tok_dir, 'tokenizer.json')
 
         if not os.path.exists(tok_path):
-            if os.path.exists('tokenizer.json'):
-                tok_path = 'tokenizer.json'
+            if os.path.exists('models/tokenizer.json'):
+                tok_path = 'models/tokenizer.json'
             else:
                 raise FileNotFoundError(f"Tokenizer not found at: {tok_path} or current dir")
 
@@ -315,7 +315,7 @@ def _get_embedding(text: str) -> np.ndarray:
     global _chat_tokenizer, _chat_session, _chat_input_names
 
     if _chat_tokenizer is None or _chat_session is None:
-        raise RuntimeError("Chat model not initialized")
+        raise RuntimeError("Chat models not initialized")
 
     encoded = _chat_tokenizer.encode(text)
     input_ids = np.array([encoded.ids], dtype=np.int64)
@@ -556,7 +556,7 @@ async def root():
         "status": "running",
         "endpoints": {
             "health": "/health",
-            "load_model": "/api/load-model",
+            "load_model": "/api/load-models",
             "predict_fraud": "/api/predict-fraud",
             "chat": "/api/chat"
         }
@@ -573,7 +573,7 @@ async def health_check():
     }
 
 
-@app.post("/api/load-model", response_model=LoadModelResponse)
+@app.post("/api/load-models", response_model=LoadModelResponse)
 async def api_load_model(request: LoadModelRequest):
     """Загрузка модели (fraud или chat)"""
     if request.model_type == "fraud":
@@ -581,9 +581,9 @@ async def api_load_model(request: LoadModelRequest):
         return LoadModelResponse(success=result['success'], error=result.get('error'))
     elif request.model_type == "chat":
         success = _init_chat_model(request.model_path)
-        return LoadModelResponse(success=success, error=None if success else "Failed to initialize chat model")
+        return LoadModelResponse(success=success, error=None if success else "Failed to initialize chat models")
     else:
-        return LoadModelResponse(success=False, error=f"Unknown model type: {request.model_type}")
+        return LoadModelResponse(success=False, error=f"Unknown models type: {request.model_type}")
 
 
 @app.post("/api/predict-fraud", response_model=FraudPredictionResponse)

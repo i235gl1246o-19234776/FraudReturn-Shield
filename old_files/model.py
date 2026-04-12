@@ -36,7 +36,7 @@ def load_fraud_model(model_path):
             return {'success': False, 'error': f'File not found: {model_path}'}
         _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
         _fraud_input_name = _fraud_session.get_inputs()[0].name
-        _log(f"[INFO] Fraud model loaded: {model_path}")
+        _log(f"[INFO] Fraud models loaded: {model_path}")
         return {'success': True}
     except Exception as e:
         _log(f"[ERROR] Fraud load: {str(e)}")
@@ -79,8 +79,8 @@ def _init_chat_model(model_path, tokenizer_dir=None):
         
         if not os.path.exists(tok_path):
             # Пробуем найти tokenizer.json рядом с запускаемым скриптом, если не нашли рядом с моделью
-            if os.path.exists('tokenizer.json'):
-                tok_path = 'tokenizer.json'
+            if os.path.exists('../models/tokenizer.json'):
+                tok_path = '../models/tokenizer.json'
             else:
                 raise FileNotFoundError(f"Tokenizer not found at: {tok_path} or current dir")
         
@@ -100,7 +100,7 @@ def _get_embedding(text: str) -> np.ndarray:
     global _chat_tokenizer, _chat_session, _chat_input_names
     
     if _chat_tokenizer is None or _chat_session is None:
-        raise RuntimeError("Chat model not initialized")
+        raise RuntimeError("Chat models not initialized")
     
     encoded = _chat_tokenizer.encode(text)
     input_ids = np.array([encoded.ids], dtype=np.int64)
@@ -337,19 +337,19 @@ if __name__ == '__main__':
             arg3 = sys.argv[3]
             
             if arg2.endswith('.json'):
-                # Формат: --chat qa.json "вопрос" model.onnx
+                # Формат: --chat qa.json "вопрос" Bert.onnx
                 qa_path = arg2
                 message = arg3
-                model_path = sys.argv[4] if len(sys.argv) > 4 else 'model.onnx'
+                model_path = sys.argv[4] if len(sys.argv) > 4 else 'Bert.onnx'
             else:
-                # Формат: --chat model.onnx "вопрос" (qa.json ищем рядом)
+                # Формат: --chat Bert.onnx "вопрос" (qa.json ищем рядом)
                 model_path = arg2
                 message = arg3
                 # Ищем qa.json в той же папке, где лежит скрипт, или в текущей рабочей
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 qa_path = os.path.join(script_dir, 'qa.json')
                 if not os.path.exists(qa_path):
-                    qa_path = 'qa.json'
+                    qa_path = '../qa.json'
             
             if not message.strip():
                 print(json.dumps({'response': 'Пожалуйста, задайте вопрос.'}))
@@ -363,7 +363,7 @@ if __name__ == '__main__':
             if _chat_session is None:
                 if not _init_chat_model(model_path):
                     # Если модель не загрузилась (нет файла, нет токенизатора), работаем в режиме BM25-only
-                    _log("[WARN] Neural model unavailable. Running in BM25-only mode.")
+                    _log("[WARN] Neural models unavailable. Running in BM25-only mode.")
             
             # Загрузка QA базы (если еще не загружена)
             if _qa_data is None:
