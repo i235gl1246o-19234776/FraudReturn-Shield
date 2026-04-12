@@ -125,10 +125,56 @@ type UserCard struct {
 	Status           string  `json:"status"`
 }
 
+type User struct {
+	ID       int    `json:"id"`
+	Login    string `json:"login"`
+	Password string `json:"-"`    // Не передаётся в JSON
+	Role     string `json:"role"` // "admin" или "client"
+}
+
 // Глобальные переменные
 var (
 	pythonModelLoaded bool = false
 	db                *sql.DB
+
+	// Заглушка для таблицы пользователей (демо-данные)
+	demoUsers = []User{
+		{ID: 1, Login: "admin", Password: "admin123", Role: "admin"},
+		{ID: 2, Login: "user1", Password: "pass123", Role: "client"},
+		{ID: 3, Login: "user2", Password: "pass123", Role: "client"},
+		{ID: 4, Login: "user3", Password: "pass123", Role: "client"},
+		{ID: 5, Login: "user4", Password: "pass123", Role: "client"},
+		{ID: 6, Login: "user5", Password: "pass123", Role: "client"},
+		{ID: 7, Login: "user6", Password: "pass123", Role: "client"},
+		{ID: 8, Login: "user7", Password: "pass123", Role: "client"},
+		{ID: 9, Login: "user8", Password: "pass123", Role: "client"},
+		{ID: 10, Login: "user9", Password: "pass123", Role: "client"},
+	}
+
+	// Заглушка для заказов клиентов
+	demoOrders = map[int][]map[string]interface{}{
+		2: { // user1
+			{"id": 1001, "date": "2026-01-15", "amount": 5990, "status": "completed", "items": 2},
+			{"id": 1002, "date": "2026-01-18", "amount": 12500, "status": "pending", "items": 1},
+		},
+		3: { // user2
+			{"id": 1003, "date": "2026-01-20", "amount": 3200, "status": "returned", "items": 3},
+			{"id": 1004, "date": "2026-01-22", "amount": 8900, "status": "processing", "items": 1},
+		},
+		4: { // user3
+			{"id": 1005, "date": "2026-01-10", "amount": 15000, "status": "completed", "items": 2},
+		},
+	}
+
+	// Заглушка для возвратов
+	demoReturns = map[int][]map[string]interface{}{
+		3: { // user2
+			{"id": 501, "order_id": 1003, "date": "2026-01-21", "status": "completed", "reason": "Брак товара"},
+		},
+		4: { // user3
+			{"id": 502, "order_id": 1005, "date": "2026-01-23", "status": "processing", "reason": "Не тот товар"},
+		},
+	}
 )
 
 func initDatabase() error {
@@ -934,6 +980,30 @@ func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 // ============================================
 // 📄 ОБРАБОТЧИКИ СТРАНИЦ
 // ============================================
+
+func loginPage(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/login.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
+
+func clientProfileHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/client_profile.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
@@ -1925,6 +1995,115 @@ func callPythonModelForChat(message string) (string, error) {
 
 }
 
+func apiLogin(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	var req struct {
+		Login    string `json:"login"`
+		Password string `json:"password"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request body"})
+		return
+	}
+
+	// Поиск пользователя в заглушке
+	var foundUser *User
+	for i := range demoUsers {
+		if demoUsers[i].Login == req.Login && demoUsers[i].Password == req.Password {
+			foundUser = &demoUsers[i]
+			break
+		}
+	}
+
+	if foundUser == nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Неверный логин или пароль"})
+		return
+	}
+
+	// Успешный вход
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"user": map[string]interface{}{
+			"id":    foundUser.ID,
+			"login": foundUser.Login,
+			"role":  foundUser.Role,
+		},
+	})
+}
+
+// apiGetClientOrders — получение заказов клиента
+func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Получаем ID клиента из query параметра или из сессии
+	clientIDStr := r.URL.Query().Get("client_id")
+	if clientIDStr == "" {
+		// Пытаемся получить из sessionStorage через JS (заглушка)
+		clientIDStr = "2" // По умолчанию user1
+	}
+
+	clientID, err := strconv.Atoi(clientIDStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid client ID"})
+		return
+	}
+
+	orders, exists := demoOrders[clientID]
+	if !exists {
+		orders = []map[string]interface{}{}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"orders": orders,
+	})
+}
+
+// apiGetClientReturns — получение возвратов клиента
+func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	clientIDStr := r.URL.Query().Get("client_id")
+	if clientIDStr == "" {
+		clientIDStr = "2"
+	}
+
+	clientID, err := strconv.Atoi(clientIDStr)
+	if err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid client ID"})
+		return
+	}
+
+	returns, exists := demoReturns[clientID]
+	if !exists {
+		returns = []map[string]interface{}{}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"returns": returns,
+	})
+}
+
 // ============================================
 // 🚀 ОСНОВНОЙ СЕРВЕР
 // ============================================
@@ -1993,6 +2172,8 @@ func main() {
 	})
 
 	// Страницы
+	http.HandleFunc("/login", loginPage)
+	http.HandleFunc("/client/profile", clientProfileHandler)
 	http.HandleFunc("/", homePage)
 	http.HandleFunc("/check", checkHandler)
 	http.HandleFunc("/settings", settingsPage)
@@ -2000,6 +2181,9 @@ func main() {
 	http.HandleFunc("/users", usersPage)
 
 	// API endpoints
+	http.HandleFunc("/api/login", apiLogin)
+	http.HandleFunc("/api/client/orders", apiGetClientOrders)
+	http.HandleFunc("/api/client/returns", apiGetClientReturns)
 	http.HandleFunc("/api/client/", apiGetClient)
 	http.HandleFunc("/api/order/", apiGetOrder)
 	http.HandleFunc("/api/orders/", apiGetOrders)
@@ -2020,9 +2204,11 @@ func main() {
 
 func startFastAPIService() {
 	wd, _ := os.Getwd()
-	pythonPath := "python3"
+	pythonPath := "python3]"
 	if _, err := exec.LookPath("python"); err == nil {
 		pythonPath = "python"
+	} else if _, err := exec.LookPath("py"); err == nil {
+		pythonPath = "py"
 	}
 	scriptPath := filepath.Join(wd, "api.py")
 

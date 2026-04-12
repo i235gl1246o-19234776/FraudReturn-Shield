@@ -1,0 +1,652 @@
+--- templates/client_profile.html (原始)
+
+
++++ templates/client_profile.html (修改后)
+<!-- client_profile.html - Страница профиля клиента -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudReturn Shield — Профиль клиента</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/chat-widget.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .client-nav {
+            background: white;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .client-nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .client-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+        }
+
+        .client-nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            transition: var(--transition-fast);
+        }
+
+        .client-nav-links a:hover,
+        .client-nav-links a.active {
+            color: var(--wb-purple);
+            background: var(--gray-100);
+        }
+
+        .client-nav-links a.active {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .profile-header {
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            padding: 60px 0;
+            text-align: center;
+            color: white;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 20px;
+            font-size: 2.5rem;
+            font-weight: 800;
+            color: var(--wb-purple);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .profile-name {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .profile-id {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin: 30px 0;
+            border-bottom: 2px solid var(--gray-200);
+            padding-bottom: 10px;
+        }
+
+        .tab-btn {
+            padding: 12px 24px;
+            border: none;
+            background: var(--gray-100);
+            color: var(--gray-600);
+            font-weight: 600;
+            border-radius: var(--radius-lg);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .tab-btn:hover {
+            background: var(--gray-200);
+        }
+
+        .tab-btn.active {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        .order-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--wb-purple);
+            transition: var(--transition);
+        }
+
+        .order-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .order-id {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--gray-800);
+        }
+
+        .order-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .order-status.completed {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .order-status.pending {
+            background: var(--warning-bg);
+            color: var(--warning);
+        }
+
+        .order-status.returned {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .order-status.processing {
+            background: #e0e7ff;
+            color: var(--wb-purple);
+        }
+
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .order-detail-item {
+            background: var(--gray-50);
+            padding: 12px;
+            border-radius: var(--radius);
+        }
+
+        .order-detail-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 5px;
+        }
+
+        .order-detail-value {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .return-section {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 30px;
+            margin-top: 30px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .return-form {
+            max-width: 600px;
+        }
+
+        .return-status-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--warning);
+        }
+
+        .status-timeline {
+            margin-top: 20px;
+            padding-left: 20px;
+            border-left: 3px solid var(--gray-200);
+        }
+
+        .status-step {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-step::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 0;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--gray-300);
+        }
+
+        .status-step.completed::before {
+            background: var(--success);
+        }
+
+        .status-step.current::before {
+            background: var(--warning);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .chat-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(127, 48, 227, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            z-index: 999;
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-toggle svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: var(--wb-purple);
+            border: 2px solid var(--wb-purple);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .search-order-form {
+            background: white;
+            padding: 25px;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            margin-bottom: 30px;
+        }
+
+        .search-order-form h3 {
+            margin-bottom: 15px;
+            color: var(--gray-700);
+        }
+
+        .search-input-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .search-input-group input {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
+            font-size: 1rem;
+        }
+
+        .search-input-group input:focus {
+            outline: none;
+            border-color: var(--wb-purple);
+        }
+
+        .search-input-group button {
+            padding: 12px 24px;
+            background: var(--wb-purple);
+            color: white;
+            border: none;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .search-input-group button:hover {
+            background: var(--wb-dark);
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="client-nav">
+        <div class="container">
+            <a href="/client/profile" class="nav-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                FraudReturn Shield
+            </a>
+            <ul class="client-nav-links">
+                <li><a href="/client/profile" class="active">Профиль</a></li>
+                <li><a href="/client/orders">Заказы</a></li>
+                <li><a href="/client/returns">Возвраты</a></li>
+                <li><a href="/client/chat">Чат с AI</a></li>
+            </ul>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+    </nav>
+
+    <!-- Заголовок профиля -->
+    <section class="profile-header">
+        <div class="container">
+            <div class="profile-avatar" id="userAvatar">U</div>
+            <h1 class="profile-name" id="userName">Пользователь</h1>
+            <p class="profile-id" id="userId">ID: --</p>
+        </div>
+    </section>
+
+    <!-- Основной контент -->
+    <div class="container">
+        <!-- Вкладки -->
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('orders')">Мои заказы</button>
+            <button class="tab-btn" onclick="switchTab('returns')">Возвраты</button>
+            <button class="tab-btn" onclick="switchTab('search')">Поиск заказа</button>
+        </div>
+
+        <!-- Вкладка заказов -->
+        <div id="orders-tab" class="tab-content active">
+            <div id="orders-list">
+                <!-- Заказы будут загружены через JS -->
+            </div>
+        </div>
+
+        <!-- Вкладка возвратов -->
+        <div id="returns-tab" class="tab-content">
+            <div class="return-section">
+                <h2 style="margin-bottom: 20px;">Оформить возврат</h2>
+                <form class="return-form" id="returnForm">
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="returnOrderId">ID заказа</label>
+                        <input type="text" id="returnOrderId" placeholder="Введите ID заказа" required>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="returnReason">Причина возврата</label>
+                        <select id="returnReason" required>
+                            <option value="">Выберите причину</option>
+                            <option value="defect">Брак товара</option>
+                            <option value="wrong_item">Не тот товар</option>
+                            <option value="not_needed">Передумал</option>
+                            <option value="late_delivery">Долгая доставка</option>
+                            <option value="other">Другое</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 20px;">
+                        <label for="returnComment">Комментарий</label>
+                        <textarea id="returnComment" rows="4" placeholder="Опишите подробнее..." style="width: 100%; padding: 12px; border: 2px solid var(--gray-200); border-radius: 8px; font-family: inherit;"></textarea>
+                    </div>
+                    <button type="submit" class="btn btn-primary">Оформить возврат</button>
+                </form>
+            </div>
+
+            <div id="returns-list" style="margin-top: 30px;">
+                <h2 style="margin-bottom: 20px;">История возвратов</h2>
+                <!-- Возвраты будут загружены через JS -->
+            </div>
+        </div>
+
+        <!-- Вкладка поиска -->
+        <div id="search-tab" class="tab-content">
+            <div class="search-order-form">
+                <h3>🔍 Поиск заказа по ID</h3>
+                <div class="search-input-group">
+                    <input type="text" id="searchOrderId" placeholder="Введите ID заказа">
+                    <button onclick="searchOrder()">Найти</button>
+                </div>
+            </div>
+            <div id="search-result">
+                <!-- Результат поиска -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Кнопка чата -->
+    <button class="chat-toggle" onclick="toggleChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <script>
+        let currentUser = null;
+
+        // Загрузка данных пользователя при инициализации
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedUser = sessionStorage.getItem('user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                loadUserProfile();
+                loadOrders();
+                loadReturns();
+            } else {
+                window.location.href = '/login';
+            }
+        });
+
+        function loadUserProfile() {
+            if (currentUser) {
+                document.getElementById('userName').textContent = currentUser.login || 'Пользователь';
+                document.getElementById('userId').textContent = `ID: ${currentUser.id}`;
+                document.getElementById('userAvatar').textContent = (currentUser.login || 'U')[0].toUpperCase();
+            }
+        }
+
+        function loadOrders() {
+            // Заглушка для заказов
+            const ordersList = document.getElementById('orders-list');
+            const demoOrders = [
+                { id: 1001, date: '2026-01-15', amount: 5990, status: 'completed', items: 2 },
+                { id: 1002, date: '2026-01-18', amount: 12500, status: 'pending', items: 1 },
+                { id: 1003, date: '2026-01-20', amount: 3200, status: 'returned', items: 3 },
+                { id: 1004, date: '2026-01-22', amount: 8900, status: 'processing', items: 1 },
+            ];
+
+            if (demoOrders.length === 0) {
+                ordersList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет заказов</p>';
+                return;
+            }
+
+            ordersList.innerHTML = demoOrders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <span class="order-id">Заказ #${order.id}</span>
+                        <span class="order-status ${order.status}">${getStatusText(order.status)}</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Дата заказа</div>
+                            <div class="order-detail-value">${order.date}</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Сумма</div>
+                            <div class="order-detail-value">${order.amount.toLocaleString()} ₽</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Товаров</div>
+                            <div class="order-detail-value">${order.items} шт.</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function loadReturns() {
+            // Заглушка для возвратов
+            const returnsList = document.getElementById('returns-list');
+            const demoReturns = [
+                { id: 501, orderId: 1003, date: '2026-01-21', status: 'completed', reason: 'Брак товара' },
+                { id: 502, orderId: 1005, date: '2026-01-23', status: 'processing', reason: 'Не тот товар' },
+            ];
+
+            if (demoReturns.length === 0) {
+                returnsList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет возвратов</p>';
+                return;
+            }
+
+            returnsList.innerHTML = demoReturns.map(ret => `
+                <div class="return-status-card">
+                    <div class="order-header">
+                        <span class="order-id">Возврат #${ret.id} (Заказ #${ret.orderId})</span>
+                        <span class="order-status ${ret.status}">${getStatusText(ret.status)}</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Дата оформления</div>
+                            <div class="order-detail-value">${ret.date}</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Причина</div>
+                            <div class="order-detail-value">${ret.reason}</div>
+                        </div>
+                    </div>
+                    <div class="status-timeline">
+                        <div class="status-step completed">
+                            <strong>Заявка создана</strong>
+                            <div style="font-size: 0.85rem; color: var(--gray-600);">${ret.date}</div>
+                        </div>
+                        <div class="status-step ${ret.status === 'processing' ? 'current' : (ret.status === 'completed' ? 'completed' : '')}">
+                            <strong>Обработка</strong>
+                            <div style="font-size: 0.85rem; color: var(--gray-600);">В процессе</div>
+                        </div>
+                        <div class="status-step ${ret.status === 'completed' ? 'completed' : ''}">
+                            <strong>Возврат завершён</strong>
+                            <div style="font-size: 0.85rem; color: var(--gray-600);">Ожидается</div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getStatusText(status) {
+            const texts = {
+                'completed': 'Завершён',
+                'pending': 'В ожидании',
+                'returned': 'Возвращён',
+                'processing': 'В обработке',
+                'approved': 'Одобрен',
+                'rejected': 'Отклонён'
+            };
+            return texts[status] || status;
+        }
+
+        function switchTab(tabName) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+
+            event.target.classList.add('active');
+            document.getElementById(`${tabName}-tab`).classList.add('active');
+        }
+
+        function searchOrder() {
+            const orderId = document.getElementById('searchOrderId').value.trim();
+            const resultDiv = document.getElementById('search-result');
+
+            if (!orderId) {
+                resultDiv.innerHTML = '<p style="color: var(--danger);">Введите ID заказа</p>';
+                return;
+            }
+
+            // Заглушка поиска
+            const demoOrder = {
+                id: parseInt(orderId),
+                date: '2026-01-15',
+                amount: 5990,
+                status: 'completed',
+                items: 2,
+                deliveryAddress: 'г. Москва, ул. Примерная, д. 10'
+            };
+
+            resultDiv.innerHTML = `
+                <div class="order-card">
+                    <div class="order-header">
+                        <span class="order-id">Заказ #${demoOrder.id}</span>
+                        <span class="order-status ${demoOrder.status}">${getStatusText(demoOrder.status)}</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Дата заказа</div>
+                            <div class="order-detail-value">${demoOrder.date}</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Сумма</div>
+                            <div class="order-detail-value">${demoOrder.amount.toLocaleString()} ₽</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Товаров</div>
+                            <div class="order-detail-value">${demoOrder.items} шт.</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Адрес доставки</div>
+                            <div class="order-detail-value">${demoOrder.deliveryAddress}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleChat() {
+            // Здесь будет логика открытия чата
+            alert('Чат с AI помощником по возвратам будет открыт здесь');
+        }
+
+        function logout() {
+            sessionStorage.removeItem('user');
+            window.location.href = '/login';
+        }
+
+        // Обработка формы возврата
+        document.getElementById('returnForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            alert('Заявка на возврат оформлена! Статус можно посмотреть во вкладке "Возвраты"');
+            this.reset();
+        });
+    </script>
+</body>
+</html>
