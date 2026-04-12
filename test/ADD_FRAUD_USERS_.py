@@ -34,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация БД
 DB_CONFIG = {
-    "dbname": "fraud_db",
+    "dbname": "fraud_return_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "OmegaBloody13",
     "host": "localhost",
     "port": 5432
 }
@@ -71,8 +71,13 @@ class BaseUserGenerator:
     def _init_pools(self):
         self.private_ips = [f"192.168.{i}.{j}" for i in range(10, 20) for j in range(1, 254)]
         self.private_ips += [f"10.0.{i}.{j}" for i in range(0, 10) for j in range(1, 254)]
-        self.public_ips = [f"{i}.{j}.{k}.{l}" for i in range(45, 95) for j in range(256) for k in range(256) for l in
-                           range(256)][::1000]
+        self.public_ips = []
+        for _ in range(1000):
+            i = random.randint(45, 94)
+            j = random.randint(0, 255)
+            k = random.randint(0, 255)
+            l = random.randint(0, 255)
+            self.public_ips.append(f"{i}.{j}.{k}.{l}")
         self.device_pool = [f"dev_{hashlib.md5(f'seed_{i}'.encode()).hexdigest()[:16]}" for i in range(20000)]
         self.email_domains = ["gmail.com", "mail.ru", "yandex.ru", "tempmail.com", "10minutemail.com"]
         self.user_agents = [
@@ -91,14 +96,14 @@ class BaseUserGenerator:
     def _generate_email(self, client_id: int, is_temp: bool = False) -> str:
         domain = random.choice(["tempmail.com", "10minutemail.com"]) if is_temp else random.choice(
             ["gmail.com", "mail.ru", "yandex.ru"])
-        return f"user{client_id}_{self.rng.integers(1000, 9999)}@{domain}"
+        return f"user{client_id}_{int(self.rng.integers(1000, 9999))}@{domain}"
 
     def _generate_phone(self) -> str:
-        return f"+79{self.rng.integers(100000000, 999999999)}"
+        return f"+79{int(self.rng.integers(100000000, 999999999))}"
 
     def _generate_device_fingerprint(self, ip: str = None) -> str:
-        seed = f"{ip}_{self.now.timestamp()}_{self.rng.integers(0, 1000000)}" if ip else str(
-            self.rng.integers(0, 10 ** 12))
+        seed = f"{ip}_{self.now.timestamp()}_{int(self.rng.integers(0, 1000000))}" if ip else str(
+            int(self.rng.integers(0, 10 ** 12)))
         return f"fp_{hashlib.sha256(seed.encode()).hexdigest()[:20]}"
 
     def _get_random_ip(self, is_shared: bool = False, shared_ip: str = None) -> str:
@@ -350,34 +355,34 @@ class FraudPatternGenerator(BaseUserGenerator):
     def wardrobing(self, n_cases: int = 5) -> Dict:
         logger.info(f"👗 wardrobing: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(30, 180),
-            "total_orders": self.rng.integers(3, 8),
-            "total_returns": self.rng.integers(1, 4),
-            "global_return_rate": self.rng.uniform(0.15, 0.35),
-            "avg_order_amount": self.rng.uniform(8000, 25000),
+            "account_age_days": int(self.rng.integers(30, 180)),
+            "total_orders": int(self.rng.integers(3, 8)),
+            "total_returns": int(self.rng.integers(1, 4)),
+            "global_return_rate": float(self.rng.uniform(0.15, 0.35)),
+            "avg_order_amount": float(self.rng.uniform(8000, 25000)),
             "risk_flags": ["wardrobing_suspect"],
-            "created_at": self.now - timedelta(days=self.rng.integers(30, 180))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(30, 180)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(5, 15))
+            order_time = self.now - timedelta(days=int(self.rng.integers(5, 15)))
             order_params = {
-                "order_amount": self.rng.uniform(15000, 50000),
-                "items_count": self.rng.integers(2, 5),
+                "order_amount": float(self.rng.uniform(15000, 50000)),
+                "items_count": int(self.rng.integers(2, 5)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.5, 2.0),
-                "orders_last_30d": self.rng.integers(1, 4)
+                "amount_deviation": float(self.rng.uniform(0.5, 2.0)),
+                "orders_last_30d": int(self.rng.integers(1, 4))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(3, 10),
+                "days_since_purchase": int(self.rng.integers(3, 10)),
                 "return_channel": "pickup_point",
                 "has_receipt": True,
                 "tags_removed": True,  # КЛЮЧЕВОЙ признак
                 "missing_components": False,
                 "refund_amount": order_params["order_amount"],
-                "returns_last_30d": self.rng.integers(1, 3),
-                "return_rate_last_30d": self.rng.uniform(0.2, 0.5)
+                "returns_last_30d": int(self.rng.integers(1, 3)),
+                "return_rate_last_30d": float(self.rng.uniform(0.2, 0.5))
             }
             self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -387,30 +392,30 @@ class FraudPatternGenerator(BaseUserGenerator):
     def price_arbitrage(self, n_cases: int = 5) -> Dict:
         logger.info(f"💰 price_arbitrage: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 10),
+            "account_age_days": int(self.rng.integers(1, 10)),
             "risk_flags": ["price_arbitrage"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 10))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 10)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(1, 5))
+            order_time = self.now - timedelta(days=int(self.rng.integers(1, 5)))
             order_params = {
-                "order_amount": self.rng.uniform(30000, 80000),
+                "order_amount": float(self.rng.uniform(30000, 80000)),
                 "items_count": 1,
                 "payment_method": "crypto",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(2.0, 5.0),
-                "orders_last_30d": self.rng.integers(1, 3)
+                "amount_deviation": float(self.rng.uniform(2.0, 5.0)),
+                "orders_last_30d": int(self.rng.integers(1, 3))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(1, 3),
+                "days_since_purchase": int(self.rng.integers(1, 3)),
                 "return_channel": "online",
                 "has_receipt": False,
                 "tags_removed": False,
                 "missing_components": True,  # КЛЮЧЕВОЙ признак
                 "refund_amount": order_params["order_amount"] * 0.9,
-                "returns_last_30d": self.rng.integers(1, 2),
-                "return_rate_last_30d": self.rng.uniform(0.5, 0.9)
+                "returns_last_30d": int(self.rng.integers(1, 2)),
+                "return_rate_last_30d": float(self.rng.uniform(0.5, 0.9))
             }
             self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -420,19 +425,19 @@ class FraudPatternGenerator(BaseUserGenerator):
     def shipping_fraud(self, n_cases: int = 5) -> Dict:
         logger.info(f"📦 shipping_fraud: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 60),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 60))
+            "account_age_days": int(self.rng.integers(1, 60)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 60)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(2, 7))
+            order_time = self.now - timedelta(days=int(self.rng.integers(2, 7)))
             order_params = {
-                "order_amount": self.rng.uniform(20000, 60000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(20000, 60000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.3, 1.5),
-                "orders_last_30d": self.rng.integers(1, 2)
+                "amount_deviation": float(self.rng.uniform(0.3, 1.5)),
+                "orders_last_30d": int(self.rng.integers(1, 2))
             }
             return_params = {
                 "days_since_purchase": 0,  # Возврат в день заказа
@@ -462,29 +467,29 @@ class FraudPatternGenerator(BaseUserGenerator):
     def receipt_fraud(self, n_cases: int = 3) -> Dict:
         logger.info(f"🧾 receipt_fraud: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 30),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 30))
+            "account_age_days": int(self.rng.integers(1, 30)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 30)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(1, 5))
+            order_time = self.now - timedelta(days=int(self.rng.integers(1, 5)))
             order_params = {
-                "order_amount": self.rng.uniform(15000, 40000),
-                "items_count": self.rng.integers(1, 4),
+                "order_amount": float(self.rng.uniform(15000, 40000)),
+                "items_count": int(self.rng.integers(1, 4)),
                 "payment_method": "cash",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.2, 1.0),
-                "orders_last_30d": self.rng.integers(1, 3)
+                "amount_deviation": float(self.rng.uniform(0.2, 1.0)),
+                "orders_last_30d": int(self.rng.integers(1, 3))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(1, 3),
+                "days_since_purchase": int(self.rng.integers(1, 3)),
                 "return_channel": "store",
                 "has_receipt": False,  # КЛЮЧЕВОЙ признак
                 "tags_removed": False,
                 "missing_components": False,
                 "refund_amount": order_params["order_amount"],
-                "returns_last_30d": self.rng.integers(1, 2),
-                "return_rate_last_30d": self.rng.uniform(0.3, 0.7)
+                "returns_last_30d": int(self.rng.integers(1, 2)),
+                "return_rate_last_30d": float(self.rng.uniform(0.3, 0.7))
             }
             self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -502,22 +507,22 @@ class FraudPatternGenerator(BaseUserGenerator):
     def switch_fraud(self, n_cases: int = 3) -> Dict:
         logger.info(f"🔄 switch_fraud: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(5, 45),
-            "created_at": self.now - timedelta(days=self.rng.integers(5, 45))
+            "account_age_days": int(self.rng.integers(5, 45)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(5, 45)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(2, 8))
+            order_time = self.now - timedelta(days=int(self.rng.integers(2, 8)))
             order_params = {
-                "order_amount": self.rng.uniform(25000, 70000),
+                "order_amount": float(self.rng.uniform(25000, 70000)),
                 "items_count": 1,
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(1.0, 3.0),
-                "orders_last_30d": self.rng.integers(1, 2)
+                "amount_deviation": float(self.rng.uniform(1.0, 3.0)),
+                "orders_last_30d": int(self.rng.integers(1, 2))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(2, 5),
+                "days_since_purchase": int(self.rng.integers(2, 5)),
                 "return_channel": "courier",
                 "has_receipt": True,
                 "tags_removed": False,
@@ -537,9 +542,9 @@ class FraudPatternGenerator(BaseUserGenerator):
         shared_device = f"dev_{hashlib.md5(shared_ip.encode()).hexdigest()[:16]}"
 
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 7),
+            "account_age_days": int(self.rng.integers(1, 7)),
             "risk_flags": ["multi_account"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 7))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 7)))
         } for _ in range(n_accounts)])
 
         # Сессии с общим IP/device
@@ -550,7 +555,7 @@ class FraudPatternGenerator(BaseUserGenerator):
                 "device_fingerprint": self._generate_device_fingerprint(shared_ip),
                 "is_emulator": self.rng.random() < 0.6,
                 "user_agent": random.choice(self.user_agents),
-                "created_at": self.now - timedelta(hours=self.rng.integers(1, 12))
+                "created_at": self.now - timedelta(hours=int(self.rng.integers(1, 12)))
             }])
 
         # Shared identifier для velocity
@@ -564,17 +569,17 @@ class FraudPatternGenerator(BaseUserGenerator):
         }])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(1, 3))
+            order_time = self.now - timedelta(days=int(self.rng.integers(1, 3)))
             order_params = {
-                "order_amount": self.rng.uniform(10000, 30000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(10000, 30000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "electronic_wallet",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.5, 2.0),
+                "amount_deviation": float(self.rng.uniform(0.5, 2.0)),
                 "orders_last_30d": 1
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(1, 3),
+                "days_since_purchase": int(self.rng.integers(1, 3)),
                 "return_channel": "pickup_point",
                 "has_receipt": self.rng.random() < 0.3,
                 "tags_removed": False,
@@ -599,12 +604,12 @@ class FraudPatternGenerator(BaseUserGenerator):
         shared_devices = [f"dev_{hashlib.md5(f'grp_{i}'.encode()).hexdigest()[:16]}" for i in range(5)]
 
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 30),
-            "total_orders": self.rng.integers(5, 15),
-            "total_returns": self.rng.integers(3, 10),
-            "global_return_rate": self.rng.uniform(0.4, 0.8),
+            "account_age_days": int(self.rng.integers(1, 30)),
+            "total_orders": int(self.rng.integers(5, 15)),
+            "total_returns": int(self.rng.integers(3, 10)),
+            "global_return_rate": float(self.rng.uniform(0.4, 0.8)),
             "risk_flags": ["professional_refunder", "organized_fraud"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 30))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 30)))
         } for _ in range(n_accounts)])
 
         for i, cid in enumerate(client_ids):
@@ -618,15 +623,15 @@ class FraudPatternGenerator(BaseUserGenerator):
             }])
 
         for cid in client_ids:
-            for j in range(self.rng.integers(2, 4)):
+            for j in range(int(self.rng.integers(2, 4))):
                 order_time = self.now - timedelta(days=j)
                 order_params = {
-                    "order_amount": self.rng.uniform(15000, 40000),
-                    "items_count": self.rng.integers(1, 3),
+                    "order_amount": float(self.rng.uniform(15000, 40000)),
+                    "items_count": int(self.rng.integers(1, 3)),
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.3, 1.5),
-                    "orders_last_30d": self.rng.integers(3, 8)
+                    "amount_deviation": float(self.rng.uniform(0.3, 1.5)),
+                    "orders_last_30d": int(self.rng.integers(3, 8))
                 }
                 return_params = {
                     "days_since_purchase": 1,
@@ -635,8 +640,8 @@ class FraudPatternGenerator(BaseUserGenerator):
                     "tags_removed": False,
                     "missing_components": False,
                     "refund_amount": order_params["order_amount"],
-                    "returns_last_30d": self.rng.integers(2, 5),
-                    "return_rate_last_30d": self.rng.uniform(0.5, 0.9)
+                    "returns_last_30d": int(self.rng.integers(2, 5)),
+                    "return_rate_last_30d": float(self.rng.uniform(0.5, 0.9))
                 }
                 self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -655,19 +660,19 @@ class FraudPatternGenerator(BaseUserGenerator):
     # === ПАТТЕРН 8: Review Manipulation ===
     def review_manipulation(self, n_reviews: int = 15, shared_ip: str = None, target_order_id: int = None) -> Dict:
         logger.info(f"⭐ review_manipulation: {n_reviews} отзывов")
-        shared_ip = shared_ip or f"10.0.0.{self.rng.integers(1, 254)}"
+        shared_ip = shared_ip or f"10.0.0.{int(self.rng.integers(1, 254))}"
 
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 14),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 14))
+            "account_age_days": int(self.rng.integers(1, 14)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 14)))
         } for _ in range(n_reviews)])
 
         for cid in client_ids:
             self._insert_sessions(cid, [{
                 "ip_address": shared_ip,
-                "device_id": f"dev_{self.rng.integers(1000, 2000)}",
+                "device_id": f"dev_{int(self.rng.integers(1000, 2000))}",
                 "device_fingerprint": self._generate_device_fingerprint(shared_ip),
-                "created_at": self.now - timedelta(hours=self.rng.integers(1, 12))
+                "created_at": self.now - timedelta(hours=int(self.rng.integers(1, 12)))
             }])
 
         # Создаём целевой заказ если не передан
@@ -694,7 +699,7 @@ class FraudPatternGenerator(BaseUserGenerator):
                 "rating": 1,
                 "review_text": "Ужасный товар! Не рекомендую! Обман!",
                 "is_negative": True,
-                "similarity_score": self.rng.uniform(0.90, 0.99),
+                "similarity_score": float(self.rng.uniform(0.90, 0.99)),
                 "created_at": self.now - timedelta(hours=n_reviews - i)
             })
         self._insert_reviews(reviews)
@@ -713,14 +718,14 @@ class FraudPatternGenerator(BaseUserGenerator):
         client_ids = self._insert_clients([{
             "account_age_days": 0,
             "risk_flags": ["bot", "automated"],
-            "created_at": self.now - timedelta(minutes=self.rng.integers(1, 60))
+            "created_at": self.now - timedelta(minutes=int(self.rng.integers(1, 60)))
         } for _ in range(n_bots)])
 
         for i, cid in enumerate(client_ids):
             order_time = self.now - timedelta(minutes=i)
-            ip = f"{shared_subnet}.{self.rng.integers(1, 254)}"
+            ip = f"{shared_subnet}.{int(self.rng.integers(1, 254))}"
             order_params = {
-                "order_amount": self.rng.uniform(100, 500),
+                "order_amount": float(self.rng.uniform(100, 500)),
                 "items_count": 1,
                 "payment_method": "card",
                 "order_timestamp": order_time,
@@ -759,29 +764,29 @@ class FraudPatternGenerator(BaseUserGenerator):
     def review_blackmail(self, n_cases: int = 5) -> Dict:
         logger.info(f"💬 review_blackmail: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(10, 90),
-            "created_at": self.now - timedelta(days=self.rng.integers(10, 90))
+            "account_age_days": int(self.rng.integers(10, 90)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(10, 90)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(3, 10))
+            order_time = self.now - timedelta(days=int(self.rng.integers(3, 10)))
             order_params = {
-                "order_amount": self.rng.uniform(8000, 25000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(8000, 25000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.2, 1.0),
-                "orders_last_30d": self.rng.integers(1, 3)
+                "amount_deviation": float(self.rng.uniform(0.2, 1.0)),
+                "orders_last_30d": int(self.rng.integers(1, 3))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(2, 5),
+                "days_since_purchase": int(self.rng.integers(2, 5)),
                 "return_channel": "online",
                 "has_receipt": True,
                 "tags_removed": False,
                 "missing_components": False,
                 "refund_amount": order_params["order_amount"],
-                "returns_last_30d": self.rng.integers(1, 2),
-                "return_rate_last_30d": self.rng.uniform(0.2, 0.5)
+                "returns_last_30d": int(self.rng.integers(1, 2)),
+                "return_rate_last_30d": float(self.rng.uniform(0.2, 0.5))
             }
             self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -801,7 +806,7 @@ class FraudPatternGenerator(BaseUserGenerator):
                 "rating": 1,
                 "review_text": self._gen_text(is_negative=True, length=100),
                 "is_negative": True,
-                "similarity_score": self.rng.uniform(0.85, 0.98),
+                "similarity_score": float(self.rng.uniform(0.85, 0.98)),
                 "created_at": order_time + timedelta(days=1)
             }])
 
@@ -811,24 +816,24 @@ class FraudPatternGenerator(BaseUserGenerator):
     def chargeback_fraud(self, n_cases: int = 5) -> Dict:
         logger.info(f"💳 chargeback_fraud: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 90),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 90))
+            "account_age_days": int(self.rng.integers(1, 90)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 90)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(15, 45))
+            order_time = self.now - timedelta(days=int(self.rng.integers(15, 45)))
             order_params = {
-                "order_amount": self.rng.uniform(20000, 100000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(20000, 100000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(1.0, 4.0),
-                "orders_last_30d": self.rng.integers(1, 2)
+                "amount_deviation": float(self.rng.uniform(1.0, 4.0)),
+                "orders_last_30d": int(self.rng.integers(1, 2))
             }
             # Chargeback — возврат через банк, не через нашу систему
             # Но фиксируем в returns для истории
             return_params = {
-                "days_since_purchase": self.rng.integers(30, 60),
+                "days_since_purchase": int(self.rng.integers(30, 60)),
                 "return_channel": "online",
                 "has_receipt": False,
                 "tags_removed": False,
@@ -845,22 +850,22 @@ class FraudPatternGenerator(BaseUserGenerator):
     def friendly_fraud(self, n_cases: int = 5) -> Dict:
         logger.info(f"🤷 friendly_fraud: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(90, 365),
-            "created_at": self.now - timedelta(days=self.rng.integers(90, 365))
+            "account_age_days": int(self.rng.integers(90, 365)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(90, 365)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(30, 90))
+            order_time = self.now - timedelta(days=int(self.rng.integers(30, 90)))
             order_params = {
-                "order_amount": self.rng.uniform(5000, 20000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(5000, 20000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.1, 0.8),
-                "orders_last_30d": self.rng.integers(1, 4)
+                "amount_deviation": float(self.rng.uniform(0.1, 0.8)),
+                "orders_last_30d": int(self.rng.integers(1, 4))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(45, 90),
+                "days_since_purchase": int(self.rng.integers(45, 90)),
                 "return_channel": "online",
                 "has_receipt": False,
                 "tags_removed": False,
@@ -886,22 +891,22 @@ class FraudPatternGenerator(BaseUserGenerator):
     def bricking(self, n_cases: int = 3) -> Dict:
         logger.info(f"📱 bricking: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 20),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 20))
+            "account_age_days": int(self.rng.integers(1, 20)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 20)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(1, 4))
+            order_time = self.now - timedelta(days=int(self.rng.integers(1, 4)))
             order_params = {
-                "order_amount": self.rng.uniform(40000, 100000),
+                "order_amount": float(self.rng.uniform(40000, 100000)),
                 "items_count": 1,
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(2.0, 5.0),
+                "amount_deviation": float(self.rng.uniform(2.0, 5.0)),
                 "orders_last_30d": 1
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(1, 3),
+                "days_since_purchase": int(self.rng.integers(1, 3)),
                 "return_channel": "courier",
                 "has_receipt": True,
                 "tags_removed": False,
@@ -918,29 +923,29 @@ class FraudPatternGenerator(BaseUserGenerator):
     def intentional_damage(self, n_cases: int = 3) -> Dict:
         logger.info(f"💥 intentional_damage: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(10, 90),
-            "created_at": self.now - timedelta(days=self.rng.integers(10, 90))
+            "account_age_days": int(self.rng.integers(10, 90)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(10, 90)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(5, 15))
+            order_time = self.now - timedelta(days=int(self.rng.integers(5, 15)))
             order_params = {
-                "order_amount": self.rng.uniform(20000, 50000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(20000, 50000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.3, 1.5),
-                "orders_last_30d": self.rng.integers(1, 3)
+                "amount_deviation": float(self.rng.uniform(0.3, 1.5)),
+                "orders_last_30d": int(self.rng.integers(1, 3))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(7, 14),
+                "days_since_purchase": int(self.rng.integers(7, 14)),
                 "return_channel": "store",
                 "has_receipt": True,
                 "tags_removed": False,
                 "missing_components": False,
                 "refund_amount": order_params["order_amount"],
-                "returns_last_30d": self.rng.integers(1, 2),
-                "return_rate_last_30d": self.rng.uniform(0.2, 0.5)
+                "returns_last_30d": int(self.rng.integers(1, 2)),
+                "return_rate_last_30d": float(self.rng.uniform(0.2, 0.5))
             }
             self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -959,29 +964,29 @@ class FraudPatternGenerator(BaseUserGenerator):
     def mass_try_on(self, n_cases: int = 5) -> Dict:
         logger.info(f"👔 mass_try_on: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(15, 120),
-            "created_at": self.now - timedelta(days=self.rng.integers(15, 120))
+            "account_age_days": int(self.rng.integers(15, 120)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(15, 120)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(3, 7))
+            order_time = self.now - timedelta(days=int(self.rng.integers(3, 7)))
             order_params = {
-                "order_amount": self.rng.uniform(25000, 60000),
-                "items_count": self.rng.integers(5, 15),  # Много товаров
+                "order_amount": float(self.rng.uniform(25000, 60000)),
+                "items_count": int(self.rng.integers(5, 15)),  # Много товаров
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.5, 2.0),
-                "orders_last_30d": self.rng.integers(1, 3)
+                "amount_deviation": float(self.rng.uniform(0.5, 2.0)),
+                "orders_last_30d": int(self.rng.integers(1, 3))
             }
             return_params = {
-                "days_since_purchase": self.rng.integers(1, 2),
+                "days_since_purchase": int(self.rng.integers(1, 2)),
                 "return_channel": "pickup_point",
                 "has_receipt": True,
                 "tags_removed": True,  # КЛЮЧЕВОЙ признак
                 "missing_components": False,
                 "refund_amount": order_params["order_amount"] * 0.8,  # Частичный возврат
-                "returns_last_30d": self.rng.integers(1, 3),
-                "return_rate_last_30d": self.rng.uniform(0.3, 0.7)
+                "returns_last_30d": int(self.rng.integers(1, 3)),
+                "return_rate_last_30d": float(self.rng.uniform(0.3, 0.7))
             }
             self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -991,34 +996,34 @@ class FraudPatternGenerator(BaseUserGenerator):
     def serial_refund(self, n_cases: int = 5) -> Dict:
         logger.info(f"🔁 serial_refund: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(30, 180),
-            "total_orders": self.rng.integers(10, 25),
-            "total_returns": self.rng.integers(5, 15),
-            "global_return_rate": self.rng.uniform(0.3, 0.6),
+            "account_age_days": int(self.rng.integers(30, 180)),
+            "total_orders": int(self.rng.integers(10, 25)),
+            "total_returns": int(self.rng.integers(5, 15)),
+            "global_return_rate": float(self.rng.uniform(0.3, 0.6)),
             "risk_flags": ["serial_refunder"],
-            "created_at": self.now - timedelta(days=self.rng.integers(30, 180))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(30, 180)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            for j in range(self.rng.integers(3, 6)):
+            for j in range(int(self.rng.integers(3, 6))):
                 order_time = self.now - timedelta(days=j * 3)
                 order_params = {
-                    "order_amount": self.rng.uniform(10000, 30000),
-                    "items_count": self.rng.integers(1, 3),
+                    "order_amount": float(self.rng.uniform(10000, 30000)),
+                    "items_count": int(self.rng.integers(1, 3)),
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.2, 1.0),
-                    "orders_last_30d": self.rng.integers(3, 8)
+                    "amount_deviation": float(self.rng.uniform(0.2, 1.0)),
+                    "orders_last_30d": int(self.rng.integers(3, 8))
                 }
                 return_params = {
-                    "days_since_purchase": self.rng.integers(1, 4),
+                    "days_since_purchase": int(self.rng.integers(1, 4)),
                     "return_channel": random.choice(RETURN_CHANNELS),
                     "has_receipt": self.rng.random() < 0.8,
                     "tags_removed": False,
                     "missing_components": False,
                     "refund_amount": order_params["order_amount"],
-                    "returns_last_30d": self.rng.integers(2, 6),
-                    "return_rate_last_30d": self.rng.uniform(0.4, 0.8)
+                    "returns_last_30d": int(self.rng.integers(2, 6)),
+                    "return_rate_last_30d": float(self.rng.uniform(0.4, 0.8))
                 }
                 self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -1028,21 +1033,21 @@ class FraudPatternGenerator(BaseUserGenerator):
     def coupon_abuse(self, n_cases: int = 5) -> Dict:
         logger.info(f"🎫 coupon_abuse: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 14),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 14))
+            "account_age_days": int(self.rng.integers(1, 14)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 14)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
             for j in range(self.rng.integers(3, 7)):
                 order_time = self.now - timedelta(days=j)
                 order_params = {
-                    "order_amount": self.rng.uniform(1000, 5000),
+                    "order_amount": float(self.rng.uniform(1000, 5000)),
                     "items_count": 1,
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "discount_amount": self.rng.uniform(500, 2000),  # Большой дисконт
-                    "amount_deviation": self.rng.uniform(0.1, 0.5),
-                    "orders_last_30d": self.rng.integers(3, 7)
+                    "discount_amount": float(self.rng.uniform(500, 2000)),  # Большой дисконт
+                    "amount_deviation": float(self.rng.uniform(0.1, 0.5)),
+                    "orders_last_30d": int(self.rng.integers(3, 7))
                 }
                 order_params['client_id'] = cid
                 self._insert_orders([order_params])
@@ -1053,35 +1058,35 @@ class FraudPatternGenerator(BaseUserGenerator):
     def account_takeover(self, n_cases: int = 3) -> Dict:
         logger.info(f"🔐 account_takeover: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(180, 730),
-            "created_at": self.now - timedelta(days=self.rng.integers(180, 730))
+            "account_age_days": int(self.rng.integers(180, 730)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(180, 730)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
             # Нормальная история
             for _ in range(3):
-                order_time = self.now - timedelta(days=self.rng.integers(30, 90))
+                order_time = self.now - timedelta(days=int(self.rng.integers(30, 90)))
                 order_params = {
-                    "order_amount": self.rng.uniform(3000, 15000),
-                    "items_count": self.rng.integers(1, 3),
+                    "order_amount": float(self.rng.uniform(3000, 15000)),
+                    "items_count": int(self.rng.integers(1, 3)),
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.1, 0.5),
-                    "orders_last_30d": self.rng.integers(1, 4)
+                    "amount_deviation": float(self.rng.uniform(0.1, 0.5)),
+                    "orders_last_30d": int(self.rng.integers(1, 4))
                 }
                 order_params['client_id'] = cid
                 self._insert_orders([order_params])
 
             # Подозрительная активность
-            for _ in range(self.rng.integers(2, 4)):
-                order_time = self.now - timedelta(hours=self.rng.integers(1, 12))
+            for _ in range(int(self.rng.integers(2, 4))):
+                order_time = self.now - timedelta(hours=int(self.rng.integers(1, 12)))
                 new_ip = self._get_random_ip()
                 order_params = {
-                    "order_amount": self.rng.uniform(30000, 80000),  # Резкий рост
+                    "order_amount": float(self.rng.uniform(30000, 80000)),  # Резкий рост
                     "items_count": 1,
                     "payment_method": "crypto",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(3.0, 8.0),
+                    "amount_deviation": float(self.rng.uniform(3.0, 8.0)),
                     "orders_last_30d": 1
                 }
                 order_params['client_id'] = cid
@@ -1099,25 +1104,25 @@ class FraudPatternGenerator(BaseUserGenerator):
     def triangulation_fraud(self, n_cases: int = 3) -> Dict:
         logger.info(f"🔺 triangulation_fraud: {n_cases} случаев")
         victim_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(90, 365),
-            "created_at": self.now - timedelta(days=self.rng.integers(90, 365))
+            "account_age_days": int(self.rng.integers(90, 365)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(90, 365)))
         } for _ in range(n_cases)])
         fraud_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 7),
+            "account_age_days": int(self.rng.integers(1, 7)),
             "risk_flags": ["triangulation"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 7))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 7)))
         } for _ in range(n_cases)])
 
         for vid, fid in zip(victim_ids, fraud_ids):
             # Заказ от жертвы
-            order_time = self.now - timedelta(days=self.rng.integers(1, 3))
+            order_time = self.now - timedelta(days=int(self.rng.integers(1, 3)))
             order_params = {
-                "order_amount": self.rng.uniform(15000, 40000),
+                "order_amount": float(self.rng.uniform(15000, 40000)),
                 "items_count": 1,
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(0.3, 1.5),
-                "orders_last_30d": self.rng.integers(1, 3)
+                "amount_deviation": float(self.rng.uniform(0.3, 1.5)),
+                "orders_last_30d": int(self.rng.integers(1, 3))
             }
             order_params['client_id'] = vid
             self._insert_orders([order_params])
@@ -1138,21 +1143,21 @@ class FraudPatternGenerator(BaseUserGenerator):
     def promo_stacking(self, n_cases: int = 5) -> Dict:
         logger.info(f"🎁 promo_stacking: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 30),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 30))
+            "account_age_days": int(self.rng.integers(1, 30)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 30)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            for j in range(self.rng.integers(4, 8)):
+            for j in range(int(self.rng.integers(4, 8))):
                 order_time = self.now - timedelta(days=j)
                 order_params = {
-                    "order_amount": self.rng.uniform(500, 2000),
+                    "order_amount": float(self.rng.uniform(500, 2000)),
                     "items_count": 1,
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "discount_amount": self.rng.uniform(200, 800),
-                    "amount_deviation": self.rng.uniform(0.1, 0.4),
-                    "orders_last_30d": self.rng.integers(4, 8)
+                    "discount_amount": float(self.rng.uniform(200, 800)),
+                    "amount_deviation": float(self.rng.uniform(0.1, 0.4)),
+                    "orders_last_30d": int(self.rng.integers(4, 8))
                 }
                 order_params['client_id'] = cid
                 self._insert_orders([order_params])
@@ -1163,34 +1168,34 @@ class FraudPatternGenerator(BaseUserGenerator):
     def refund_loop(self, n_cases: int = 3) -> Dict:
         logger.info(f"🔄 refund_loop: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(30, 120),
-            "total_orders": self.rng.integers(15, 30),
-            "total_returns": self.rng.integers(8, 20),
-            "global_return_rate": self.rng.uniform(0.5, 0.85),
+            "account_age_days": int(self.rng.integers(30, 120)),
+            "total_orders": int(self.rng.integers(15, 30)),
+            "total_returns": int(self.rng.integers(8, 20)),
+            "global_return_rate": float(self.rng.uniform(0.5, 0.85)),
             "risk_flags": ["refund_loop"],
-            "created_at": self.now - timedelta(days=self.rng.integers(30, 120))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(30, 120)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
             for cycle in range(3):
                 order_time = self.now - timedelta(days=cycle * 5)
                 order_params = {
-                    "order_amount": self.rng.uniform(10000, 25000),
-                    "items_count": self.rng.integers(1, 3),
+                    "order_amount": float(self.rng.uniform(10000, 25000)),
+                    "items_count": int(self.rng.integers(1, 3)),
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.2, 1.0),
-                    "orders_last_30d": self.rng.integers(3, 8)
+                    "amount_deviation": float(self.rng.uniform(0.2, 1.0)),
+                    "orders_last_30d": int(self.rng.integers(3, 8))
                 }
                 return_params = {
-                    "days_since_purchase": self.rng.integers(1, 3),
+                    "days_since_purchase": int(self.rng.integers(1, 3)),
                     "return_channel": "online",
                     "has_receipt": True,
                     "tags_removed": False,
                     "missing_components": False,
                     "refund_amount": order_params["order_amount"],
-                    "returns_last_30d": self.rng.integers(3, 8),
-                    "return_rate_last_30d": self.rng.uniform(0.5, 0.9)
+                    "returns_last_30d": int(self.rng.integers(3, 8)),
+                    "return_rate_last_30d": float(self.rng.uniform(0.5, 0.9))
                 }
                 self._create_client_order_return_chain(cid, order_params, return_params)
 
@@ -1200,22 +1205,22 @@ class FraudPatternGenerator(BaseUserGenerator):
     def fake_identity(self, n_cases: int = 5) -> Dict:
         logger.info(f"🎭 fake_identity: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 14),
+            "account_age_days": int(self.rng.integers(1, 14)),
             "risk_flags": ["fake_identity"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 14))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 14)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(1, 5))
-            fake_email = f"fake{self.rng.integers(10000, 99999)}@{random.choice(['tempmail.com', '10minutemail.com'])}"
-            fake_phone = f"+7900{self.rng.integers(1000000, 1111111)}"
+            order_time = self.now - timedelta(days=int(self.rng.integers(1, 5)))
+            fake_email = f"fake{int(self.rng.integers(10000, 99999))}@{random.choice(['tempmail.com', '10minutemail.com'])}"
+            fake_phone = f"+7900{int(self.rng.integers(1000000, 1111111))}"
 
             order_params = {
-                "order_amount": self.rng.uniform(20000, 60000),
+                "order_amount": float(self.rng.uniform(20000, 60000)),
                 "items_count": 1,
                 "payment_method": "card",
                 "order_timestamp": order_time,
-                "amount_deviation": self.rng.uniform(1.0, 4.0),
+                "amount_deviation": float(self.rng.uniform(1.0, 4.0)),
                 "orders_last_30d": 1
             }
             order_params['client_id'] = cid
@@ -1227,16 +1232,16 @@ class FraudPatternGenerator(BaseUserGenerator):
     def velocity_attack(self, n_cases: int = 3) -> Dict:
         logger.info(f"⚡ velocity_attack: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 3),
+            "account_age_days": int(self.rng.integers(1, 3)),
             "risk_flags": ["velocity_attack"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 3))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 3)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            for j in range(self.rng.integers(10, 25)):
+            for j in range(int(self.rng.integers(10, 25))):
                 order_time = self.now - timedelta(minutes=j * 2)
                 order_params = {
-                    "order_amount": self.rng.uniform(5000, 15000),
+                    "order_amount": float(self.rng.uniform(5000, 15000)),
                     "items_count": 1,
                     "payment_method": "card",
                     "order_timestamp": order_time,
@@ -1252,8 +1257,8 @@ class FraudPatternGenerator(BaseUserGenerator):
     def geo_anomaly(self, n_cases: int = 3) -> Dict:
         logger.info(f"🌍 geo_anomaly: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(60, 365),
-            "created_at": self.now - timedelta(days=self.rng.integers(60, 365))
+            "account_age_days": int(self.rng.integers(60, 365)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(60, 365)))
         } for _ in range(n_cases)])
 
         normal_ips = ["192.168.1.100", "10.0.0.50", "172.16.0.25"]
@@ -1262,14 +1267,14 @@ class FraudPatternGenerator(BaseUserGenerator):
         for cid in client_ids:
             # Нормальные заказы
             for _ in range(3):
-                order_time = self.now - timedelta(days=self.rng.integers(7, 30))
+                order_time = self.now - timedelta(days=int(self.rng.integers(7, 30)))
                 order_params = {
-                    "order_amount": self.rng.uniform(3000, 15000),
-                    "items_count": self.rng.integers(1, 3),
+                    "order_amount": float(self.rng.uniform(3000, 15000)),
+                    "items_count": int(self.rng.integers(1, 3)),
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.1, 0.5),
-                    "orders_last_30d": self.rng.integers(1, 4)
+                    "amount_deviation": float(self.rng.uniform(0.1, 0.5)),
+                    "orders_last_30d": int(self.rng.integers(1, 4))
                 }
                 order_params['client_id'] = cid
                 self._insert_orders([order_params])
@@ -1279,14 +1284,14 @@ class FraudPatternGenerator(BaseUserGenerator):
                 }])
 
             # Подозрительные заказы с других гео
-            for _ in range(self.rng.integers(2, 4)):
-                order_time = self.now - timedelta(hours=self.rng.integers(1, 6))
+            for _ in range(int(self.rng.integers(2, 4))):
+                order_time = self.now - timedelta(hours=int(self.rng.integers(1, 6)))
                 order_params = {
-                    "order_amount": self.rng.uniform(30000, 80000),
+                    "order_amount": float(self.rng.uniform(30000, 80000)),
                     "items_count": 1,
                     "payment_method": "crypto",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(3.0, 8.0),
+                    "amount_deviation": float(self.rng.uniform(3.0, 8.0)),
                     "orders_last_30d": 1
                 }
                 order_params['client_id'] = cid
@@ -1302,21 +1307,21 @@ class FraudPatternGenerator(BaseUserGenerator):
     def device_fingerprint_spoofing(self, n_cases: int = 3) -> Dict:
         logger.info(f"🎭 device_spoofing: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 14),
+            "account_age_days": int(self.rng.integers(1, 14)),
             "risk_flags": ["device_spoofing"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 14))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 14)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
             shared_fp = f"spoofed_fp_{cid:04d}"
-            for j in range(self.rng.integers(3, 7)):
+            for j in range(int(self.rng.integers(3, 7))):
                 order_time = self.now - timedelta(days=j)
                 order_params = {
-                    "order_amount": self.rng.uniform(10000, 30000),
+                    "order_amount": float(self.rng.uniform(10000, 30000)),
                     "items_count": 1,
                     "payment_method": "card",
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.3, 1.5),
+                    "amount_deviation": float(self.rng.uniform(0.3, 1.5)),
                     "orders_last_30d": j + 1
                 }
                 order_params['client_id'] = cid
@@ -1335,14 +1340,14 @@ class FraudPatternGenerator(BaseUserGenerator):
         client_ids = self._insert_clients([{
             "account_age_days": 0,
             "risk_flags": ["card_testing"],
-            "created_at": self.now - timedelta(minutes=self.rng.integers(1, 30))
+            "created_at": self.now - timedelta(minutes=int(self.rng.integers(1, 30)))
         } for _ in range(n_cases)])
 
         for cid in client_ids:
-            for j in range(self.rng.integers(5, 15)):
+            for j in range(int(self.rng.integers(5, 15))):
                 order_time = self.now - timedelta(minutes=j)
                 order_params = {
-                    "order_amount": self.rng.uniform(1, 10),  # Микро-суммы
+                    "order_amount": float(self.rng.uniform(1, 10)),  # Микро-суммы
                     "items_count": 1,
                     "payment_method": "card",
                     "order_timestamp": order_time,
@@ -1358,22 +1363,22 @@ class FraudPatternGenerator(BaseUserGenerator):
     def affiliate_fraud(self, n_cases: int = 3) -> Dict:
         logger.info(f"🔗 affiliate_fraud: {n_cases} случаев")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 7),
+            "account_age_days": int(self.rng.integers(1, 7)),
             "risk_flags": ["affiliate_fraud"],
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 7))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 7)))
         } for _ in range(n_cases)])
 
         shared_ip = self._get_random_ip(is_shared=True)
         for cid in client_ids:
-            for j in range(self.rng.integers(5, 12)):
+            for j in range(int(self.rng.integers(5, 12))):
                 order_time = self.now - timedelta(days=j)
                 order_params = {
-                    "order_amount": self.rng.uniform(100, 500),
+                    "order_amount": float(self.rng.uniform(100, 500)),
                     "items_count": 1,
                     "payment_method": "card",
                     "order_timestamp": order_time,
                     "amount_deviation": 0.0,
-                    "orders_last_30d": self.rng.integers(5, 12)
+                    "orders_last_30d": int(self.rng.integers(5, 12))
                 }
                 order_params['client_id'] = cid
                 self._insert_orders([order_params])
@@ -1393,25 +1398,25 @@ class NormalUserGenerator(BaseUserGenerator):
     def normal_shopper(self, n_users: int = 10) -> Dict:
         logger.info(f"🛒 normal_shopper: {n_users} пользователей")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(90, 730),
-            "total_orders": self.rng.integers(3, 15),
-            "total_returns": self.rng.integers(0, 2),
-            "global_return_rate": self.rng.uniform(0.0, 0.15),
-            "avg_order_amount": self.rng.uniform(3000, 20000),
-            "created_at": self.now - timedelta(days=self.rng.integers(90, 730))
+            "account_age_days": int(self.rng.integers(90, 730)),
+            "total_orders": int(self.rng.integers(3, 15)),
+            "total_returns": int(self.rng.integers(0, 2)),
+            "global_return_rate": float(self.rng.uniform(0.0, 0.15)),
+            "avg_order_amount": float(self.rng.uniform(3000, 20000)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(90, 730)))
         } for _ in range(n_users)])
 
         for cid in client_ids:
-            n_orders = self.rng.integers(3, 10)
+            n_orders = int(self.rng.integers(3, 10))
             for _ in range(n_orders):
-                order_time = self.now - timedelta(days=self.rng.integers(10, 365))
+                order_time = self.now - timedelta(days=int(self.rng.integers(10, 365)))
                 order_params = {
-                    "order_amount": self.rng.uniform(3000, 25000),
-                    "items_count": self.rng.integers(1, 5),
+                    "order_amount": float(self.rng.uniform(3000, 25000)),
+                    "items_count": int(self.rng.integers(1, 5)),
                     "payment_method": random.choice(PAYMENT_METHODS),
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.1, 1.0),
-                    "orders_last_30d": self.rng.integers(1, 5)
+                    "amount_deviation": float(self.rng.uniform(0.1, 1.0)),
+                    "orders_last_30d": int(self.rng.integers(1, 5))
                 }
                 order_params['client_id'] = cid
                 order_id = self._insert_orders([order_params])[0]
@@ -1419,14 +1424,14 @@ class NormalUserGenerator(BaseUserGenerator):
                 # Редкие возвраты (15%)
                 if self.rng.random() < 0.15:
                     return_params = {
-                        "days_since_purchase": self.rng.integers(5, 20),
+                        "days_since_purchase": int(self.rng.integers(5, 20)),
                         "return_channel": random.choice(RETURN_CHANNELS),
                         "has_receipt": True,
                         "tags_removed": False,
                         "missing_components": False,
                         "refund_amount": order_params["order_amount"],
-                        "returns_last_30d": self.rng.integers(0, 2),
-                        "return_rate_last_30d": self.rng.uniform(0.0, 0.2)
+                        "returns_last_30d": int(self.rng.integers(0, 2)),
+                        "return_rate_last_30d": float(self.rng.uniform(0.0, 0.2))
                     }
                     return_params['order_id'] = order_id
                     return_params['client_id'] = cid
@@ -1437,11 +1442,11 @@ class NormalUserGenerator(BaseUserGenerator):
                     self._insert_reviews([{
                         "client_id": cid,
                         "order_id": order_id,
-                        "rating": self.rng.integers(3, 5),
+                        "rating": int(self.rng.integers(3, 5)),
                         "review_text": self._gen_text(is_positive=self.rng.random() < 0.7),
                         "is_negative": False,
-                        "similarity_score": self.rng.uniform(0.0, 0.3),
-                        "created_at": order_time + timedelta(days=self.rng.integers(3, 14))
+                        "similarity_score": float(self.rng.uniform(0.0, 0.3)),
+                        "created_at": order_time + timedelta(days=int(self.rng.integers(3, 14)))
                     }])
 
         return {"clients": client_ids, "pattern": "normal_shopper", "count": n_users}
@@ -1449,25 +1454,25 @@ class NormalUserGenerator(BaseUserGenerator):
     def loyal_customer(self, n_users: int = 5) -> Dict:
         logger.info(f"💎 loyal_customer: {n_users} пользователей")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(365, 730),
-            "total_orders": self.rng.integers(20, 50),
-            "total_returns": self.rng.integers(0, 3),
-            "global_return_rate": self.rng.uniform(0.0, 0.08),
-            "avg_order_amount": self.rng.uniform(5000, 40000),
+            "account_age_days": int(self.rng.integers(365, 730)),
+            "total_orders": int(self.rng.integers(20, 50)),
+            "total_returns": int(self.rng.integers(0, 3)),
+            "global_return_rate": float(self.rng.uniform(0.0, 0.08)),
+            "avg_order_amount": float(self.rng.uniform(5000, 40000)),
             "risk_flags": ["loyal"],
-            "created_at": self.now - timedelta(days=self.rng.integers(365, 730))
+            "created_at": self.now - timedelta(days=int(self.rng.integers(365, 730)))
         } for _ in range(n_users)])
 
         for cid in client_ids:
-            for _ in range(self.rng.integers(10, 25)):
-                order_time = self.now - timedelta(days=self.rng.integers(1, 365))
+            for _ in range(int(self.rng.integers(10, 25))):
+                order_time = self.now - timedelta(days=int(self.rng.integers(1, 365)))
                 order_params = {
-                    "order_amount": self.rng.uniform(5000, 40000),
-                    "items_count": self.rng.integers(1, 5),
+                    "order_amount": float(self.rng.uniform(5000, 40000)),
+                    "items_count": int(self.rng.integers(1, 5)),
                     "payment_method": random.choice(PAYMENT_METHODS),
                     "order_timestamp": order_time,
-                    "amount_deviation": self.rng.uniform(0.1, 0.8),
-                    "orders_last_30d": self.rng.integers(2, 8)
+                    "amount_deviation": float(self.rng.uniform(0.1, 0.8)),
+                    "orders_last_30d": int(self.rng.integers(2, 8))
                 }
                 order_params['client_id'] = cid
                 self._insert_orders([order_params])
@@ -1477,19 +1482,19 @@ class NormalUserGenerator(BaseUserGenerator):
     def new_legit_user(self, n_users: int = 10) -> Dict:
         logger.info(f"🆕 new_legit_user: {n_users} пользователей")
         client_ids = self._insert_clients([{
-            "account_age_days": self.rng.integers(1, 14),
+            "account_age_days": int(self.rng.integers(1, 14)),
             "total_orders": 1,
             "total_returns": 0,
             "global_return_rate": 0.0,
-            "avg_order_amount": self.rng.uniform(2000, 15000),
-            "created_at": self.now - timedelta(days=self.rng.integers(1, 14))
+            "avg_order_amount": float(self.rng.uniform(2000, 15000)),
+            "created_at": self.now - timedelta(days=int(self.rng.integers(1, 14)))
         } for _ in range(n_users)])
 
         for cid in client_ids:
-            order_time = self.now - timedelta(days=self.rng.integers(0, 7))
+            order_time = self.now - timedelta(days=int(self.rng.integers(0, 7)))
             order_params = {
-                "order_amount": self.rng.uniform(2000, 15000),
-                "items_count": self.rng.integers(1, 3),
+                "order_amount": float(self.rng.uniform(2000, 15000)),
+                "items_count": int(self.rng.integers(1, 3)),
                 "payment_method": "card",
                 "order_timestamp": order_time,
                 "amount_deviation": 0.0,
@@ -1521,6 +1526,7 @@ class FraudDBManager:
         n_legit = total_users - n_fraud
 
         logger.info(f"📊 Генерация: {n_legit} легитимных + {n_fraud} фрод-кейсов")
+        logger.info("=" * 50)
 
         results = {"legit": [], "fraud": []}
 
@@ -1530,11 +1536,16 @@ class FraudDBManager:
             ("loyal_customer", {"n_users": n_legit // 3}),
             ("new_legit_user", {"n_users": n_legit - 2 * (n_legit // 3)})
         ]
-        for pattern, kwargs in legit_patterns:
+        for i, (pattern, kwargs) in enumerate(legit_patterns, 1):
+            logger.info(f"  [{i}/{len(legit_patterns)}] Генерация паттерна: {pattern}")
             method = getattr(self.normal_gen, pattern)
             results["legit"].append(method(**kwargs))
+            logger.info(f"  ✅ Завершено: {pattern}")
+        logger.info("🟢 ЗАВЕРШЕНО: Легитимные пользователи")
+        logger.info("=" * 50)
 
         # Фрод-паттерны (2%) — распределяем по 27 типам
+        logger.info("🔴 НАЧАЛО: Генерация фрод-паттернов...")
         fraud_per_pattern = max(1, n_fraud // 27)
         fraud_patterns = [
             ("wardrobing", fraud_per_pattern), ("price_arbitrage", fraud_per_pattern),
@@ -1554,21 +1565,27 @@ class FraudDBManager:
             ("card_testing", fraud_per_pattern * 2), ("affiliate_fraud", max(1, fraud_per_pattern // 2))
         ]
 
-        for item in fraud_patterns:
+        for i, item in enumerate(fraud_patterns, 1):
             if isinstance(item, tuple) and isinstance(item[1], dict):
                 pattern_name, kwargs = item
                 method = getattr(self.fraud_gen, pattern_name, None)
                 if method:
+                    logger.info(f"  [{i}/{len(fraud_patterns)}] Генерация паттерна: {pattern_name}")
                     results["fraud"].append(method(**kwargs))
+                    logger.info(f"  ✅ Завершено: {pattern_name}")
             elif isinstance(item, tuple):
                 pattern_name, count = item
                 method = getattr(self.fraud_gen, pattern_name, None)
                 if method:
+                    logger.info(f"  [{i}/{len(fraud_patterns)}] Генерация паттерна: {pattern_name}")
                     results["fraud"].append(method(
                         n_cases=count if pattern_name not in ["multi_accounting", "professional_refunder",
                                                               "review_manipulation", "bot_attack",
                                                               "card_testing"] else fraud_per_pattern))
+                    logger.info(f"  ✅ Завершено: {pattern_name}")
 
+        logger.info("🔴 ЗАВЕРШЕНО: Фрод-паттерны")
+        logger.info("=" * 50)
         return results
 
     def get_stats(self) -> Dict[str, int]:

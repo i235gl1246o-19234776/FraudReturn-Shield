@@ -1,0 +1,88 @@
+2026-04-12 19:13:50,839 - INFO - ✅ FraudDBManager инициализирован
+2026-04-12 19:13:50,841 - INFO - 📊 Генерация: 980 легитимных + 20 фрод-кейсов
+2026-04-12 19:13:50,841 - INFO - ==================================================
+2026-04-12 19:13:50,841 - INFO -   [1/3] Генерация паттерна: normal_shopper
+2026-04-12 19:13:50,841 - INFO - 🛒 normal_shopper: 326 пользователей
+2026-04-12 19:13:50,843 - ERROR - ❌ Ошибка: unsupported type for timedelta days component: numpy.int64
+Traceback (most recent call last):
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1631, in <module>
+    results = manager.generate_balanced_dataset(total_users=1000, fraud_ratio=0.02)
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1542, in generate_balanced_dataset
+    results["legit"].append(method(**kwargs))
+                            ~~~~~~^^^^^^^^^^
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1406, in normal_shopper
+    "created_at": self.now - timedelta(days=self.rng.integers(90, 730))
+                             ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+TypeError: unsupported type for timedelta days component: numpy.int64
+2026-04-12 19:13:50,847 - INFO - 🔌 Подключение к БД закрыто
+2026-04-12 19:19:17,655 - INFO - ✅ FraudDBManager инициализирован
+2026-04-12 19:19:17,656 - INFO - 📊 Генерация: 980 легитимных + 20 фрод-кейсов
+2026-04-12 19:19:17,656 - INFO - ==================================================
+2026-04-12 19:19:17,656 - INFO -   [1/3] Генерация паттерна: normal_shopper
+2026-04-12 19:19:17,656 - INFO - 🛒 normal_shopper: 326 пользователей
+2026-04-12 19:19:17,659 - ERROR - ❌ Ошибка: can't adapt type 'numpy.int64'
+Traceback (most recent call last):
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1631, in <module>
+    results = manager.generate_balanced_dataset(total_users=1000, fraud_ratio=0.02)
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1542, in generate_balanced_dataset
+    results["legit"].append(method(**kwargs))
+                            ~~~~~~^^^^^^^^^^
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1400, in normal_shopper
+    client_ids = self._insert_clients([{
+        "account_age_days": self.rng.integers(90, 730),
+    ...<4 lines>...
+        "created_at": self.now - timedelta(days=int(self.rng.integers(90, 730)))
+    } for _ in range(n_users)])
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 142, in _insert_clients
+    cur.execute("""
+    ~~~~~~~~~~~^^^^
+        INSERT INTO clients (
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        c.get("created_at", self.now)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ))
+    ^^
+  File "C:\Users\SidnegDok\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.ProgrammingError: can't adapt type 'numpy.int64'
+2026-04-12 19:19:17,676 - INFO - 🔌 Подключение к БД закрыто
+2026-04-12 19:59:22,167 - INFO - ✅ FraudDBManager инициализирован
+2026-04-12 19:59:22,168 - INFO - 📊 Генерация: 980 легитимных + 20 фрод-кейсов
+2026-04-12 19:59:22,168 - INFO - ==================================================
+2026-04-12 19:59:22,168 - INFO -   [1/3] Генерация паттерна: normal_shopper
+2026-04-12 19:59:22,168 - INFO - 🛒 normal_shopper: 326 пользователей
+2026-04-12 19:59:22,201 - ERROR - ❌ Ошибка: ОШИБКА:  неверный синтаксис для типа integer: "{}"
+LINE 6: ...2, 1, 0.12878968798670737, 14855.256494009187, 0, '{}', '202...
+                                                             ^
+Traceback (most recent call last):
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1631, in <module>
+    results = manager.generate_balanced_dataset(total_users=1000, fraud_ratio=0.02)
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1542, in generate_balanced_dataset
+    results["legit"].append(method(**kwargs))
+                            ~~~~~~^^^^^^^^^^
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 1400, in normal_shopper
+    client_ids = self._insert_clients([{
+        "account_age_days": int(self.rng.integers(90, 730)),
+    ...<4 lines>...
+        "created_at": self.now - timedelta(days=int(self.rng.integers(90, 730)))
+    } for _ in range(n_users)])
+  File "C:\Users\SidnegDok\.vscode\FraudReturn-Shield\test\ADD_FRAUD_USERS_.py", line 142, in _insert_clients
+    cur.execute("""
+    ~~~~~~~~~~~^^^^
+        INSERT INTO clients (
+        ^^^^^^^^^^^^^^^^^^^^^
+    ...<14 lines>...
+        c.get("created_at", self.now)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ))
+    ^^
+  File "C:\Users\SidnegDok\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\psycopg2\extras.py", line 236, in execute
+    return super().execute(query, vars)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^
+psycopg2.errors.InvalidTextRepresentation: ОШИБКА:  неверный синтаксис для типа integer: "{}"
+LINE 6: ...2, 1, 0.12878968798670737, 14855.256494009187, 0, '{}', '202...
+                                                             ^
+
+2026-04-12 19:59:22,204 - INFO - 🔌 Подключение к БД закрыто

@@ -1743,7 +1743,7 @@ func loadModel(modelPath string) error {
 	}
 	var resp FastAPILoadModelResponse
 
-	err := callFastAPI("/api/load-model", req, &resp)
+	err := callFastAPI("/api/load-models", req, &resp)
 	if err != nil {
 		return fmt.Errorf("ошибка загрузки fraud модели: %v", err)
 	}
@@ -1930,21 +1930,36 @@ func callPythonModelForChat(message string) (string, error) {
 // ============================================
 
 func main() {
-	pythonModelLoaded = true
+	pythonModelLoaded = false
 
 	go startFastAPIService()
+
+	execDir, err := os.Getwd()
+
+	log.Println("[INFO] Ожидание запуска FastAPI сервиса...")
+	time.Sleep(3 * time.Second)
+
+	if err != nil {
+		log.Fatalf("Не удалось получить рабочую директорию: %v", err)
+	}
+
+	modelPath := filepath.Join(execDir, "models", "fraud_model_v4_27patterns.onnx")
+
+	if err := loadModel(modelPath); err != nil {
+		log.Printf("⚠️ Не удалось загрузить модель: %v (будет использована заглушка)", err)
+		pythonModelLoaded = false
+	} else {
+		pythonModelLoaded = true
+		log.Println("✅ Модель успешно загружена")
+	}
+
 	if err := initDatabase(); err != nil {
 		log.Printf("⚠️ Не удалось подключиться к БД: %v (работа продолжится без БД)", err)
 	}
 	defer CloseDB()
 
-	execDir, err := os.Getwd()
-	if err != nil {
-		log.Fatalf("Не удалось получить рабочую директорию: %v", err)
-	}
 	staticDir := filepath.Join(execDir, "static")
 
-	// Проверяем существование директории
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
 		log.Fatalf("Директория static не найдена по пути: %s", staticDir)
 	}
@@ -2009,7 +2024,7 @@ func startFastAPIService() {
 	if _, err := exec.LookPath("python"); err == nil {
 		pythonPath = "python"
 	}
-	scriptPath := filepath.Join(wd, "fraud_api.py")
+	scriptPath := filepath.Join(wd, "api.py")
 
 	cmd := exec.Command(pythonPath, scriptPath)
 	cmd.Dir = wd
