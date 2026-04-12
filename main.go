@@ -1005,6 +1005,15 @@ func clientProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Проверяем наличие куки с токеном или сессии
+		// Для простоты пока просто пропускаем все запросы
+		// В будущем здесь будет проверка JWT или session token
+		next(w, r)
+	}
+}
+
 func homePage(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
 	if err != nil {
@@ -2173,8 +2182,11 @@ func main() {
 
 	// Страницы
 	http.HandleFunc("/login", loginPage)
-	http.HandleFunc("/client/profile", clientProfileHandler)
-	http.HandleFunc("/", homePage)
+	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
+	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		// Всегда перенаправляем на страницу авторизации
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+	})
 	http.HandleFunc("/check", checkHandler)
 	http.HandleFunc("/settings", settingsPage)
 	http.HandleFunc("/history", historyPage)
@@ -2204,7 +2216,7 @@ func main() {
 
 func startFastAPIService() {
 	wd, _ := os.Getwd()
-	pythonPath := "python3]"
+	pythonPath := "python3"
 	if _, err := exec.LookPath("python"); err == nil {
 		pythonPath = "python"
 	} else if _, err := exec.LookPath("py"); err == nil {
