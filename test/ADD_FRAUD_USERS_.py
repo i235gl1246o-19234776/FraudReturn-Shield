@@ -34,9 +34,9 @@ logger = logging.getLogger(__name__)
 
 # Конфигурация БД
 DB_CONFIG = {
-    "dbname": "fraud_db",
+    "dbname": "fraud_return_db",
     "user": "postgres",
-    "password": "postgres",
+    "password": "OmegaBloody13",
     "host": "localhost",
     "port": 5432
 }
@@ -1521,6 +1521,7 @@ class FraudDBManager:
         n_legit = total_users - n_fraud
 
         logger.info(f"📊 Генерация: {n_legit} легитимных + {n_fraud} фрод-кейсов")
+        logger.info("=" * 50)
 
         results = {"legit": [], "fraud": []}
 
@@ -1530,11 +1531,16 @@ class FraudDBManager:
             ("loyal_customer", {"n_users": n_legit // 3}),
             ("new_legit_user", {"n_users": n_legit - 2 * (n_legit // 3)})
         ]
-        for pattern, kwargs in legit_patterns:
+        for i, (pattern, kwargs) in enumerate(legit_patterns, 1):
+            logger.info(f"  [{i}/{len(legit_patterns)}] Генерация паттерна: {pattern}")
             method = getattr(self.normal_gen, pattern)
             results["legit"].append(method(**kwargs))
+            logger.info(f"  ✅ Завершено: {pattern}")
+        logger.info("🟢 ЗАВЕРШЕНО: Легитимные пользователи")
+        logger.info("=" * 50)
 
         # Фрод-паттерны (2%) — распределяем по 27 типам
+        logger.info("🔴 НАЧАЛО: Генерация фрод-паттернов...")
         fraud_per_pattern = max(1, n_fraud // 27)
         fraud_patterns = [
             ("wardrobing", fraud_per_pattern), ("price_arbitrage", fraud_per_pattern),
@@ -1554,21 +1560,27 @@ class FraudDBManager:
             ("card_testing", fraud_per_pattern * 2), ("affiliate_fraud", max(1, fraud_per_pattern // 2))
         ]
 
-        for item in fraud_patterns:
+        for i, item in enumerate(fraud_patterns, 1):
             if isinstance(item, tuple) and isinstance(item[1], dict):
                 pattern_name, kwargs = item
                 method = getattr(self.fraud_gen, pattern_name, None)
                 if method:
+                    logger.info(f"  [{i}/{len(fraud_patterns)}] Генерация паттерна: {pattern_name}")
                     results["fraud"].append(method(**kwargs))
+                    logger.info(f"  ✅ Завершено: {pattern_name}")
             elif isinstance(item, tuple):
                 pattern_name, count = item
                 method = getattr(self.fraud_gen, pattern_name, None)
                 if method:
+                    logger.info(f"  [{i}/{len(fraud_patterns)}] Генерация паттерна: {pattern_name}")
                     results["fraud"].append(method(
                         n_cases=count if pattern_name not in ["multi_accounting", "professional_refunder",
                                                               "review_manipulation", "bot_attack",
                                                               "card_testing"] else fraud_per_pattern))
+                    logger.info(f"  ✅ Завершено: {pattern_name}")
 
+        logger.info("🔴 ЗАВЕРШЕНО: Фрод-паттерны")
+        logger.info("=" * 50)
         return results
 
     def get_stats(self) -> Dict[str, int]:
