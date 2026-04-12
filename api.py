@@ -21,13 +21,15 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
-
+from onnx_feature_pipeline import FraudDetectionService
 
 # =============================================================================
 # 🔧 ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
 # =============================================================================
 
 _executor = ThreadPoolExecutor(max_workers=4)
+
+_fraud_service: Optional[FraudDetectionService] = None
 
 # Fraud модель
 _fraud_session = None
@@ -145,7 +147,23 @@ class ChatResponse(BaseModel):
 class LoadModelRequest(BaseModel):
     model_path: str
     model_type: str = "fraud"  # "fraud" или "chat"
+    use_v4: bool = True  # Использовать ли v4 модель через onnx_feature_pipeline
 
+class FraudV4PredictionRequest(BaseModel):
+    """Запрос для предсказания через v4 модель (требует return_id)"""
+    return_id: int = Field(..., description="ID возврата в БД")
+
+class FraudV4PredictionResponse(BaseModel):
+    success: bool
+    return_id: Optional[int] = None
+    client_id: Optional[int] = None
+    order_id: Optional[int] = None
+    probability_fraud: Optional[float] = None
+    anomaly_score: Optional[float] = None
+    is_anomaly: Optional[bool] = None
+    combined_score: Optional[float] = None
+    decision: Optional[str] = None
+    error: Optional[str] = None
 
 class LoadModelResponse(BaseModel):
     success: bool
@@ -156,119 +174,219 @@ class LoadModelResponse(BaseModel):
 # 🛡️ FRAUD МОДЕЛЬ
 # =============================================================================
 
-def load_fraud_model(model_path: str) -> Dict[str, Any]:
+def load_fraud_model_v4(onnx_path: str, metadata_path: str,
+                        anomaly_scaler_path: str, anomaly_model_path: str,
+                        db_connection_string: Optional[str] = None) -> Dict[str, Any]:
+    global _fraud_service
+    try:
+        if not os.path.exists(onnx_path):
+            return {'success': False, 'error': f'ONNX file not found: {onnx_path}'}
+        if not os.path.exists(metadata_path):
+            return {'success': False, 'error': f'Metadata file not found: {metadata_path}'}
+        if not os.path.exists(anomaly_scaler_path):
+            return {'success': False, 'error': f'Anomaly scaler not found: {anomaly_scaler_path}'}
+        if not os.path.exists(anomaly_model_path):
+            return {'success': False, 'error': f'Anomaly model not found: {anomaly_model_path}'}
+
+        # Для работы требуется БД connection string
+        # Если не передан - используем заглушку (для тестов)
+        if db_connection_string is None:
+            db_connection_string = os.getenv('DATABASE_URL', 'postgresql://user:pass@localhost/db')
+
+        _fraud_service = FraudDetectionService(
+            db_connection_string=db_connection_string,
+            onnx_path=onnx_path,
+            metadata_path=metadata_path,
+            anomaly_scaler_path=anomaly_scaler_path,
+            anomaly_model_path=anomaly_model_path
+        )
+
+        _log(f"[INFO] Fraud v4 model loaded via FraudDetectionService: {onnx_path}")
+        return {'success': True}
+    except Exception as e:
+        _log(f"[ERROR] Fraud v4 load: {str(e)}")
+        return {'success': False, 'error': str(e)}
+
+
+def load_fraud_model_legacy(model_path: str) -> Dict[str, Any]:
+    """
+    Legacy загрузка fraud модели (CatBoost CBM или простой ONNX без пайплайна)
+    Используется для обратной совместимости.
+    """
     global _fraud_session, _fraud_input_name
     try:
         if not os.path.exists(model_path):
             return {'success': False, 'error': f'File not found: {model_path}'}
-        _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
-        _fraud_input_name = _fraud_session.get_inputs()[0].name
-        _log(f"[INFO] Fraud models loaded: {model_path}")
+
+        # Проверяем тип модели по расширению
+        if model_path.endswith('.cbm'):
+            # Загрузка CatBoost модели напрямую
+            import catboost
+            _fraud_session = catboost.CatBoostClassifier()
+            _fraud_session.load_model(model_path)
+            _fraud_input_name = 'cbm_native'
+            _log(f"[INFO] Fraud CatBoost model loaded (CBM): {model_path}")
+        else:
+            # Загрузка ONNX модели
+            _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
+            _fraud_input_name = _fraud_session.get_inputs()[0].name
+            _log(f"[INFO] Fraud ONNX model loaded: {model_path}")
+
         return {'success': True}
     except Exception as e:
-        _log(f"[ERROR] Fraud load: {str(e)}")
+        _log(f"[ERROR] Fraud legacy load: {str(e)}")
         return {'success': False, 'error': str(e)}
 
+def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
+    """
+    Универсальная функция загрузки fraud модели.
+    По умолчанию использует v4 через onnx_feature_pipeline.py.
 
-async def load_fraud_model_async(model_path: str) -> Dict[str, Any]:
+    Для v4 модели автоматически подгружаются:
+    - models/fraud_model_v4_27patterns.onnx
+    - models/metadata_v4_27patterns.json
+    - models/scaler_v4.pkl
+    - models/anomaly_model_v4.pkl
+    """
+    if use_v4 and model_path.endswith('.onnx'):
+        # v4 модель через FraudDetectionService
+        base_dir = os.path.dirname(model_path) or 'models'
+        metadata_path = os.path.join(base_dir, 'metadata_v4_27patterns.json')
+        anomaly_scaler_path = os.path.join(base_dir, 'scaler_v4.pkl')
+        anomaly_model_path = os.path.join(base_dir, 'anomaly_model_v4.pkl')
+
+        return load_fraud_model_v4(
+            onnx_path=model_path,
+            metadata_path=metadata_path,
+            anomaly_scaler_path=anomaly_scaler_path,
+            anomaly_model_path=anomaly_model_path
+        )
+    else:
+        # Legacy режим
+        return load_fraud_model_legacy(model_path)
+
+
+async def load_fraud_model_async(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     """Асинхронная загрузка fraud модели"""
     loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(_executor, load_fraud_model, model_path)
+    return await loop.run_in_executor(_executor, load_fraud_model, model_path, use_v4)
+
+def predict_fraud_v4(return_id: int) -> Dict[str, Any]:
+    """
+    Предсказание через FraudDetectionService (v4 модель из onnx_feature_pipeline.py)
+    Требует return_id для загрузки данных из БД
+    """
+    global _fraud_service
+    if _fraud_service is None:
+        return {'success': False, 'error': 'Fraud v4 model not loaded'}
+
+    try:
+        result = _fraud_service.predict_for_return(return_id)
+        return {'success': True, **result}
+    except Exception as e:
+        _log(f"[ERROR] Fraud v4 predict: {str(e)}")
+        return {'success': False, 'error': str(e)}
 
 def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
     global _fraud_session, _fraud_input_name
-    if _fraud_session is None:
+
+    if _fraud_session is None and _fraud_service is None:
         return FraudPredictionResponse(success=False, score=None, error='Model not loaded')
 
-    try:
-        # Преобразуем features в список float32
-        feature_list = [
-            float(features.account_age_days),
-            float(features.total_purchases),
-            float(features.total_returns),
-            float(features.customer_return_rate),
-            float(features.avg_order_amount),
-            float(features.order_amount),
-            float(features.items_in_order),
-            float(features.discount_percent),
-            float(features.payment_method_risk),
-            float(features.amount_deviation),
-            float(features.orders_last_30d),
-            float(features.return_rate_30d),
-            float(features.refund_velocity_30d),
-            float(features.days_since_last_return),
-            float(features.days_since_purchase),
-            float(features.has_receipt),
-            float(features.receipt_provided),
-            float(features.tags_removed),
-            float(features.missing_components),
-            float(features.order_hour),
-            float(features.high_value_flag),
-            float(features.order_time_night),
-            float(features.fast_return_flag),
-            float(features.new_account_flag),
-            float(features.first_order_discount_abuse),
-            float(features.is_electronics),
-            float(features.ip_velocity_24h),
-            float(features.ip_velocity_7d),
-            float(features.accounts_per_ip),
-            float(features.accounts_per_phone),
-            float(features.accounts_per_device),
-            float(features.device_is_emulator),
-            float(features.device_trust_score),
-            float(features.ip_trust_score),
-            float(features.address_match),
-            float(features.device_new),
-            float(features.promo_code_used),
-            float(features.weekend_purchase),
-            float(features.refund_velocity_7d),
-            float(features.support_ticket_count_30d),
-            float(features.review_count_30d),
-            float(features.negative_review_cluster),
-            float(features.shipping_region_risk),
-            float(features.distance_from_registration_city),
-            float(features.card_bin_country_mismatch),
-            float(features.chargeback_history_90d),
-            float(features.threat_language_detected),
-            float(features.legal_claim_threat),
-        ]
+    if _fraud_session is not None:
+        try:
+            feature_list = [
+                float(features.account_age_days),
+                float(features.total_purchases),
+                float(features.total_returns),
+                float(features.customer_return_rate),
+                float(features.avg_order_amount),
+                float(features.order_amount),
+                float(features.items_in_order),
+                float(features.discount_percent),
+                float(features.payment_method_risk),
+                float(features.amount_deviation),
+                float(features.orders_last_30d),
+                float(features.return_rate_30d),
+                float(features.refund_velocity_30d),
+                float(features.days_since_last_return),
+                float(features.days_since_purchase),
+                float(features.has_receipt),
+                float(features.receipt_provided),
+                float(features.tags_removed),
+                float(features.missing_components),
+                float(features.order_hour),
+                float(features.high_value_flag),
+                float(features.order_time_night),
+                float(features.fast_return_flag),
+                float(features.new_account_flag),
+                float(features.first_order_discount_abuse),
+                float(features.is_electronics),
+                float(features.ip_velocity_24h),
+                float(features.ip_velocity_7d),
+                float(features.accounts_per_ip),
+                float(features.accounts_per_phone),
+                float(features.accounts_per_device),
+                float(features.device_is_emulator),
+                float(features.device_trust_score),
+                float(features.ip_trust_score),
+                float(features.address_match),
+                float(features.device_new),
+                float(features.promo_code_used),
+                float(features.weekend_purchase),
+                float(features.refund_velocity_7d),
+                float(features.support_ticket_count_30d),
+                float(features.review_count_30d),
+                float(features.negative_review_cluster),
+                float(features.shipping_region_risk),
+                float(features.distance_from_registration_city),
+                float(features.card_bin_country_mismatch),
+                float(features.chargeback_history_90d),
+                float(features.threat_language_detected),
+                float(features.legal_claim_threat),
+            ]
 
-        input_data = np.array(feature_list, dtype=np.float32).reshape(1, -1)
-        outputs = _fraud_session.run(None, {_fraud_input_name: input_data})
+            input_data = np.array(feature_list, dtype=np.float32).reshape(1, -1)
+            outputs = _fraud_session.run(None, {_fraud_input_name: input_data})
 
-        score = None
-        if len(outputs) >= 2:
-            prob_map = outputs[1][0]
-            if isinstance(prob_map, dict):
-                score = float(prob_map.get(1, prob_map.get('1', list(prob_map.values())[1])))
+            score = None
+            if len(outputs) >= 2:
+                prob_map = outputs[1][0]
+                if isinstance(prob_map, dict):
+                    score = float(prob_map.get(1, prob_map.get('1', list(prob_map.values())[1])))
+                else:
+                    score = float(prob_map[1]) if len(prob_map) > 1 else float(prob_map[0])
+            elif len(outputs) >= 1:
+                score = float(outputs[0][0][1]) if outputs[0].shape[-1] >= 2 else float(outputs[0][0][0])
+
+            final_score = max(0.0, min(1.0, score)) if score is not None else 0.0
+
+            # Определяем уровень риска и рекомендацию
+            if final_score >= 0.7:
+                risk_level = "HIGH"
+                recommendation = "Отклонить возврат. Высокий риск мошенничества."
+            elif final_score >= 0.4:
+                risk_level = "MEDIUM"
+                recommendation = "Требуется дополнительная проверка."
             else:
-                score = float(prob_map[1]) if len(prob_map) > 1 else float(prob_map[0])
-        elif len(outputs) >= 1:
-            score = float(outputs[0][0][1]) if outputs[0].shape[-1] >= 2 else float(outputs[0][0][0])
+                risk_level = "LOW"
+                recommendation = "Одобрить возврат. Низкий риск."
 
-        final_score = max(0.0, min(1.0, score)) if score is not None else 0.0
+            return FraudPredictionResponse(
+                success=True,
+                score=final_score,
+                risk_level=risk_level,
+                recommendation=recommendation
+            )
+        except Exception as e:
+            _log(f"[ERROR] Fraud legacy predict: {str(e)}")
+            return FraudPredictionResponse(success=False, score=None, error=str(e))
 
-        # Определяем уровень риска и рекомендацию
-        if final_score >= 0.7:
-            risk_level = "HIGH"
-            recommendation = "Отклонить возврат. Высокий риск мошенничества."
-        elif final_score >= 0.4:
-            risk_level = "MEDIUM"
-            recommendation = "Требуется дополнительная проверка."
-        else:
-            risk_level = "LOW"
-            recommendation = "Одобрить возврат. Низкий риск."
-
-        return FraudPredictionResponse(
-            success=True,
-            score=final_score,
-            risk_level=risk_level,
-            recommendation=recommendation
-        )
-    except Exception as e:
-        _log(f"[ERROR] Fraud predict: {str(e)}")
-        return FraudPredictionResponse(success=False, score=None, error=str(e))
-
+    return FraudPredictionResponse(
+        success=False,
+        score=None,
+        error='v4 model requires predict_fraud_v4(return_id) method'
+    )
 
 async def predict_fraud_async(features: FraudFeatures) -> FraudPredictionResponse:
     """Асинхронное предсказание fraud модели"""
@@ -577,7 +695,7 @@ async def health_check():
 async def api_load_model(request: LoadModelRequest):
     """Загрузка модели (fraud или chat)"""
     if request.model_type == "fraud":
-        result = load_fraud_model(request.model_path)
+        result = load_fraud_model(request.model_path, use_v4=request.use_v4)
         return LoadModelResponse(success=result['success'], error=result.get('error'))
     elif request.model_type == "chat":
         success = _init_chat_model(request.model_path)
@@ -590,6 +708,41 @@ async def api_load_model(request: LoadModelRequest):
 async def api_predict_fraud(features: FraudFeatures):
     """Предсказание риска мошенничества (асинхронно)"""
     return await predict_fraud_async(features)
+
+@app.post("/api/predict-fraud-v4", response_model=FraudV4PredictionResponse)
+async def api_predict_fraud_v4(request: FraudV4PredictionRequest):
+    """
+    Предсказание риска мошенничества через v4 модель (onnx_feature_pipeline.py).
+    Требует return_id для загрузки данных из БД.
+    """
+    global _fraud_service
+    if _fraud_service is None:
+        return FraudV4PredictionResponse(
+            success=False,
+            error='Fraud v4 model not loaded. Call /api/load-models first with fraud_model_v4_27patterns.onnx'
+        )
+
+    try:
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(_executor, predict_fraud_v4, request.return_id)
+
+        if result.get('success'):
+            return FraudV4PredictionResponse(
+                success=True,
+                return_id=result.get('return_id'),
+                client_id=result.get('client_id'),
+                order_id=result.get('order_id'),
+                probability_fraud=result.get('probability_fraud'),
+                anomaly_score=result.get('anomaly_score'),
+                is_anomaly=result.get('is_anomaly'),
+                combined_score=result.get('combined_score'),
+                decision=result.get('decision')
+            )
+        else:
+            return FraudV4PredictionResponse(success=False, error=result.get('error'))
+    except Exception as e:
+        _log(f"[ERROR] API predict fraud v4: {str(e)}")
+        return FraudV4PredictionResponse(success=False, error=str(e))
 
 
 @app.post("/api/chat", response_model=ChatResponse)

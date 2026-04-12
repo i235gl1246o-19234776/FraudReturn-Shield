@@ -2009,7 +2009,7 @@ func startFastAPIService() {
 	if _, err := exec.LookPath("python"); err == nil {
 		pythonPath = "python"
 	}
-	scriptPath := filepath.Join(wd, "fraud_api.py")
+	scriptPath := filepath.Join(wd, "api.py")
 
 	cmd := exec.Command(pythonPath, scriptPath)
 	cmd.Dir = wd
