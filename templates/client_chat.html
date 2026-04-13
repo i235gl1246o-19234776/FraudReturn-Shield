@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/chat-widget.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+
     <style>
         .client-nav {
             background: white;
@@ -360,10 +360,10 @@
             <div class="quick-questions">
                 <h4>⚡ Быстрые вопросы:</h4>
                 <div class="quick-questions-buttons">
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как оформить возврат?')">Как оформить возврат?</button>
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('Где мой заказ?')">Где мой заказ?</button>
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('Сколько идёт возврат денег?')">Сколько идёт возврат?</button>
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какие документы нужны?')">Какие документы нужны?</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('В течение какого срока Компания проводит приемку товара по количеству единиц и ассортименту?')">Срок приемки товара</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какой штраф выплачивает Компания при необоснованном отказе в приемке товара?')">Штраф за отказ в приемке</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как подтверждается приемка товара при передаче в ПВЗ (DBS)?')">Приемка в ПВЗ</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('По какой формуле рассчитывается компенсация за утраченный товар?')">Компенсация за утрату</button>
                 </div>
             </div>
 
@@ -397,81 +397,33 @@
     <script>
         let currentUser = null;
         let chatHistory = [];
-        let neuralSession = null;
 
-        // Загрузка ONNX модели
-        async function loadNeuralModel() {
-            try {
-                console.log('Загрузка модели model.onnx...');
-                const session = await ort.InferenceSession.create('/static/models/model.onnx');
-                neuralSession = session;
-                console.log('Модель успешно загружена!');
-            } catch (error) {
-                console.error('Ошибка загрузки модели:', error);
-            }
-        }
-
-        // Использование нейросети для ответа
         async function getNeuralResponse(message) {
-            if (!neuralSession) {
-                return getDemoResponse(message);
-            }
-
             try {
-                // Токенизация (упрощённая)
-                const tokens = message.toLowerCase().split(/\s+/).slice(0, 512);
-                const inputIds = new Int64Array(512).fill(0);
-                const attentionMask = new Float32Array(512).fill(0);
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ message: message })
+                });
 
-                for (let i = 0; i < Math.min(tokens.length, 512); i++) {
-                    inputIds[i] = BigInt(i + 1);
-                    attentionMask[i] = 1;
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
                 }
 
-                const tensor = new ort.Tensor('int64', inputIds, [1, 512]);
-                const maskTensor = new ort.Tensor('float32', attentionMask, [1, 512]);
-
-                const feeds = {
-                    input_ids: tensor,
-                    attention_mask: maskTensor
-                };
-
-                const results = await neuralSession.run(feeds);
-                const output = Object.values(results)[0];
-
-                // Декодирование ответа (упрощённое)
-                const responseText = decodeResponse(output.data);
-                return responseText || getDemoResponse(message);
+                const data = await response.json();
+                return data.response || getDemoResponse(message);
             } catch (error) {
-                console.error('Ошибка выполнения модели:', error);
+                console.error('Ошибка получения ответа от нейросети:', error);
                 return getDemoResponse(message);
             }
-        }
-
-        function decodeResponse(data) {
-            // Простая декодировка для демонстрации
-            const commonResponses = {
-                'возврат': 'Чтобы оформить возврат, перейдите в раздел «Возвраты», введите ID заказа и выберите причину. Заявка будет рассмотрена в течение 1-2 дней.',
-                'заказ': 'Статус вашего заказа можно проверить в разделе «Заказы». Там отображается вся информация о доставке.',
-                'деньг': 'Возврат денег занимает 3-10 рабочих дней после одобрения заявки.',
-                'документ': 'Для возврата обычно требуется только ID заказа. При браке товара — фото дефекта.',
-                'привет': 'Здравствуйте! Я AI помощник FraudReturn Shield. Чем могу помочь?',
-                'как': 'Опишите вашу проблему подробнее, и я подскажу решение!',
-            };
-
-            for (const [key, value] of Object.entries(commonResponses)) {
-                if (data.some((_, i) => i % 100 === 0 && Math.random() > 0.5)) {
-                    return value;
-                }
-            }
-            return null;
         }
 
         document.addEventListener('DOMContentLoaded', async function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
                 currentUser = JSON.parse(storedUser);
-                await loadNeuralModel();
                 addWelcomeMessage();
             } else {
                 window.location.href = '/login';

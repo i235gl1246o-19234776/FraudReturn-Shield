@@ -143,8 +143,8 @@ class BaseUserGenerator:
                 INSERT INTO clients (
                     account_age_days, total_orders, total_returns, global_return_rate,
                     avg_order_amount, address_change_frequency, category_returns_count,
-                    created_at, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING client_id
             """, (
                 c.get("account_age_days", 365),
@@ -154,7 +154,6 @@ class BaseUserGenerator:
                 c.get("avg_order_amount", 0.0),
                 c.get("address_change_frequency", 0),
                 json.dumps(c.get("category_returns_count", {})),
-                c.get("created_at", self.now),
                 c.get("created_at", self.now)
             ))
             client_ids.append(cur.fetchone()['client_id'])
@@ -173,8 +172,8 @@ class BaseUserGenerator:
                 INSERT INTO orders (
                     client_id, order_amount, items_count, discount_amount,
                     payment_method, order_timestamp, amount_deviation, orders_last_30d,
-                    created_at, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING order_id
             """, (
                 o['client_id'],
@@ -185,7 +184,6 @@ class BaseUserGenerator:
                 o['order_timestamp'],
                 o.get('amount_deviation', 0.0),
                 o.get('orders_last_30d', 0),
-                o.get('created_at', self.now),
                 o.get('created_at', self.now)
             ))
             order_ids.append(cur.fetchone()['order_id'])
@@ -205,8 +203,8 @@ class BaseUserGenerator:
                     order_id, client_id, days_since_purchase, days_since_last_return,
                     return_channel, has_receipt, tags_removed, missing_components,
                     returns_last_30d, return_rate_last_30d, refund_amount,
-                    created_at, updated_at
-                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                    created_at
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
                 RETURNING return_id
             """, (
                 r['order_id'],  # ВАЖНО: order_id, не transaction_id!
@@ -220,7 +218,6 @@ class BaseUserGenerator:
                 r.get('returns_last_30d', 0),
                 r.get('return_rate_last_30d', 0.0),
                 r.get('refund_amount'),
-                r.get('created_at', self.now),
                 r.get('created_at', self.now)
             ))
             return_ids.append(cur.fetchone()['return_id'])

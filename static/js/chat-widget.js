@@ -29,7 +29,6 @@ class ChatWidget {
 
     bindEvents() {
         const btn = document.getElementById('chatWidgetBtn');
-        btn.addEventListener('click', () => this.handleClick());
     }
     handleClick() {
         // Перенаправление на вкладку AI Нейросеть
