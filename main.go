@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"database/sql"
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"html/template"
@@ -1001,6 +1002,33 @@ func clientProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
+
+func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
+	stats, err := GetStats()
+	if err != nil {
+		stats = map[string]interface{}{
+			"total_clients": 0,
+			"total_orders":  0,
+			"total_returns": 0,
+			"high_risk":     0,
+		}
+	}
+
+	data := map[string]interface{}{
+		"Stats":       stats,
+		"DBConnected": db != nil,
+	}
+
+	tmpl, err := template.ParseFiles("templates/admin_profile.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, data); err != nil {
 		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
 	}
 }
@@ -2047,6 +2075,25 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	userData := map[string]interface{}{
+		"id":    foundUser.ID,
+		"login": foundUser.Login,
+		"role":  foundUser.Role,
+	}
+	userJSON, _ := json.Marshal(userData)
+
+	// Кодируем в base64 для безопасной передачи в куке
+	encodedUser := base64.StdEncoding.EncodeToString(userJSON)
+
+	http.SetCookie(w, &http.Cookie{
+		Name:     "user",
+		Value:    encodedUser,
+		Path:     "/",
+		MaxAge:   86400, // 24 часа
+		HttpOnly: false, // false чтобы JS мог читать (для sessionStorage)
+		SameSite: http.SameSiteLaxMode,
+	})
+
 	// Успешный вход
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"user": map[string]interface{}{
@@ -2054,6 +2101,36 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 			"login": foundUser.Login,
 			"role":  foundUser.Role,
 		},
+	})
+}
+
+func apiLogout(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Очищаем куку пользователя
+	http.SetCookie(w, &http.Cookie{
+		Name:     "user",
+		Value:    "",
+		Path:     "/",
+		MaxAge:   -1, // Удаляем куку
+		HttpOnly: false,
+		SameSite: http.SameSiteLaxMode,
+	})
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success": true,
 	})
 }
 
@@ -2182,10 +2259,45 @@ func main() {
 
 	// Страницы
 	http.HandleFunc("/login", loginPage)
+	http.HandleFunc("/admin/profile", authMiddleware(adminProfileHandler))
 	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		// Всегда перенаправляем на страницу авторизации
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		cookie, err := r.Cookie("user")
+		if err != nil {
+			// Не авторизован — перенаправляем на login
+			log.Printf("[DEBUG] Нет куки user: %v", err)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		log.Printf("[DEBUG] Кука user: %s", cookie.Value)
+
+		// Декодируем из base64
+		decodedUser, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			log.Printf("[DEBUG] Ошибка декодирования base64 из куки: %v", err)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		// Декодируем информацию о пользователе из куки
+		var userData struct {
+			Role string `json:"role"`
+		}
+		if err := json.Unmarshal(decodedUser, &userData); err != nil {
+			log.Printf("[DEBUG] Ошибка парсинга JSON из куки: %v", err)
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		log.Printf("[DEBUG] Роль пользователя: %s", userData.Role)
+
+		// Авторизован — перенаправляем в зависимости от роли
+		if userData.Role == "admin" {
+			http.Redirect(w, r, "/admin/profile", http.StatusSeeOther)
+		} else {
+			http.Redirect(w, r, "/client/profile", http.StatusSeeOther)
+		}
 	})
 	http.HandleFunc("/check", checkHandler)
 	http.HandleFunc("/settings", settingsPage)
@@ -2194,6 +2306,7 @@ func main() {
 
 	// API endpoints
 	http.HandleFunc("/api/login", apiLogin)
+	http.HandleFunc("/api/logout", apiLogout)
 	http.HandleFunc("/api/client/orders", apiGetClientOrders)
 	http.HandleFunc("/api/client/returns", apiGetClientReturns)
 	http.HandleFunc("/api/client/", apiGetClient)

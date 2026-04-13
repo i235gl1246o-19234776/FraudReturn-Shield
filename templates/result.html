@@ -7,27 +7,86 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/chat-widget.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        .admin-nav {
+            background: white;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .admin-nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .admin-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+        }
+
+        .admin-nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            transition: var(--transition-fast);
+        }
+
+        .admin-nav-links a:hover,
+        .admin-nav-links a.active {
+            color: var(--wb-purple);
+            background: var(--gray-100);
+        }
+
+        .admin-nav-links a.active {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
 </head>
 <body>
-    <div class="wrapper">
-        <!-- Навигация -->
-        <nav class="navbar">
-            <div class="container">
-                <a href="/" class="nav-logo">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                    </svg>
-                    FraudReturn Shield
-                </a>
-                <ul class="nav-links">
-                    <li><a href="/">Главная</a></li>
-                    <li><a href="/check">Проверка</a></li>
-                    <li><a href="/settings">Настройки</a></li>
-                    <li><a href="/history">История</a></li>
-                    <li><a href="/users">Пользователи</a></li>
-                </ul>
-            </div>
-        </nav>
+    <!-- Навигация -->
+    <nav class="admin-nav">
+        <div class="container">
+            <a href="/admin/profile" class="nav-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                FraudReturn Shield
+            </a>
+            <ul class="admin-nav-links">
+                <li><a href="/admin/profile">Кабинет</a></li>
+                <li><a href="/check">Проверка</a></li>
+                <li><a href="/users">Пользователи</a></li>
+                <li><a href="/history">История</a></li>
+                <li><a href="/settings">Настройки</a></li>
+            </ul>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+    </nav>
 
         <!-- Основной контент -->
         <main class="main">
@@ -79,6 +138,19 @@
             </div>
         </footer>
     </div>
+
+<script>
+    function logout() {
+        sessionStorage.removeItem('user');
+        fetch('/api/logout', { method: 'POST' })
+            .then(() => {
+                window.location.href = '/login';
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
+    }
+</script>
 
 <script src="/static/js/chat-widget.js"></script>
 </body>
