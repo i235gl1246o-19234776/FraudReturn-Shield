@@ -9,6 +9,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link rel="stylesheet" href="/static/css/chat-widget.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="/static/js/chat-widget.js" defer></script>
     <style>
         .client-nav {
             background: white;
@@ -257,34 +258,6 @@
         @keyframes pulse {
             0%, 100% { transform: scale(1); }
             50% { transform: scale(1.2); }
-        }
-
-        .chat-toggle {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #7F30E3, #F90479);
-            color: white;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 8px 25px rgba(127, 48, 227, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: var(--transition);
-            z-index: 999;
-        }
-
-        .chat-toggle:hover {
-            transform: scale(1.1);
-        }
-
-        .chat-toggle svg {
-            width: 28px;
-            height: 28px;
         }
 
         .logout-btn {
@@ -629,8 +602,7 @@
         }
 
         function toggleChat() {
-            // Здесь будет логика открытия чата
-            alert('Чат с AI помощником по возвратам будет открыт здесь');
+            window.location.href = '/client/chat';
         }
 
         function logout() {
@@ -644,6 +616,25 @@
             alert('Заявка на возврат оформлена! Статус можно посмотреть во вкладке "Возвраты"');
             this.reset();
         });
+
+        function initChatButton() {
+            const chatBtn = document.createElement('button');
+            chatBtn.className = 'chat-widget-btn';
+            chatBtn.id = 'chatWidgetBtn';
+            chatBtn.setAttribute('aria-label', 'Открыть чат');
+            chatBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+            `;
+            chatBtn.addEventListener('click', () => {
+                window.location.href = '/client/chat';
+            });
+            document.body.appendChild(chatBtn);
+        }
+
+        // Инициализация кнопки чата после загрузки DOM
+        document.addEventListener('DOMContentLoaded', initChatButton);
     </script>
 </body>
 </html>

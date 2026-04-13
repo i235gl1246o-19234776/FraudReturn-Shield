@@ -10,7 +10,6 @@
     <link rel="stylesheet" href="/static/css/chat-widget.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
-    <script src="/static/js/chat-widget.js" defer></script>
     <style>
         .client-nav {
             background: white;
@@ -637,6 +636,25 @@
                     window.location.href = '/login';
                 });
         }
+
+        function initChatButton() {
+            const chatBtn = document.createElement('button');
+            chatBtn.className = 'chat-widget-btn';
+            chatBtn.id = 'chatWidgetBtn';
+            chatBtn.setAttribute('aria-label', 'Открыть чат');
+            chatBtn.innerHTML = `
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                </svg>
+            `;
+            chatBtn.addEventListener('click', () => {
+                window.location.href = '/client/chat';
+            });
+            document.body.appendChild(chatBtn);
+        }
+
+        // Инициализация кнопки чата после загрузки DOM
+        document.addEventListener('DOMContentLoaded', initChatButton);
     </script>
 </body>
 </html>
