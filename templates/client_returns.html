@@ -7,7 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>FraudReturn Shield — Возвраты</title>
     <link rel="stylesheet" href="/static/css/style.css">
-    <link rel="stylesheet" href="/static/css/chat-widget.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="/static/js/chat-widget.js" defer></script>
     <style>
@@ -315,34 +314,6 @@
             color: white;
         }
 
-        .chat-toggle {
-            position: fixed;
-            bottom: 30px;
-            right: 30px;
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #7F30E3, #F90479);
-            color: white;
-            border: none;
-            cursor: pointer;
-            box-shadow: 0 8px 25px rgba(127, 48, 227, 0.4);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: var(--transition);
-            z-index: 999;
-        }
-
-        .chat-toggle:hover {
-            transform: scale(1.1);
-        }
-
-        .chat-toggle svg {
-            width: 28px;
-            height: 28px;
-        }
-
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -450,13 +421,6 @@
             <!-- Возвраты будут загружены через JS -->
         </div>
     </div>
-
-    <!-- Кнопка чата -->
-    <button class="chat-toggle" onclick="toggleChat()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>
-    </button>
 
     <script>
         let currentUser = null;
@@ -674,10 +638,6 @@
             }, 5000);
         }
 
-        function toggleChat() {
-            window.location.href = '/client/chat';
-        }
-
         function logout() {
             sessionStorage.removeItem('user');
             fetch('/api/logout', { method: 'POST' })
@@ -689,24 +649,9 @@
                 });
         }
 
-        function initChatButton() {
-            const chatBtn = document.createElement('button');
-            chatBtn.className = 'chat-widget-btn';
-            chatBtn.id = 'chatWidgetBtn';
-            chatBtn.setAttribute('aria-label', 'Открыть чат');
-            chatBtn.innerHTML = `
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-                </svg>
-            `;
-            chatBtn.addEventListener('click', () => {
-                window.location.href = '/client/chat';
-            });
-            document.body.appendChild(chatBtn);
-        }
-
-        // Инициализация кнопки чата после загрузки DOM
-        document.addEventListener('DOMContentLoaded', initChatButton);
+        document.addEventListener('DOMContentLoaded', () => {
+            window.chatWidget = new ChatWidget();
+        });
     </script>
 </body>
 </html>
