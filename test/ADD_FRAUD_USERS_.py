@@ -153,7 +153,7 @@ class BaseUserGenerator:
                 c.get("global_return_rate", 0.0),
                 c.get("avg_order_amount", 0.0),
                 c.get("address_change_frequency", 0),
-                json.dumps(c.get("category_returns_count", {})),
+                c.get("category_returns_count", None),
                 c.get("created_at", self.now)
             ))
             client_ids.append(cur.fetchone()['client_id'])
