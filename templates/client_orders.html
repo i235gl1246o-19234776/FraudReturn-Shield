@@ -1,0 +1,537 @@
+
+<!-- client_orders.html - Страница заказов клиента -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudReturn Shield — Мои заказы</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/chat-widget.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .client-nav {
+            background: white;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .client-nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .client-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+        }
+
+        .client-nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            transition: var(--transition-fast);
+        }
+
+        .client-nav-links a:hover,
+        .client-nav-links a.active {
+            color: var(--wb-purple);
+            background: var(--gray-100);
+        }
+
+        .client-nav-links a.active {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            padding: 40px 0;
+            text-align: center;
+            color: white;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .orders-filter {
+            background: white;
+            padding: 20px;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            margin: -30px auto 30px;
+            max-width: 800px;
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .orders-filter select,
+        .orders-filter input {
+            padding: 10px 16px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
+            font-size: 0.95rem;
+        }
+
+        .orders-filter select:focus,
+        .orders-filter input:focus {
+            outline: none;
+            border-color: var(--wb-purple);
+        }
+
+        .order-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--wb-purple);
+            transition: var(--transition);
+        }
+
+        .order-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .order-id {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--gray-800);
+        }
+
+        .order-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .order-status.completed {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .order-status.pending {
+            background: var(--warning-bg);
+            color: var(--warning);
+        }
+
+        .order-status.returned {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .order-status.processing {
+            background: #e0e7ff;
+            color: var(--wb-purple);
+        }
+
+        .order-status.cancelled {
+            background: var(--gray-200);
+            color: var(--gray-600);
+        }
+
+        .order-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+        }
+
+        .order-detail-item {
+            background: var(--gray-50);
+            padding: 12px;
+            border-radius: var(--radius);
+        }
+
+        .order-detail-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 5px;
+        }
+
+        .order-detail-value {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .order-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 20px;
+            padding-top: 15px;
+            border-top: 1px solid var(--gray-100);
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--wb-dark);
+        }
+
+        .btn-secondary {
+            background: var(--gray-200);
+            color: var(--gray-700);
+        }
+
+        .btn-secondary:hover {
+            background: var(--gray-300);
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: var(--wb-purple);
+            border: 2px solid var(--wb-purple);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            color: var(--gray-400);
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            color: var(--gray-700);
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: var(--gray-500);
+        }
+
+        .chat-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(127, 48, 227, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            z-index: 999;
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-toggle svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+            margin-top: 30px;
+        }
+
+        .pagination button {
+            padding: 10px 16px;
+            background: white;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .pagination button:hover,
+        .pagination button.active {
+            background: var(--wb-purple);
+            border-color: var(--wb-purple);
+            color: white;
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="client-nav">
+        <div class="container">
+            <a href="/client/profile" class="nav-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                FraudReturn Shield
+            </a>
+            <ul class="client-nav-links">
+                <li><a href="/client/profile">Профиль</a></li>
+                <li><a href="/client/orders" class="active">Заказы</a></li>
+                <li><a href="/client/returns">Возвраты</a></li>
+                <li><a href="/client/chat">AI Нейросеть</a></li>
+            </ul>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+    </nav>
+
+    <!-- Заголовок страницы -->
+    <section class="page-header">
+        <div class="container">
+            <h1 class="page-title">📦 Мои заказы</h1>
+            <p class="page-subtitle">История ваших покупок и заказов</p>
+        </div>
+    </section>
+
+    <!-- Основной контент -->
+    <div class="container">
+        <!-- Фильтры -->
+        <div class="orders-filter">
+            <select id="statusFilter" onchange="filterOrders()">
+                <option value="all">Все статусы</option>
+                <option value="completed">Завершённые</option>
+                <option value="pending">В обработке</option>
+                <option value="processing">Доставляется</option>
+                <option value="returned">Возвращённые</option>
+                <option value="cancelled">Отменённые</option>
+            </select>
+            <input type="text" id="searchInput" placeholder="Поиск по ID заказа" onkeyup="searchOrders()">
+        </div>
+
+        <!-- Список заказов -->
+        <div id="orders-list">
+            <!-- Заказы будут загружены через JS -->
+        </div>
+
+        <!-- Пагинация -->
+        <div class="pagination" id="pagination">
+            <!-- Кнопки пагинации -->
+        </div>
+    </div>
+
+    <!-- Кнопка чата -->
+    <button class="chat-toggle" onclick="toggleChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <script>
+        let currentUser = null;
+        let allOrders = [];
+        let filteredOrders = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedUser = sessionStorage.getItem('user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                loadOrders();
+            } else {
+                window.location.href = '/login';
+            }
+        });
+
+        function loadOrders() {
+            fetch('/api/client/orders')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.orders) {
+                        allOrders = data.orders;
+                        filteredOrders = [...allOrders];
+                        renderOrders(filteredOrders);
+                    } else {
+                        // Демо данные если API не вернул данные
+                        allOrders = [
+                            { id: 1001, date: '2026-01-15', amount: 5990, status: 'completed', items: 2, delivery: '2026-01-17' },
+                            { id: 1002, date: '2026-01-18', amount: 12500, status: 'pending', items: 1, delivery: '-' },
+                            { id: 1003, date: '2026-01-20', amount: 3200, status: 'returned', items: 3, delivery: '2026-01-22' },
+                            { id: 1004, date: '2026-01-22', amount: 8900, status: 'processing', items: 1, delivery: '2026-01-25' },
+                            { id: 1005, date: '2026-01-10', amount: 15600, status: 'completed', items: 2, delivery: '2026-01-13' },
+                            { id: 1006, date: '2026-01-08', amount: 2100, status: 'cancelled', items: 1, delivery: '-' },
+                        ];
+                        filteredOrders = [...allOrders];
+                        renderOrders(filteredOrders);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки заказов:', error);
+                    // Демо данные при ошибке
+                    allOrders = [
+                        { id: 1001, date: '2026-01-15', amount: 5990, status: 'completed', items: 2, delivery: '2026-01-17' },
+                        { id: 1002, date: '2026-01-18', amount: 12500, status: 'pending', items: 1, delivery: '-' },
+                        { id: 1003, date: '2026-01-20', amount: 3200, status: 'returned', items: 3, delivery: '2026-01-22' },
+                        { id: 1004, date: '2026-01-22', amount: 8900, status: 'processing', items: 1, delivery: '2026-01-25' },
+                    ];
+                    filteredOrders = [...allOrders];
+                    renderOrders(filteredOrders);
+                });
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'completed': 'Завершён',
+                'pending': 'В обработке',
+                'processing': 'Доставляется',
+                'returned': 'Возвращён',
+                'cancelled': 'Отменён'
+            };
+            return statusMap[status] || status;
+        }
+
+        function renderOrders(orders) {
+            const ordersList = document.getElementById('orders-list');
+
+            if (orders.length === 0) {
+                ordersList.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <path d="M16 10a4 4 0 0 1-8 0"/>
+                        </svg>
+                        <h3>Заказы не найдены</h3>
+                        <p>У вас пока нет заказов с выбранными параметрами</p>
+                    </div>
+                `;
+                return;
+            }
+
+            ordersList.innerHTML = orders.map(order => `
+                <div class="order-card">
+                    <div class="order-header">
+                        <span class="order-id">Заказ #${order.id}</span>
+                        <span class="order-status ${order.status}">${getStatusText(order.status)}</span>
+                    </div>
+                    <div class="order-details">
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Дата заказа</div>
+                            <div class="order-detail-value">${order.date}</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Сумма</div>
+                            <div class="order-detail-value">${order.amount.toLocaleString()} ₽</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Товаров</div>
+                            <div class="order-detail-value">${order.items} шт.</div>
+                        </div>
+                        <div class="order-detail-item">
+                            <div class="order-detail-label">Доставка</div>
+                            <div class="order-detail-value">${order.delivery || 'Не назначена'}</div>
+                        </div>
+                    </div>
+                    <div class="order-actions">
+                        <button class="btn btn-primary" onclick="viewOrderDetails(${order.id})">Подробнее</button>
+                        ${order.status === 'completed' ? `<button class="btn btn-secondary" onclick="initiateReturn(${order.id})">Оформить возврат</button>` : ''}
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function filterOrders() {
+            const status = document.getElementById('statusFilter').value;
+            if (status === 'all') {
+                filteredOrders = [...allOrders];
+            } else {
+                filteredOrders = allOrders.filter(order => order.status === status);
+            }
+            renderOrders(filteredOrders);
+        }
+
+        function searchOrders() {
+            const query = document.getElementById('searchInput').value.toLowerCase();
+            if (query === '') {
+                filterOrders();
+                return;
+            }
+            filteredOrders = allOrders.filter(order =>
+                order.id.toString().includes(query)
+            );
+            renderOrders(filteredOrders);
+        }
+
+        function viewOrderDetails(orderId) {
+            alert(`Просмотр деталей заказа #${orderId}`);
+            // Здесь можно открыть модальное окно или перейти на страницу деталей
+        }
+
+        function initiateReturn(orderId) {
+            window.location.href = `/client/returns?order=${orderId}`;
+        }
+
+        function toggleChat() {
+            const chatWidget = document.querySelector('.chat-widget');
+            if (chatWidget) {
+                chatWidget.classList.toggle('hidden');
+            } else {
+                alert('Чат будет доступен скоро!');
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('user');
+            fetch('/api/logout', { method: 'POST' })
+                .then(() => {
+                    window.location.href = '/login';
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }
+    </script>
+</body>
+</html>

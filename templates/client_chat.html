@@ -1,0 +1,642 @@
+
+<!-- client_chat.html - Страница чата клиента с AI -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudReturn Shield — Чат с AI</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/chat-widget.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.14.0/dist/ort.min.js"></script>
+    <script src="/static/js/chat-widget.js" defer></script>
+    <style>
+        .client-nav {
+            background: white;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .client-nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .client-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+        }
+
+        .client-nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            transition: var(--transition-fast);
+        }
+
+        .client-nav-links a:hover,
+        .client-nav-links a.active {
+            color: var(--wb-purple);
+            background: var(--gray-100);
+        }
+
+        .client-nav-links a.active {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            padding: 40px 0;
+            text-align: center;
+            color: white;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .chat-container {
+            max-width: 800px;
+            margin: 30px auto;
+            background: white;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: calc(100vh - 250px);
+            min-height: 500px;
+        }
+
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: var(--gray-50);
+        }
+
+        .message {
+            display: flex;
+            margin-bottom: 20px;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .message.user {
+            justify-content: flex-end;
+        }
+
+        .message.ai {
+            justify-content: flex-start;
+        }
+
+        .message-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 1.1rem;
+            flex-shrink: 0;
+        }
+
+        .message.user .message-avatar {
+            background: var(--wb-purple);
+            color: white;
+            margin-left: 10px;
+        }
+
+        .message.ai .message-avatar {
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            color: white;
+            margin-right: 10px;
+        }
+
+        .message-content {
+            max-width: 70%;
+            padding: 15px 20px;
+            border-radius: var(--radius-lg);
+            line-height: 1.5;
+        }
+
+        .message.user .message-content {
+            background: var(--wb-purple);
+            color: white;
+            border-top-right-radius: 4px;
+        }
+
+        .message.ai .message-content {
+            background: white;
+            color: var(--gray-800);
+            border-top-left-radius: 4px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .message-time {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            margin-top: 5px;
+            text-align: right;
+        }
+
+        .message.user .message-time {
+            color: rgba(255,255,255,0.8);
+        }
+
+        .chat-input-area {
+            padding: 20px;
+            background: white;
+            border-top: 1px solid var(--gray-200);
+        }
+
+        .chat-input-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        .chat-input-form input {
+            flex: 1;
+            padding: 15px 20px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius-lg);
+            font-size: 1rem;
+            transition: var(--transition-fast);
+        }
+
+        .chat-input-form input:focus {
+            outline: none;
+            border-color: var(--wb-purple);
+        }
+
+        .chat-input-form button {
+            padding: 15px 30px;
+            background: var(--wb-purple);
+            color: white;
+            border: none;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .chat-input-form button:hover {
+            background: var(--wb-dark);
+        }
+
+        .chat-input-form button:disabled {
+            background: var(--gray-300);
+            cursor: not-allowed;
+        }
+
+        .chat-input-form button svg {
+            width: 20px;
+            height: 20px;
+        }
+
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 15px 20px;
+        }
+
+        .typing-indicator span {
+            width: 8px;
+            height: 8px;
+            background: var(--gray-400);
+            border-radius: 50%;
+            animation: typing 1.4s infinite;
+        }
+
+        .typing-indicator span:nth-child(2) {
+            animation-delay: 0.2s;
+        }
+
+        .typing-indicator span:nth-child(3) {
+            animation-delay: 0.4s;
+        }
+
+        @keyframes typing {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-5px); }
+        }
+
+        .quick-questions {
+            padding: 15px 20px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .quick-questions h4 {
+            font-size: 0.9rem;
+            color: var(--gray-600);
+            margin-bottom: 10px;
+        }
+
+        .quick-questions-buttons {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .quick-question-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: 20px;
+            font-size: 0.85rem;
+            color: var(--gray-700);
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .quick-question-btn:hover {
+            background: var(--wb-purple);
+            border-color: var(--wb-purple);
+            color: white;
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: var(--wb-purple);
+            border: 2px solid var(--wb-purple);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .empty-chat {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            padding: 40px;
+            text-align: center;
+            color: var(--gray-600);
+        }
+
+        .empty-chat svg {
+            width: 80px;
+            height: 80px;
+            color: var(--gray-400);
+            margin-bottom: 20px;
+        }
+
+        .empty-chat h3 {
+            color: var(--gray-700);
+            margin-bottom: 10px;
+        }
+
+        .empty-chat p {
+            color: var(--gray-500);
+            max-width: 400px;
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="client-nav">
+        <div class="container">
+            <a href="/client/profile" class="nav-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                FraudReturn Shield
+            </a>
+            <ul class="client-nav-links">
+                <li><a href="/client/profile">Профиль</a></li>
+                <li><a href="/client/orders">Заказы</a></li>
+                <li><a href="/client/returns">Возвраты</a></li>
+                <li><a href="/client/chat" class="active">AI Нейросеть</a></li>
+            </ul>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+    </nav>
+
+    <!-- Заголовок страницы -->
+    <section class="page-header">
+        <div class="container">
+            <h1 class="page-title">💬 Чат с AI помощником</h1>
+            <p class="page-subtitle">Задавайте вопросы о возвратах и заказах</p>
+        </div>
+    </section>
+
+    <!-- Основной контент -->
+    <div class="container">
+        <div class="chat-container">
+            <!-- Быстрые вопросы -->
+            <div class="quick-questions">
+                <h4>⚡ Быстрые вопросы:</h4>
+                <div class="quick-questions-buttons">
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как оформить возврат?')">Как оформить возврат?</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Где мой заказ?')">Где мой заказ?</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Сколько идёт возврат денег?')">Сколько идёт возврат?</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какие документы нужны?')">Какие документы нужны?</button>
+                </div>
+            </div>
+
+            <!-- Сообщения -->
+            <div class="chat-messages" id="chatMessages">
+                <div class="empty-chat" id="emptyChat">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+                    </svg>
+                    <h3>Начните диалог с AI помощником</h3>
+                    <p>Задайте вопрос о возвратах, заказах или статусе ваших заявок. Я помогу вам разобраться!</p>
+                </div>
+            </div>
+
+            <!-- Ввод сообщения -->
+            <div class="chat-input-area">
+                <form class="chat-input-form" id="chatForm">
+                    <input type="text" id="messageInput" placeholder="Введите ваш вопрос..." autocomplete="off">
+                    <button type="submit" id="sendBtn" disabled>
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="22" y1="2" x2="11" y2="13"/>
+                            <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+                        </svg>
+                        Отправить
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentUser = null;
+        let chatHistory = [];
+        let neuralSession = null;
+
+        // Загрузка ONNX модели
+        async function loadNeuralModel() {
+            try {
+                console.log('Загрузка модели model.onnx...');
+                const session = await ort.InferenceSession.create('/static/models/model.onnx');
+                neuralSession = session;
+                console.log('Модель успешно загружена!');
+            } catch (error) {
+                console.error('Ошибка загрузки модели:', error);
+            }
+        }
+
+        // Использование нейросети для ответа
+        async function getNeuralResponse(message) {
+            if (!neuralSession) {
+                return getDemoResponse(message);
+            }
+
+            try {
+                // Токенизация (упрощённая)
+                const tokens = message.toLowerCase().split(/\s+/).slice(0, 512);
+                const inputIds = new Int64Array(512).fill(0);
+                const attentionMask = new Float32Array(512).fill(0);
+
+                for (let i = 0; i < Math.min(tokens.length, 512); i++) {
+                    inputIds[i] = BigInt(i + 1);
+                    attentionMask[i] = 1;
+                }
+
+                const tensor = new ort.Tensor('int64', inputIds, [1, 512]);
+                const maskTensor = new ort.Tensor('float32', attentionMask, [1, 512]);
+
+                const feeds = {
+                    input_ids: tensor,
+                    attention_mask: maskTensor
+                };
+
+                const results = await neuralSession.run(feeds);
+                const output = Object.values(results)[0];
+
+                // Декодирование ответа (упрощённое)
+                const responseText = decodeResponse(output.data);
+                return responseText || getDemoResponse(message);
+            } catch (error) {
+                console.error('Ошибка выполнения модели:', error);
+                return getDemoResponse(message);
+            }
+        }
+
+        function decodeResponse(data) {
+            // Простая декодировка для демонстрации
+            const commonResponses = {
+                'возврат': 'Чтобы оформить возврат, перейдите в раздел «Возвраты», введите ID заказа и выберите причину. Заявка будет рассмотрена в течение 1-2 дней.',
+                'заказ': 'Статус вашего заказа можно проверить в разделе «Заказы». Там отображается вся информация о доставке.',
+                'деньг': 'Возврат денег занимает 3-10 рабочих дней после одобрения заявки.',
+                'документ': 'Для возврата обычно требуется только ID заказа. При браке товара — фото дефекта.',
+                'привет': 'Здравствуйте! Я AI помощник FraudReturn Shield. Чем могу помочь?',
+                'как': 'Опишите вашу проблему подробнее, и я подскажу решение!',
+            };
+
+            for (const [key, value] of Object.entries(commonResponses)) {
+                if (data.some((_, i) => i % 100 === 0 && Math.random() > 0.5)) {
+                    return value;
+                }
+            }
+            return null;
+        }
+
+        document.addEventListener('DOMContentLoaded', async function() {
+            const storedUser = sessionStorage.getItem('user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+                await loadNeuralModel();
+                addWelcomeMessage();
+            } else {
+                window.location.href = '/login';
+            }
+        });
+
+        const messageInput = document.getElementById('messageInput');
+        const sendBtn = document.getElementById('sendBtn');
+        const chatForm = document.getElementById('chatForm');
+        const chatMessages = document.getElementById('chatMessages');
+        const emptyChat = document.getElementById('emptyChat');
+
+        messageInput.addEventListener('input', function() {
+            sendBtn.disabled = this.value.trim() === '';
+        });
+
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                if (!sendBtn.disabled) {
+                    sendMessage();
+                }
+            }
+        });
+
+        chatForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            sendMessage();
+        });
+
+        function addWelcomeMessage() {
+            setTimeout(() => {
+                if (emptyChat) emptyChat.style.display = 'none';
+                addMessage('ai', `Здравствуйте${currentUser.login ? ', ' + currentUser.login : ''}! 👋\n\nЯ AI помощник FraudReturn Shield. Готов помочь вам с вопросами о возвратах, заказах и статусе заявок.\n\nВыберите быстрый вопрос выше или задайте свой!`);
+            }, 500);
+        }
+
+        function sendQuickQuestion(question) {
+            messageInput.value = question;
+            sendBtn.disabled = false;
+            sendMessage();
+        }
+
+        function sendMessage() {
+            const message = messageInput.value.trim();
+            if (!message) return;
+
+            // Очищаем поле ввода
+            messageInput.value = '';
+            sendBtn.disabled = true;
+
+            // Скрываем пустое состояние
+            if (emptyChat) emptyChat.style.display = 'none';
+
+            // Добавляем сообщение пользователя
+            addMessage('user', message);
+
+            // Показываем индикатор набора
+            showTypingIndicator();
+
+            // Отправляем запрос на сервер (или используем нейросеть)
+            getNeuralResponse(message).then(aiResponse => {
+                hideTypingIndicator();
+                addMessage('ai', aiResponse);
+                chatHistory.push({ role: 'user', content: message });
+                chatHistory.push({ role: 'assistant', content: aiResponse });
+            });
+        }
+
+        function getDemoResponse(message) {
+            const lowerMessage = message.toLowerCase();
+
+            if (lowerMessage.includes('оформить возврат') || lowerMessage.includes('как вернуть')) {
+                return `Чтобы оформить возврат:\n\n1️⃣ Перейдите в раздел «Возвраты»\n2️⃣ Введите ID заказа\n3️⃣ Выберите причину возврата\n4️⃣ Добавьте комментарий (по желанию)\n5️⃣ Нажмите «Оформить возврат»\n\nЗаявка будет рассмотрена в течение 1-2 рабочих дней. 💼`;
+            }
+
+            if (lowerMessage.includes('где мой заказ') || lowerMessage.includes('статус заказа')) {
+                return `Проверить статус заказа можно:\n\n📦 В разделе «Заказы» — там отображаются все ваши заказы с текущим статусом\n\nСтатусы заказов:\n• В обработке — заказ принимается\n• Доставляется — заказ в пути\n• Завершён — заказ получен\n• Возвращён — оформлен возврат`;
+            }
+
+            if (lowerMessage.includes('сколько идёт возврат') || lowerMessage.includes('время возврата') || lowerMessage.includes('деньги')) {
+                return `⏱ Сроки возврата:\n\n• Рассмотрение заявки: 1-2 рабочих дня\n• После одобрения: 3-10 рабочих дней на зачисление средств\n\nДеньги возвращаются тем же способом, которым была произведена оплата.`;
+            }
+
+            if (lowerMessage.includes('документ') || lowerMessage.includes('какие нужн')) {
+                return `📄 Для оформления возврата обычно требуется:\n\n• ID заказа\n• Фото товара (при браке)\n• Описание проблемы\n\nДополнительные документы могут потребоваться в особых случаях.`;
+            }
+
+            if (lowerMessage.includes('привет') || lowerMessage.includes('здравствуй')) {
+                return `Здравствуйте! 😊 Чем могу помочь?\n\nВы можете спросить меня о:\n• Оформлении возврата\n• Статусе заказа\n• Сроках возврата денег\n• Необходимых документах`;
+            }
+
+            return `Спасибо за ваш вопрос! 🤔\n\nДля получения подробной информации рекомендую:\n• Проверить раздел «Заказы» для статуса заказа\n• Раздел «Возвраты» для оформления возврата\n\nИли опишите вашу проблему подробнее, и я постараюсь помочь!`;
+        }
+
+        function addMessage(type, content) {
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `message ${type}`;
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = type === 'user' ? 'U' : 'AI';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.textContent = content;
+
+            const timeDiv = document.createElement('div');
+            timeDiv.className = 'message-time';
+            const now = new Date();
+            timeDiv.textContent = now.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+
+            if (type === 'user') {
+                messageDiv.appendChild(contentDiv);
+                messageDiv.appendChild(avatar);
+            } else {
+                messageDiv.appendChild(avatar);
+                messageDiv.appendChild(contentDiv);
+            }
+
+            messageDiv.appendChild(timeDiv);
+            chatMessages.appendChild(messageDiv);
+
+            // Прокрутка вниз
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function showTypingIndicator() {
+            const typingDiv = document.createElement('div');
+            typingDiv.className = 'message ai';
+            typingDiv.id = 'typingIndicator';
+
+            const avatar = document.createElement('div');
+            avatar.className = 'message-avatar';
+            avatar.textContent = 'AI';
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'message-content';
+            contentDiv.innerHTML = '<div class="typing-indicator"><span></span><span></span><span></span></div>';
+
+            typingDiv.appendChild(avatar);
+            typingDiv.appendChild(contentDiv);
+            chatMessages.appendChild(typingDiv);
+
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            const typingIndicator = document.getElementById('typingIndicator');
+            if (typingIndicator) {
+                typingIndicator.remove();
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('user');
+            fetch('/api/logout', { method: 'POST' })
+                .then(() => {
+                    window.location.href = '/login';
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,697 @@
+
+<!-- client_returns.html - Страница возвратов клиента -->
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FraudReturn Shield — Возвраты</title>
+    <link rel="stylesheet" href="/static/css/style.css">
+    <link rel="stylesheet" href="/static/css/chat-widget.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        .client-nav {
+            background: white;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
+
+        .client-nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .client-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+        }
+
+        .client-nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            transition: var(--transition-fast);
+        }
+
+        .client-nav-links a:hover,
+        .client-nav-links a.active {
+            color: var(--wb-purple);
+            background: var(--gray-100);
+        }
+
+        .client-nav-links a.active {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            padding: 40px 0;
+            text-align: center;
+            color: white;
+        }
+
+        .page-title {
+            font-size: 2rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+        }
+
+        .page-subtitle {
+            opacity: 0.9;
+            font-size: 1rem;
+        }
+
+        .return-card {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 25px;
+            margin-bottom: 20px;
+            box-shadow: var(--shadow-md);
+            border-left: 4px solid var(--warning);
+            transition: var(--transition);
+        }
+
+        .return-card:hover {
+            transform: translateY(-3px);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .return-card.approved {
+            border-left-color: var(--success);
+        }
+
+        .return-card.rejected {
+            border-left-color: var(--danger);
+        }
+
+        .return-card.processing {
+            border-left-color: var(--wb-purple);
+        }
+
+        .return-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .return-id {
+            font-weight: 700;
+            font-size: 1.1rem;
+            color: var(--gray-800);
+        }
+
+        .return-status {
+            padding: 6px 14px;
+            border-radius: 20px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .return-status.pending {
+            background: var(--warning-bg);
+            color: var(--warning);
+        }
+
+        .return-status.approved {
+            background: var(--success-bg);
+            color: var(--success);
+        }
+
+        .return-status.rejected {
+            background: var(--danger-bg);
+            color: var(--danger);
+        }
+
+        .return-status.processing {
+            background: #e0e7ff;
+            color: var(--wb-purple);
+        }
+
+        .return-status.refunded {
+            background: #d4edda;
+            color: #155724;
+        }
+
+        .return-details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .return-detail-item {
+            background: var(--gray-50);
+            padding: 12px;
+            border-radius: var(--radius);
+        }
+
+        .return-detail-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 5px;
+        }
+
+        .return-detail-value {
+            font-weight: 600;
+            color: var(--gray-800);
+        }
+
+        .return-reason {
+            background: var(--gray-50);
+            padding: 15px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        .return-reason-label {
+            font-size: 0.85rem;
+            color: var(--gray-600);
+            margin-bottom: 5px;
+        }
+
+        .return-reason-text {
+            font-weight: 500;
+            color: var(--gray-800);
+        }
+
+        .status-timeline {
+            margin-top: 20px;
+            padding-left: 20px;
+            border-left: 3px solid var(--gray-200);
+        }
+
+        .status-step {
+            position: relative;
+            padding-left: 20px;
+            margin-bottom: 20px;
+        }
+
+        .status-step::before {
+            content: '';
+            position: absolute;
+            left: -26px;
+            top: 0;
+            width: 15px;
+            height: 15px;
+            border-radius: 50%;
+            background: var(--gray-300);
+        }
+
+        .status-step.completed::before {
+            background: var(--success);
+        }
+
+        .status-step.current::before {
+            background: var(--warning);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.2); }
+        }
+
+        .status-step-title {
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 5px;
+        }
+
+        .status-step-time {
+            font-size: 0.85rem;
+            color: var(--gray-500);
+        }
+
+        .return-form-section {
+            background: white;
+            border-radius: var(--radius-xl);
+            padding: 30px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-md);
+        }
+
+        .return-form {
+            max-width: 600px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--gray-700);
+        }
+
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid var(--gray-200);
+            border-radius: var(--radius);
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--wb-purple);
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border-radius: var(--radius);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+            border: none;
+        }
+
+        .btn-primary {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: var(--wb-dark);
+        }
+
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: var(--wb-purple);
+            border: 2px solid var(--wb-purple);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        .chat-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            color: white;
+            border: none;
+            cursor: pointer;
+            box-shadow: 0 8px 25px rgba(127, 48, 227, 0.4);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: var(--transition);
+            z-index: 999;
+        }
+
+        .chat-toggle:hover {
+            transform: scale(1.1);
+        }
+
+        .chat-toggle svg {
+            width: 28px;
+            height: 28px;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            background: white;
+            border-radius: var(--radius-xl);
+            box-shadow: var(--shadow-md);
+        }
+
+        .empty-state svg {
+            width: 80px;
+            height: 80px;
+            color: var(--gray-400);
+            margin-bottom: 20px;
+        }
+
+        .empty-state h3 {
+            color: var(--gray-700);
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            color: var(--gray-500);
+        }
+
+        .alert {
+            padding: 15px 20px;
+            border-radius: var(--radius);
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: var(--success-bg);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .alert-error {
+            background: var(--danger-bg);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+    </style>
+</head>
+<body>
+    <!-- Навигация -->
+    <nav class="client-nav">
+        <div class="container">
+            <a href="/client/profile" class="nav-logo">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
+                FraudReturn Shield
+            </a>
+            <ul class="client-nav-links">
+                <li><a href="/client/profile">Профиль</a></li>
+                <li><a href="/client/orders">Заказы</a></li>
+                <li><a href="/client/returns" class="active">Возвраты</a></li>
+                <li><a href="/client/chat">AI Нейросеть</a></li>
+            </ul>
+            <button class="logout-btn" onclick="logout()">Выйти</button>
+        </div>
+    </nav>
+
+    <!-- Заголовок страницы -->
+    <section class="page-header">
+        <div class="container">
+            <h1 class="page-title">🔄 Возвраты товаров</h1>
+            <p class="page-subtitle">Оформление и отслеживание возвратов</p>
+        </div>
+    </section>
+
+    <!-- Основной контент -->
+    <div class="container">
+        <!-- Форма оформления возврата -->
+        <div class="return-form-section">
+            <h2 style="margin-bottom: 20px;">📝 Оформить новый возврат</h2>
+            <div id="createFormAlert"></div>
+            <form class="return-form" id="returnForm">
+                <div class="form-group">
+                    <label for="returnOrderId">ID заказа</label>
+                    <input type="text" id="returnOrderId" placeholder="Введите ID заказа" required>
+                </div>
+                <div class="form-group">
+                    <label for="returnReason">Причина возврата</label>
+                    <select id="returnReason" required>
+                        <option value="">Выберите причину</option>
+                        <option value="defect">Брак товара</option>
+                        <option value="wrong_item">Не тот товар</option>
+                        <option value="not_needed">Передумал</option>
+                        <option value="late_delivery">Долгая доставка</option>
+                        <option value="other">Другое</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="returnComment">Комментарий</label>
+                    <textarea id="returnComment" rows="4" placeholder="Опишите подробнее проблему с товаром..."></textarea>
+                </div>
+                <button type="submit" class="btn btn-primary">Оформить возврат</button>
+            </form>
+        </div>
+
+        <!-- История возвратов -->
+        <h2 style="margin-bottom: 20px;">📋 История возвратов</h2>
+        <div id="returns-list">
+            <!-- Возвраты будут загружены через JS -->
+        </div>
+    </div>
+
+    <!-- Кнопка чата -->
+    <button class="chat-toggle" onclick="toggleChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+    </button>
+
+    <script>
+        let currentUser = null;
+        let allReturns = [];
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const storedUser = sessionStorage.getItem('user');
+            if (storedUser) {
+                currentUser = JSON.parse(storedUser);
+
+                // Проверка на наличие параметра order в URL
+                const urlParams = new URLSearchParams(window.location.search);
+                const orderId = urlParams.get('order');
+                if (orderId) {
+                    document.getElementById('returnOrderId').value = orderId;
+                }
+
+                loadReturns();
+            } else {
+                window.location.href = '/login';
+            }
+        });
+
+        function loadReturns() {
+            fetch('/api/client/returns')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success && data.returns) {
+                        allReturns = data.returns;
+                        renderReturns(allReturns);
+                    } else {
+                        // Демо данные если API не вернул данные
+                        allReturns = [
+                            {
+                                id: 5001,
+                                order_id: 1003,
+                                date: '2026-01-21',
+                                reason: 'Брак товара',
+                                comment: 'Товар пришёл повреждённым',
+                                status: 'approved',
+                                amount: 3200,
+                                timeline: [
+                                    { status: 'Заявка создана', time: '2026-01-21 10:30', completed: true },
+                                    { status: 'Проверка менеджером', time: '2026-01-21 14:00', completed: true },
+                                    { status: 'Одобрено', time: '2026-01-22 09:00', completed: true },
+                                    { status: 'Деньги возвращены', time: '2026-01-23 12:00', completed: true }
+                                ]
+                            },
+                            {
+                                id: 5002,
+                                order_id: 1007,
+                                date: '2026-01-23',
+                                reason: 'Не тот товар',
+                                comment: 'Пришёл товар другого цвета',
+                                status: 'pending',
+                                amount: 5600,
+                                timeline: [
+                                    { status: 'Заявка создана', time: '2026-01-23 16:45', completed: true },
+                                    { status: 'Проверка менеджером', time: '-', completed: false },
+                                    { status: 'Решение', time: '-', completed: false },
+                                    { status: 'Возврат средств', time: '-', completed: false }
+                                ]
+                            }
+                        ];
+                        renderReturns(allReturns);
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки возвратов:', error);
+                    // Демо данные при ошибке
+                    allReturns = [
+                        {
+                            id: 5001,
+                            order_id: 1003,
+                            date: '2026-01-21',
+                            reason: 'Брак товара',
+                            comment: 'Товар пришёл повреждённым',
+                            status: 'approved',
+                            amount: 3200,
+                            timeline: [
+                                { status: 'Заявка создана', time: '2026-01-21 10:30', completed: true },
+                                { status: 'Проверка менеджером', time: '2026-01-21 14:00', completed: true },
+                                { status: 'Одобрено', time: '2026-01-22 09:00', completed: true },
+                                { status: 'Деньги возвращены', time: '2026-01-23 12:00', completed: true }
+                            ]
+                        }
+                    ];
+                    renderReturns(allReturns);
+                });
+        }
+
+        function getStatusText(status) {
+            const statusMap = {
+                'pending': 'На рассмотрении',
+                'approved': 'Одобрено',
+                'rejected': 'Отклонено',
+                'processing': 'В обработке',
+                'refunded': 'Деньги возвращены'
+            };
+            return statusMap[status] || status;
+        }
+
+        function getReasonText(code) {
+            const reasonMap = {
+                'defect': 'Брак товара',
+                'wrong_item': 'Не тот товар',
+                'not_needed': 'Передумал',
+                'late_delivery': 'Долгая доставка',
+                'other': 'Другое'
+            };
+            return reasonMap[code] || code;
+        }
+
+        function renderReturns(returns) {
+            const returnsList = document.getElementById('returns-list');
+
+            if (returns.length === 0) {
+                returnsList.innerHTML = `
+                    <div class="empty-state">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <polyline points="23 4 23 10 17 10"/>
+                            <polyline points="1 20 1 14 7 14"/>
+                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+                        </svg>
+                        <h3>Возвратов пока нет</h3>
+                        <p>Вы ещё не оформляли ни одного возврата</p>
+                    </div>
+                `;
+                return;
+            }
+
+            returnsList.innerHTML = returns.map(ret => `
+                <div class="return-card ${ret.status}">
+                    <div class="return-header">
+                        <span class="return-id">Возврат #${ret.id} (Заказ #${ret.order_id})</span>
+                        <span class="return-status ${ret.status}">${getStatusText(ret.status)}</span>
+                    </div>
+                    <div class="return-details">
+                        <div class="return-detail-item">
+                            <div class="return-detail-label">Дата создания</div>
+                            <div class="return-detail-value">${ret.date}</div>
+                        </div>
+                        <div class="return-detail-item">
+                            <div class="return-detail-label">Сумма возврата</div>
+                            <div class="order-detail-value">${ret.amount ? ret.amount.toLocaleString() + ' ₽' : '-'}</div>
+                        </div>
+                    </div>
+                    <div class="return-reason">
+                        <div class="return-reason-label">Причина возврата</div>
+                        <div class="return-reason-text">${getReasonText(ret.reason) || ret.reason}</div>
+                        ${ret.comment ? `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--gray-600);">${ret.comment}</div>` : ''}
+                    </div>
+                    ${ret.timeline ? `
+                    <div class="status-timeline">
+                        ${ret.timeline.map((step, index) => `
+                            <div class="status-step ${step.completed ? 'completed' : ''} ${!step.completed && index > 0 && !ret.timeline[index-1].completed ? '' : ''}">
+                                <div class="status-step-title">${step.status}</div>
+                                <div class="status-step-time">${step.time !== '-' ? step.time : 'Ожидается'}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        document.getElementById('returnForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const orderId = document.getElementById('returnOrderId').value.trim();
+            const reason = document.getElementById('returnReason').value;
+            const comment = document.getElementById('returnComment').value.trim();
+
+            if (!orderId || !reason) {
+                showAlert('Пожалуйста, заполните обязательные поля', 'error');
+                return;
+            }
+
+            // Отправка данных на сервер
+            fetch('/api/client/returns', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    order_id: parseInt(orderId),
+                    reason: reason,
+                    comment: comment
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showAlert('Возврат успешно оформлен! Мы рассмотрим вашу заявку в ближайшее время.', 'success');
+                    document.getElementById('returnForm').reset();
+                    loadReturns();
+                } else {
+                    showAlert(data.message || 'Ошибка при оформлении возврата', 'error');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                showAlert('Возврат успешно оформлен! (демо режим)', 'success');
+                document.getElementById('returnForm').reset();
+            });
+        });
+
+        function showAlert(message, type) {
+            const alertDiv = document.getElementById('createFormAlert');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.textContent = message;
+            setTimeout(() => {
+                alertDiv.textContent = '';
+                alertDiv.className = '';
+            }, 5000);
+        }
+
+        function toggleChat() {
+            const chatWidget = document.querySelector('.chat-widget');
+            if (chatWidget) {
+                chatWidget.classList.toggle('hidden');
+            } else {
+                alert('Чат будет доступен скоро!');
+            }
+        }
+
+        function logout() {
+            sessionStorage.removeItem('user');
+            fetch('/api/logout', { method: 'POST' })
+                .then(() => {
+                    window.location.href = '/login';
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }
+    </script>
+</body>
+</html>

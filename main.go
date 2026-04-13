@@ -1006,6 +1006,42 @@ func clientProfileHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func clientOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/client_orders.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
+
+func clientReturnsHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/client_returns.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
+
+func clientChatHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/client_chat.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
+
 func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
 	if err != nil {
@@ -2260,6 +2296,9 @@ func main() {
 	// Страницы
 	http.HandleFunc("/login", loginPage)
 	http.HandleFunc("/admin/profile", authMiddleware(adminProfileHandler))
+	http.HandleFunc("/client/orders", authMiddleware(clientOrdersHandler))
+	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
+	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
 	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("user")
