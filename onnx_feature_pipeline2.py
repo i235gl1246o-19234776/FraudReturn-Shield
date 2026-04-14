@@ -23,11 +23,11 @@ warnings.filterwarnings('ignore')
 # КОНФИГУРАЦИЯ ПОДКЛЮЧЕНИЯ К БД
 # =============================================================================
 CONN_PARAMS = {
-    'host': 'localhost',
-    'port': 5432,
-    'database': 'postgres',
-    'user': 'postgres',
-    'password': '1234'
+    'host': 'localhost',  # или IP-адрес сервера
+    'port': 5432,  # стандартный порт PostgreSQL
+    'database': 'fraud_return_db',  # имя базы данных
+    'user': 'postgres',  # имя пользователя
+    'password': 'OmegaBloody13'  # пароль
 }
 
 # =============================================================================
@@ -36,13 +36,20 @@ CONN_PARAMS = {
 Conn_params = {
     'host': 'localhost',  # или IP-адрес сервера
     'port': 5432,  # стандартный порт PostgreSQL
-    'database': 'postgres',  # имя базы данных
+    'database': 'fraud_return_db',  # имя базы данных
     'user': 'postgres',  # имя пользователя
-    'password': '1234'  # пароль
+    'password': 'OmegaBloody13'  # пароль
 }
 
 def get_connection():
-    return psycopg2.connect(**Conn_params)
+    """
+    Подключение к PostgreSQL с явным указанием кодировки UTF-8
+    для предотвращения ошибок декодирования байтов
+    """
+    conn = psycopg2.connect(**Conn_params)
+    # Устанавливаем клиентскую кодировку в UTF-8
+    conn.set_client_encoding('UTF8')
+    return conn
 
 # Пути к моделям
 ONNX_PATH = "fraud_model_v4_27patterns.onnx"

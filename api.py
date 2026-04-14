@@ -243,7 +243,8 @@ def load_fraud_model_v4(onnx_path: str, metadata_path: str,
             'port': parsed.port or 5432,
             'database': parsed.path.lstrip('/') or 'postgres',
             'user': parsed.username or 'postgres',
-            'password': parsed.password or '1234'
+            'password': parsed.password or '1234',
+            'options': '-c client_encoding=UTF8'
         }
 
         _fraud_service = FraudDetectionService(
