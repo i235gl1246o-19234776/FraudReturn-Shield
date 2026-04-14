@@ -21,9 +21,9 @@ from datetime import datetime, timedelta
 Conn_params = {
     'host': 'localhost',  # или IP-адрес сервера
     'port': 5432,  # стандартный порт PostgreSQL
-    'database': 'postgres',  # имя базы данных
+    'database': 'fraud_return_db',  # имя базы данных
     'user': 'postgres',  # имя пользователя
-    'password': '1234'  # пароль
+    'password': 'OmegaBloody13'  # пароль
 }
 
 # Инициализация Faker
