@@ -296,6 +296,16 @@ def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     По умолчанию использует v4 через onnx_feature_pipeline.py.
     """
     if use_v4 and model_path.endswith('.onnx'):
+        try:
+            with open(model_path, 'rb') as f:
+                header = f.read(20)
+                if b'git-lfs' in header or not header.startswith(b'\x08'):
+                    # Это Git LFS placeholder или невалидный файл, используем legacy
+                    _log(f"[WARN] {model_path} is not a valid ONNX file (Git LFS placeholder?), using legacy mode")
+                    return load_fraud_model_legacy(model_path.replace('.onnx', '.cbm'))
+        except Exception:
+            pass
+        
         # v4 модель через FraudDetectionService
         base_dir = os.path.dirname(model_path) or 'models'
         metadata_path = os.path.join(base_dir, 'metadata_v4_27patterns.json')
@@ -604,7 +614,7 @@ def _load_qa_data(qa_path: str) -> bool:
     global _qa_data, _qa_embeddings, _bm25_index, _qa_question_tokens, _qa_answer_tokens
 
     try:
-        with open(qa_path, 'r', encoding='utf-8') as f:
+        with open(qa_path, 'r', encoding='utf-8-sig') as f:
             _qa_data = json.load(f)
 
         if not _qa_data:
@@ -782,6 +792,30 @@ async def lifespan(app: FastAPI):
     """Startup/Shutdown события"""
     # Startup
     _log("[INFO] Starting FraudReturn Shield API...")
+
+    # Автоматическая загрузка Fraud v4 модели при старте
+    onnx_path = "models/fraud_model_v4_27patterns.onnx"
+    metadata_path = "models/metadata_v4_27patterns.json"
+    anomaly_scaler_path = "models/scaler_v4.pkl"
+    anomaly_model_path = "models/anomaly_model_v4.pkl"
+
+    if os.path.exists(onnx_path) and os.path.exists(metadata_path) and \
+       os.path.exists(anomaly_scaler_path) and os.path.exists(anomaly_model_path):
+        _log(f"[INFO] Auto-loading Fraud v4 model: {onnx_path}")
+        result = load_fraud_model_v4(
+            onnx_path=onnx_path,
+            metadata_path=metadata_path,
+            anomaly_scaler_path=anomaly_scaler_path,
+            anomaly_model_path=anomaly_model_path,
+            db_connection_string=None  # Будет использована DATABASE_URL или дефолт
+        )
+        if result['success']:
+            _log("[INFO] ✅ Fraud v4 model loaded successfully at startup")
+        else:
+            _log(f"[WARNING] ⚠️  Fraud v4 model load failed at startup: {result.get('error')}")
+    else:
+        _log("[WARNING] ⚠️  Model files not found, skipping auto-load")
+
     yield
     # Shutdown
     _log("[INFO] Shutting down FraudReturn Shield API...")

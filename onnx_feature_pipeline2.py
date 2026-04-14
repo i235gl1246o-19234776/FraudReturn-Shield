@@ -30,6 +30,20 @@ CONN_PARAMS = {
     'password': '1234'
 }
 
+# =============================================================================
+# ДОПОЛНИТЕЛЬНЫЕ ПАРАМЕТРЫ ПОДКЛЮЧЕНИЯ (для исправления ошибки UTF-8)
+# =============================================================================
+Conn_params = {
+    'host': 'localhost',  # или IP-адрес сервера
+    'port': 5432,  # стандартный порт PostgreSQL
+    'database': 'postgres',  # имя базы данных
+    'user': 'postgres',  # имя пользователя
+    'password': '1234'  # пароль
+}
+
+def get_connection():
+    return psycopg2.connect(**Conn_params)
+
 # Пути к моделям
 ONNX_PATH = "fraud_model_v4_27patterns.onnx"
 METADATA_PATH = "metadata_v4_27patterns.json"
@@ -40,155 +54,144 @@ ANOMALY_MODEL_PATH = "anomaly_model_v4.pkl"
 # =============================================================================
 # 1. SQL DATA EXTRACTOR (РАБОТА С ВАШЕЙ БД)
 # =============================================================================
-class DatabaseFeatureExtractor:
-    """Извлекает и агрегирует данные из БД: clients + orders + returns"""
 
-    def __init__(self, conn_params: Dict[str, any]):
-        self.conn_params = conn_params.copy()
-        self.conn_params_log = {k: ('***' if k == 'password' else v)
-                                for k, v in self.conn_params.items()}
+def get_transaction_features(client_id: int, order_id: int, return_id: int) -> pd.DataFrame:
+    """
+    Извлекает все признаки для конкретной транзакции возврата
+    JOIN: returns → orders → clients
+    """
+    query = """
+    SELECT 
+        -- Из таблицы clients
+        c.client_id,
+        c.account_age_days,
+        c.total_orders,
+        c.total_returns,
+        c.global_return_rate,
+        c.avg_order_amount,
+        c.address_change_frequency,
+        c.category_returns_count,
+        c.registration_city,
 
-    @contextmanager
-    def get_connection(self):
-        """Контекстный менеджер для подключения к БД"""
-        conn = psycopg2.connect(**self.conn_params)
+        -- Из таблицы orders
+        o.order_id,
+        o.order_amount,
+        o.items_count,
+        o.discount_amount,
+        o.payment_method,
+        o.order_timestamp,
+        o.amount_deviation,
+        o.orders_last_30d,
+        o.product_category,
+        o.is_electronics,
+        o.shipping_region,
+        o.region_risk_score,
+        o.delivery_city,
+        o.distance_from_registration_km,
+        o.payment_card_bin,
+        o.card_issuing_country,
+        o.card_country_mismatch,
+        o.delivery_address_type,
+        o.address_match_score,
+        o.is_address_match,
+
+        -- Из таблицы returns
+        r.return_id,
+        r.returns_last_30d,
+        r.return_rate_last_30d,
+        r.days_since_last_return,
+        r.days_since_purchase,
+        r.return_channel,
+        r.has_receipt,
+        r.tags_removed,
+        r.missing_components,
+        r.claimed_reason,
+        r.created_at as return_created_at
+
+    FROM returns r
+    JOIN orders o ON r.order_id = o.order_id
+    JOIN clients c ON r.client_id = c.client_id
+
+    WHERE r.return_id = %s
+    """
+
+    conn = get_connection()
+    try:
+        df = pd.read_sql_query(query, conn, params=(return_id,))
+    finally:
+        conn.close()
+
+    if df.empty:
+        raise ValueError(f"Возврат return_id={return_id} не найден в БД")
+
+    return df
+
+def get_client_history(client_id: int, days_back: int = 90) -> pd.DataFrame:
+    """
+    Получает историю клиента за последние N дней для расчёта поведенческих признаков
+    """
+    query = """
+    SELECT 
+        o.order_id,
+        o.order_timestamp,
+        o.order_amount,
+        o.payment_method,
+        r.return_id,
+        r.created_at as return_date,
+        r.return_channel
+    FROM orders o
+    LEFT JOIN returns r ON o.order_id = r.order_id
+    WHERE o.client_id = %s
+    AND o.order_timestamp >= NOW() - INTERVAL '%s days'
+    ORDER BY o.order_timestamp DESC
+    """
+
+    conn = get_connection()
+    try:
+        df = pd.read_sql_query(query, conn, params=(client_id, days_back))
+    finally:
+        conn.close()
+
+    return df
+
+def get_ip_device_stats(client_id: int) -> Dict:
+    """
+    Получает статистику по IP/устройствам из таблицы client_sessions
+    """
+    query = """
+    SELECT 
+        COUNT(DISTINCT ip_address) as unique_ips_90d,
+        COUNT(DISTINCT device_id) as unique_devices_90d,
+        COUNT(*) as total_sessions_90d,
+        COUNT(*) FILTER (WHERE login_timestamp >= NOW() - INTERVAL '24 hours') as sessions_24h,
+        COUNT(*) FILTER (WHERE is_emulator = TRUE) as emulator_sessions,
+        AVG(CASE WHEN is_new_device THEN 1.0 ELSE 0.0 END) as new_device_ratio
+    FROM client_sessions
+    WHERE client_id = %s
+    AND login_timestamp >= NOW() - INTERVAL '90 days'
+    """
+
+    try:
+        conn = get_connection()
         try:
-            yield conn
-            conn.commit()
-        except Exception:
-            conn.rollback()
-            raise
+            df = pd.read_sql_query(query, conn, params=(client_id,))
         finally:
             conn.close()
 
-    def get_transaction_features(self, client_id: int, order_id: int, return_id: int) -> pd.DataFrame:
-        """
-        Извлекает все признаки для конкретной транзакции возврата
-        JOIN: returns → orders → clients
-        """
-        query = """
-        SELECT 
-            -- Из таблицы clients
-            c.client_id,
-            c.account_age_days,
-            c.total_orders,
-            c.total_returns,
-            c.global_return_rate,
-            c.avg_order_amount,
-            c.address_change_frequency,
-            c.category_returns_count,
-            c.registration_city,
-
-            -- Из таблицы orders
-            o.order_id,
-            o.order_amount,
-            o.items_count,
-            o.discount_amount,
-            o.payment_method,
-            o.order_timestamp,
-            o.amount_deviation,
-            o.orders_last_30d,
-            o.product_category,
-            o.is_electronics,
-            o.shipping_region,
-            o.region_risk_score,
-            o.delivery_city,
-            o.distance_from_registration_km,
-            o.payment_card_bin,
-            o.card_issuing_country,
-            o.card_country_mismatch,
-            o.delivery_address_type,
-            o.address_match_score,
-            o.is_address_match,
-
-            -- Из таблицы returns
-            r.return_id,
-            r.returns_last_30d,
-            r.return_rate_last_30d,
-            r.days_since_last_return,
-            r.days_since_purchase,
-            r.return_channel,
-            r.has_receipt,
-            r.tags_removed,
-            r.missing_components,
-            r.claimed_reason,
-            r.created_at as return_created_at
-
-        FROM returns r
-        JOIN orders o ON r.order_id = o.order_id
-        JOIN clients c ON r.client_id = c.client_id
-
-        WHERE r.return_id = %s
-        """
-
-        with self.get_connection() as conn:
-            df = pd.read_sql_query(query, conn, params=(return_id,))
-
-        if df.empty:
-            raise ValueError(f"Возврат return_id={return_id} не найден в БД")
-
-        return df
-
-    def get_client_history(self, client_id: int, days_back: int = 90) -> pd.DataFrame:
-        """
-        Получает историю клиента за последние N дней для расчёта поведенческих признаков
-        """
-        query = """
-        SELECT 
-            o.order_id,
-            o.order_timestamp,
-            o.order_amount,
-            o.payment_method,
-            r.return_id,
-            r.created_at as return_date,
-            r.return_channel
-        FROM orders o
-        LEFT JOIN returns r ON o.order_id = r.order_id
-        WHERE o.client_id = %s
-        AND o.order_timestamp >= NOW() - INTERVAL '%s days'
-        ORDER BY o.order_timestamp DESC
-        """
-
-        with self.get_connection() as conn:
-            df = pd.read_sql_query(query, conn, params=(client_id, days_back))
-
-        return df
-
-    def get_ip_device_stats(self, client_id: int) -> Dict:
-        """
-        Получает статистику по IP/устройствам из таблицы client_sessions
-        """
-        query = """
-        SELECT 
-            COUNT(DISTINCT ip_address) as unique_ips_90d,
-            COUNT(DISTINCT device_id) as unique_devices_90d,
-            COUNT(*) as total_sessions_90d,
-            COUNT(*) FILTER (WHERE login_timestamp >= NOW() - INTERVAL '24 hours') as sessions_24h,
-            COUNT(*) FILTER (WHERE is_emulator = TRUE) as emulator_sessions,
-            AVG(CASE WHEN is_new_device THEN 1.0 ELSE 0.0 END) as new_device_ratio
-        FROM client_sessions
-        WHERE client_id = %s
-        AND login_timestamp >= NOW() - INTERVAL '90 days'
-        """
-
-        try:
-            with self.get_connection() as conn:
-                df = pd.read_sql_query(query, conn, params=(client_id,))
-
-            if not df.empty and df.iloc[0]['unique_ips_90d'] is not None:
-                row = df.iloc[0]
-                return {
-                    "ip_velocity_24h": int(row['sessions_24h'] or 0),
-                    "ip_velocity_7d": int(row['total_sessions_90d'] or 0),
-                    "accounts_per_ip": max(1, int(row['unique_ips_90d'] or 1)),
-                    "accounts_per_phone": 1,  # Нет данных о телефонах в сессиях
-                    "accounts_per_device": max(1, int(row['unique_devices_90d'] or 1)),
-                    "device_is_emulator": 1 if (row['emulator_sessions'] or 0) > 0 else 0,
+        if not df.empty and df.iloc[0]['unique_ips_90d'] is not None:
+            row = df.iloc[0]
+            return {
+                "ip_velocity_24h": int(row['sessions_24h'] or 0),
+                "ip_velocity_7d": int(row['total_sessions_90d'] or 0),
+                "accounts_per_ip": max(1, int(row['unique_ips_90d'] or 1)),
+                "accounts_per_phone": 1,  # Нет данных о телефонах в сессиях
+                "accounts_per_device": max(1, int(row['unique_devices_90d'] or 1)),
+                "device_is_emulator": 1 if (row['emulator_sessions'] or 0) > 0 else 0,
                     "device_trust_score": float(0.85 if (row['new_device_ratio'] or 0) < 0.5 else 0.65),
                     "ip_trust_score": float(0.80 if (row['sessions_24h'] or 0) < 5 else 0.50)
                 }
-        except Exception:
-            pass
+    except Exception:
+        pass
 
         # Дефолтные значения если таблица не существует или нет данных
         return {
@@ -420,15 +423,15 @@ class FraudDetectionService:
                  anomaly_scaler_path: str,
                  anomaly_model_path: str):
 
-        # 1. DB Extractor
-        self.db_extractor = DatabaseFeatureExtractor(conn_params)
+        # 1. DB Extractor - используем глобальную функцию get_connection
+        self.conn_params = conn_params
 
         # 2. ONNX Model
         self.sess = rt.InferenceSession(onnx_path, providers=["CPUExecutionProvider"])
         self.input_name = self.sess.get_inputs()[0].name
 
         # 3. Metadata
-        with open(metadata_path, 'r', encoding='utf-8') as f:
+        with open(metadata_path, 'r', encoding='utf-8-sig') as f:
             meta = json.load(f)
         self.expected_columns = meta['feature_columns']
         self.categorical_cols = meta.get('categorical_features', [])
@@ -437,32 +440,32 @@ class FraudDetectionService:
 
         # 4. Anomaly Detection
         with open(anomaly_scaler_path, 'rb') as f:
-            self.anomaly_scaler = joblib.load(f, encoding='bytes')
+            self.anomaly_scaler = joblib.load(f)
         with open(anomaly_model_path, 'rb') as f:
-            self.anomaly_model = joblib.load(f, encoding='bytes')
+            self.anomaly_model = joblib.load(f)
 
         # 5. Preprocessor
         self.preprocessor = ONNXPreprocessor(self.expected_columns, self.categorical_cols)
 
         print(f"✅ FraudDetectionService инициализирован")
-        print(f"   - БД: {self.db_extractor.conn_params_log}")
+        print(f"   - БД: {conn_params}")
         print(f"   - ONNX: {len(self.expected_columns)} колонок")
         print(f"   - Anomaly: scaler + IsolationForest загружены")
 
     def predict_for_return(self, return_id: int) -> Dict:
         """Основной метод: предсказание для конкретного возврата"""
         # 1. Извлечение данных из БД
-        tx_df = self.db_extractor.get_transaction_features(
+        tx_df = get_transaction_features(
             client_id=0, order_id=0, return_id=return_id
         )
         row = tx_df.iloc[0]
         client_id = int(row["client_id"])
 
         # 2. История клиента
-        history_df = self.db_extractor.get_client_history(client_id, days_back=90)
+        history_df = get_client_history(client_id, days_back=90)
 
         # 3. IP/Device stats
-        ip_device_stats = self.db_extractor.get_ip_device_stats(client_id)
+        ip_device_stats = get_ip_device_stats(client_id)
 
         # 4. Маппинг БД → признаки
         features = DatabaseToModelMapper.map_transaction_row(
@@ -546,8 +549,11 @@ class FraudDetectionService:
         if limit:
             query += f" LIMIT {int(limit)}"
 
-        with self.db_extractor.get_connection() as conn:
+        conn = get_connection()
+        try:
             df = pd.read_sql_query(query, conn)
+        finally:
+            conn.close()
         return df["return_id"].tolist()
 
     def batch_predict_all_returns(self,
@@ -645,7 +651,7 @@ class FraudDetectionService:
         JOIN orders o ON c.client_id = o.client_id
         WHERE c.client_id = %s AND o.order_id = %s
         """
-        with self.db_extractor.get_connection() as conn:
+        with get_connection() as conn:
             baseline_df = pd.read_sql_query(baseline_query, conn, params=(client_id, order_id))
 
         # Если заказа/клиента ещё нет в БД (например, pending), используем payload как базу
@@ -657,8 +663,8 @@ class FraudDetectionService:
             merged_row.update(payload)
 
         # 3. Подтягиваем историю и телеметрию
-        history_df = self.db_extractor.get_client_history(client_id, days_back=90)
-        ip_device_stats = self.db_extractor.get_ip_device_stats(client_id)
+        history_df = get_client_history(client_id, days_back=90)
+        ip_device_stats = get_ip_device_stats(client_id)
 
         # 4. Преобразуем в признаки
         features = DatabaseToModelMapper.map_transaction_row(
@@ -728,7 +734,8 @@ class FraudDetectionService:
         CREATE INDEX IF NOT EXISTS idx_{table_name}_score ON {table_name}(combined_score DESC);
         """
 
-        with self.db_extractor.get_connection() as conn:
+        conn = get_connection()
+        try:
             cur = conn.cursor()
             cur.execute(create_table_sql)
 
@@ -758,6 +765,8 @@ class FraudDetectionService:
             execute_batch(cur, upsert_sql, batch_data)
             conn.commit()
             cur.close()
+        except Exception:
+            pass
 
     def _print_summary(self, df: pd.DataFrame, errors: List[Dict]):
         """Выводит статистику по результатам и ошибки (если есть)"""
@@ -846,8 +855,8 @@ if __name__ == "__main__":
 
                 # Проверка наличия таблиц
                 cur.execute("""
-                    SELECT table_name FROM information_schema.tables 
-                    WHERE table_schema = 'public' 
+                    SELECT table_name FROM information_schema.tables
+                    WHERE table_schema = 'public'
                     AND table_name IN ('clients', 'orders', 'returns')
                 """)
                 tables = [t[0] for t in cur.fetchall()]
