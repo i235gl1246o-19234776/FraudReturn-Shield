@@ -1471,12 +1471,10 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 // ============================================
 
 func calculateRisk(f FormData) ResultData {
-	features := prepareFeatures(f)
 
 	log.Printf("[DEBUG] FormData: %+v", f)
-	log.Printf("[DEBUG] Features count: %d", len(features))
+	score, err := predictRisk(f)
 
-	score, err := predictRisk(features)
 	if err != nil {
 		log.Printf("⚠️ Python ONNX ошибка: %v, используем заглушку", err)
 		score = calculateRiskFallback(f)
@@ -1868,6 +1866,54 @@ type FastAPIFraudPredictionResponse struct {
 	Error          string  `json:"error,omitempty"`
 	RiskLevel      string  `json:"risk_level,omitempty"`
 	Recommendation string  `json:"recommendation,omitempty"`
+
+	ReturnID         int     `json:"return_id,omitempty"`
+	ClientID         int     `json:"client_id,omitempty"`
+	OrderID          int     `json:"order_id,omitempty"`
+	ProbabilityFraud float64 `json:"probability_fraud,omitempty"`
+	AnomalyScore     float64 `json:"anomaly_score,omitempty"`
+	IsAnomaly        bool    `json:"is_anomaly,omitempty"`
+	CombinedScore    float64 `json:"combined_score,omitempty"`
+	Decision         string  `json:"decision,omitempty"`
+}
+
+type FastAPIFraudPayloadRequest struct {
+	ClientID            int     `json:"client_id"`
+	OrderID             int     `json:"order_id"`
+	ReturnID            int     `json:"return_id,omitempty"`
+	AccountAgeDays      int     `json:"account_age_days"`
+	TotalOrders         int     `json:"total_orders"`
+	TotalReturns        int     `json:"total_returns"`
+	GlobalReturnRate    float64 `json:"global_return_rate"`
+	AvgOrderAmount      float64 `json:"avg_order_amount"`
+	OrderAmount         float64 `json:"order_amount"`
+	ItemsCount          int     `json:"items_count"`
+	DiscountAmount      float64 `json:"discount_amount"`
+	PaymentMethod       string  `json:"payment_method"`
+	OrderTimestamp      string  `json:"order_timestamp,omitempty"`
+	AmountDeviation     float64 `json:"amount_deviation"`
+	OrdersLast30d       int     `json:"orders_last_30d"`
+	ProductCategory     string  `json:"product_category"`
+	IsElectronics       bool    `json:"is_electronics"`
+	ShippingRegion      string  `json:"shipping_region"`
+	RegionRiskScore     float64 `json:"region_risk_score"`
+	DeliveryCity        string  `json:"delivery_city"`
+	DistanceFromRegKm   float64 `json:"distance_from_registration_km"`
+	PaymentCardBin      string  `json:"payment_card_bin,omitempty"`
+	CardIssuingCountry  string  `json:"card_issuing_country,omitempty"`
+	CardCountryMismatch bool    `json:"card_country_mismatch"`
+	DeliveryAddressType string  `json:"delivery_address_type"`
+	AddressMatchScore   float64 `json:"address_match_score"`
+	IsAddressMatch      bool    `json:"is_address_match"`
+	ReturnsLast30d      int     `json:"returns_last_30d"`
+	ReturnRateLast30d   float64 `json:"return_rate_last_30d"`
+	DaysSinceLastReturn int     `json:"days_since_last_return"`
+	DaysSincePurchase   int     `json:"days_since_purchase"`
+	ReturnChannel       string  `json:"return_channel"`
+	HasReceipt          bool    `json:"has_receipt"`
+	TagsRemoved         bool    `json:"tags_removed"`
+	MissingComponents   bool    `json:"missing_components"`
+	ClaimedReason       string  `json:"claimed_reason"`
 }
 
 type FastAPIChatRequest struct {
@@ -1900,60 +1946,44 @@ func loadModel(modelPath string) error {
 }
 
 func predictRisk(features []float32) (float32, error) {
-	// Преобразуем features в структуру для FastAPI
-	featuresStruct := FastAPIFraudFeatures{
-		AccountAgeDays:          int(features[0]),
-		TotalPurchases:          int(features[1]),
-		TotalReturns:            int(features[2]),
-		CustomerReturnRate:      float64(features[3]),
-		AvgOrderAmount:          float64(features[4]),
-		OrderAmount:             float64(features[5]),
-		ItemsInOrder:            int(features[6]),
-		DiscountPercent:         float64(features[7]),
-		PaymentMethodRisk:       float64(features[8]),
-		AmountDeviation:         float64(features[9]),
-		OrdersLast30d:           int(features[10]),
-		ReturnRate30d:           float64(features[11]),
-		RefundVelocity30d:       int(features[12]),
-		DaysSinceLastReturn:     int(features[13]),
-		DaysSincePurchase:       int(features[14]),
-		HasReceipt:              int(features[15]),
-		ReceiptProvided:         int(features[16]),
-		TagsRemoved:             int(features[17]),
-		MissingComponents:       int(features[18]),
-		OrderHour:               int(features[19]),
-		HighValueFlag:           int(features[20]),
-		OrderTimeNight:          int(features[21]),
-		FastReturnFlag:          int(features[22]),
-		NewAccountFlag:          int(features[23]),
-		FirstOrderDiscountAbuse: int(features[24]),
-		IsElectronics:           int(features[25]),
-		IPVelocity24h:           int(features[26]),
-		IPVelocity7d:            int(features[27]),
-		AccountsPerIP:           int(features[28]),
-		AccountsPerPhone:        int(features[29]),
-		AccountsPerDevice:       int(features[30]),
-		DeviceIsEmulator:        int(features[31]),
-		DeviceTrustScore:        float64(features[32]),
-		IPTrustScore:            float64(features[33]),
-		AddressMatch:            int(features[34]),
-		DeviceNew:               int(features[35]),
-		PromoCodeUsed:           int(features[36]),
-		WeekendPurchase:         int(features[37]),
-		RefundVelocity7d:        int(features[38]),
-		SupportTicketCount30d:   int(features[39]),
-		ReviewCount30d:          int(features[40]),
-		NegativeReviewCluster:   int(features[41]),
-		ShippingRegionRisk:      float64(features[42]),
-		DistanceFromRegCity:     float64(features[43]),
-		CardBinCountryMismatch:  int(features[44]),
-		ChargebackHistory90d:    int(features[45]),
-		ThreatLanguageDetected:  int(features[46]),
-		LegalClaimThreat:        int(features[47]),
+	payload := FastAPIFraudPayloadRequest{
+		ClientID:            int(formData.ClientID),
+		OrderID:             int(formData.OrderID),
+		ReturnID:            0, // return_id ещё нет, так как возврат создаётся
+		AccountAgeDays:      formData.AccountAgeDays,
+		TotalOrders:         formData.TotalOrders,
+		TotalReturns:        formData.TotalReturns,
+		GlobalReturnRate:    formData.ReturnRate,
+		AvgOrderAmount:      formData.AvgOrderAmount,
+		OrderAmount:         formData.OrderAmount,
+		ItemsCount:          formData.ItemsInOrder,
+		DiscountAmount:      formData.OrderAmount * formData.DiscountPercent / 100.0,
+		PaymentMethod:       "card", // Можно добавить в форму
+		AmountDeviation:     0,      // Расчитывается в БД
+		OrdersLast30d:       int(formData.RefundVelocity30d),
+		ProductCategory:     formData.Category,
+		IsElectronics:       formData.IsElectronics,
+		ShippingRegion:      "Moscow", // Можно добавить в форму
+		RegionRiskScore:     formData.ShippingRegionRisk,
+		DeliveryCity:        "Moscow", // Можно добавить в форму
+		DistanceFromRegKm:   formData.DistanceFromRegistration,
+		CardCountryMismatch: formData.CardBinCountryMismatch,
+		DeliveryAddressType: formData.DeliveryAddressType,
+		AddressMatchScore:   1.0,
+		IsAddressMatch:      formData.AddressMatch,
+		ReturnsLast30d:      int(formData.RefundVelocity30d),
+		ReturnRateLast30d:   formData.ReturnRate30d,
+		DaysSinceLastReturn: 999, // Можно рассчитать
+		DaysSincePurchase:   formData.DaysSincePurchase,
+		ReturnChannel:       formData.ReturnChannel,
+		HasReceipt:          formData.HasReceipt,
+		TagsRemoved:         formData.TagsRemoved,
+		MissingComponents:   formData.MissingComponents,
+		ClaimedReason:       formData.Reason,
 	}
 
 	var resp FastAPIFraudPredictionResponse
-	err := callFastAPI("/api/predict-fraud", featuresStruct, &resp)
+	err := callFastAPI("/api/predict-fraud-payload", payload, &resp)
 	if err != nil {
 		log.Printf("[ERROR] FastAPI predict error: %v", err)
 		return 0, err
@@ -1963,8 +1993,14 @@ func predictRisk(features []float32) (float32, error) {
 		return 0, fmt.Errorf("%s", resp.Error)
 	}
 
-	log.Printf("[INFO] ONNX prediction: %.4f", resp.Score)
-	return float32(resp.Score), nil
+	score := resp.CombinedScore
+	if score == 0 {
+		score = resp.ProbabilityFraud
+	}
+
+	log.Printf("[INFO] v4 prediction: combined=%.4f, prob=%.4f, decision=%s",
+		resp.CombinedScore, resp.ProbabilityFraud, resp.Decision)
+	return float32(score), nil
 }
 
 func parseInt(value string) int {

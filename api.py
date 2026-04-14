@@ -21,7 +21,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
-from onnx_feature_pipeline import FraudDetectionService
+from onnx_feature_pipeline2 import FraudDetectionService
 
 # =============================================================================
 # 🔧 ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ
@@ -153,6 +153,48 @@ class FraudV4PredictionRequest(BaseModel):
     """Запрос для предсказания через v4 модель (требует return_id)"""
     return_id: int = Field(..., description="ID возврата в БД")
 
+class FraudPayloadRequest(BaseModel):
+    """Запрос для предсказания через v4 модель с передачей данных напрямую (без return_id)"""
+    client_id: int = Field(..., description="ID клиента")
+    order_id: int = Field(..., description="ID заказа")
+    return_id: Optional[int] = Field(0, description="ID возврата (если есть)")
+    # Из clients
+    account_age_days: int = 0
+    total_orders: int = 0
+    total_returns: int = 0
+    global_return_rate: float = 0.0
+    avg_order_amount: float = 0.0
+    # Из orders
+    order_amount: float = 0.0
+    items_count: int = 1
+    discount_amount: float = 0.0
+    payment_method: str = "card"
+    order_timestamp: Optional[str] = None
+    amount_deviation: float = 0.0
+    orders_last_30d: int = 0
+    product_category: str = "Electronics"
+    is_electronics: bool = False
+    shipping_region: str = "Moscow"
+    region_risk_score: float = 0.3
+    delivery_city: str = "Moscow"
+    distance_from_registration_km: float = 0.0
+    payment_card_bin: Optional[str] = None
+    card_issuing_country: Optional[str] = None
+    card_country_mismatch: bool = False
+    delivery_address_type: str = "home"
+    address_match_score: float = 1.0
+    is_address_match: bool = True
+    # Из returns
+    returns_last_30d: int = 0
+    return_rate_last_30d: float = 0.0
+    days_since_last_return: int = 999
+    days_since_purchase: int = 0
+    return_channel: str = "online"
+    has_receipt: bool = True
+    tags_removed: bool = False
+    missing_components: bool = False
+    claimed_reason: str = "Defective"
+
 class FraudV4PredictionResponse(BaseModel):
     success: bool
     return_id: Optional[int] = None
@@ -191,10 +233,21 @@ def load_fraud_model_v4(onnx_path: str, metadata_path: str,
         # Для работы требуется БД connection string
         # Если не передан - используем заглушку (для тестов)
         if db_connection_string is None:
-            db_connection_string = os.getenv('DATABASE_URL', 'postgresql://user:pass@localhost/db')
+            db_connection_string = os.getenv('DATABASE_URL', 'postgresql://postgres:1234@localhost:5432/postgres')
+
+        # Парсинг PostgreSQL connection string
+        from urllib.parse import urlparse
+        parsed = urlparse(db_connection_string)
+        conn_params = {
+            'host': parsed.hostname or 'localhost',
+            'port': parsed.port or 5432,
+            'database': parsed.path.lstrip('/') or 'postgres',
+            'user': parsed.username or 'postgres',
+            'password': parsed.password or '1234'
+        }
 
         _fraud_service = FraudDetectionService(
-            db_connection_string=db_connection_string,
+            conn_params=conn_params,
             onnx_path=onnx_path,
             metadata_path=metadata_path,
             anomaly_scaler_path=anomaly_scaler_path,
@@ -270,6 +323,22 @@ async def load_fraud_model_async(model_path: str, use_v4: bool = True) -> Dict[s
     """Асинхронная загрузка fraud модели"""
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, load_fraud_model, model_path, use_v4)
+
+def predict_fraud_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    Предсказание через FraudDetectionService с передачей данных напрямую (без return_id)
+    Использует predict_from_web_payload для работы с данными от сайта
+    """
+    global _fraud_service
+    if _fraud_service is None:
+        return {'success': False, 'error': 'Fraud v4 model not loaded'}
+
+    try:
+        result = _fraud_service.predict_from_web_payload(payload)
+        return {'success': True, **result}
+    except Exception as e:
+        _log(f"[ERROR] Fraud v4 predict from payload: {str(e)}")
+        return {'success': False, 'error': str(e)}
 
 def predict_fraud_v4(return_id: int) -> Dict[str, Any]:
     """
@@ -666,6 +735,44 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+@app.post("/api/predict-fraud-payload", response_model=FraudV4PredictionResponse)
+async def api_predict_fraud_payload(request: FraudPayloadRequest):
+    """
+    Предсказание риска мошенничества через v4 модель с передачей данных напрямую.
+    Не требует return_id в БД - данные передаются в запросе.
+    Использует predict_from_web_payload из onnx_feature_pipeline2.py
+    """
+    global _fraud_service
+    if _fraud_service is None:
+        return FraudV4PredictionResponse(
+            success=False,
+            error='Fraud v4 model not loaded. Call /api/load-models first with fraud_model_v4_27patterns.onnx'
+        )
+
+    try:
+        # Преобразуем Pydantic модель в dict
+        payload = request.model_dump()
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(_executor, predict_fraud_from_payload, payload)
+
+        if result.get('success'):
+            return FraudV4PredictionResponse(
+                success=True,
+                return_id=result.get('return_id'),
+                client_id=result.get('client_id'),
+                order_id=result.get('order_id'),
+                probability_fraud=result.get('probability_fraud'),
+                anomaly_score=result.get('anomaly_score'),
+                is_anomaly=result.get('is_anomaly'),
+                combined_score=result.get('combined_score'),
+                decision=result.get('decision')
+            )
+        else:
+            return FraudV4PredictionResponse(success=False, error=result.get('error'))
+    except Exception as e:
+        _log(f"[ERROR] API predict fraud payload: {str(e)}")
+        return FraudV4PredictionResponse(success=False, error=str(e))
 
 @app.get("/")
 async def root():
