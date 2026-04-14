@@ -638,7 +638,8 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 
 	query := `
 		SELECT order_id, order_amount, items_count, payment_method,
-		       order_timestamp, amount_deviation, order_status, product_category
+		       order_timestamp, amount_deviation, order_status, product_category,
+                       created_at
 		FROM orders
 		WHERE client_id = $1
 		ORDER BY order_timestamp DESC
@@ -655,6 +656,7 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 	for rows.Next() {
 		var record DBRecord = make(DBRecord)
 		var ts time.Time
+		var createdAt time.Time
 
 		var orderID int
 		var orderAmount sql.NullFloat64
@@ -666,7 +668,7 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 
 		err := rows.Scan(
 			&orderID, &orderAmount, &itemsCount,
-			&paymentMethod, &ts, &amountDev, &orderStatus, &productCategory,
+			&paymentMethod, &ts, &amountDev, &orderStatus, &productCategory, &createdAt,
 		)
 		if err != nil {
 			return nil, err
@@ -692,6 +694,9 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 		if productCategory.Valid {
 			record["product_category"] = productCategory.String
 		}
+
+		deliveryDate := ts.AddDate(0, 0, 7)
+		record["delivery_date"] = deliveryDate.Format("02.01.2006")
 
 		orders = append(orders, record)
 	}

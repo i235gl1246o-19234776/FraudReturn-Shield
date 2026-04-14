@@ -351,9 +351,14 @@
         });
 
         function loadOrders() {
-            fetch('/api/client/orders')
+            if (!currentUser) {
+                console.error('Пользователь не авторизован');
+                return;
+            }
+            fetch(`/api/client/orders?client_id=${currentUser.id}`)
                 .then(response => response.json())
                 .then(data => {
+                    console.log('Загруженные заказы:', data);
                     if (data.orders && data.orders.length > 0) {
                         // Преобразуем данные с сервера в формат для отображения
                         allOrders = data.orders.map(order => ({
