@@ -114,6 +114,13 @@ CREATE TABLE IF NOT EXISTS clients (
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    CREATE TABLE IF NOT EXISTS user_accounts (
+    client_id INTEGER PRIMARY KEY REFERENCES clients(client_id) ON DELETE CASCADE,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(20) NOT NULL DEFAULT 'client',
+    CONSTRAINT check_role_values CHECK (role IN ('client', 'admin'))
+);
+
     -- Views
     CREATE OR REPLACE VIEW tickets AS SELECT * FROM support_tickets;
     CREATE OR REPLACE VIEW reviews AS SELECT * FROM product_reviews;
