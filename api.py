@@ -233,7 +233,7 @@ def load_fraud_model_v4(onnx_path: str, metadata_path: str,
         # Для работы требуется БД connection string
         # Если не передан - используем заглушку (для тестов)
         if db_connection_string is None:
-            db_connection_string = os.getenv('DATABASE_URL', 'postgresql://postgres:1234@localhost:5432/postgres')
+            db_connection_string = os.getenv('DATABASE_URL', 'postgresql://postgres:OmegaBloody13@localhost:5432/fraud_return_db')
 
         # Парсинг PostgreSQL connection string
         from urllib.parse import urlparse
