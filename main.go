@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"database/sql"
 	"encoding/base64"
 	"encoding/json"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	_ "github.com/lib/pq"
+	"golang.org/x/crypto/bcrypt"
 )
 
 // ============================================
@@ -137,45 +139,6 @@ type User struct {
 var (
 	pythonModelLoaded bool = false
 	db                *sql.DB
-
-	// Заглушка для таблицы пользователей (демо-данные)
-	demoUsers = []User{
-		{ID: 1, Login: "admin", Password: "admin123", Role: "admin"},
-		{ID: 2, Login: "user1", Password: "pass123", Role: "client"},
-		{ID: 3, Login: "user2", Password: "pass123", Role: "client"},
-		{ID: 4, Login: "user3", Password: "pass123", Role: "client"},
-		{ID: 5, Login: "user4", Password: "pass123", Role: "client"},
-		{ID: 6, Login: "user5", Password: "pass123", Role: "client"},
-		{ID: 7, Login: "user6", Password: "pass123", Role: "client"},
-		{ID: 8, Login: "user7", Password: "pass123", Role: "client"},
-		{ID: 9, Login: "user8", Password: "pass123", Role: "client"},
-		{ID: 10, Login: "user9", Password: "pass123", Role: "client"},
-	}
-
-	// Заглушка для заказов клиентов
-	demoOrders = map[int][]map[string]interface{}{
-		2: { // user1
-			{"id": 1001, "date": "2026-01-15", "amount": 5990, "status": "completed", "items": 2},
-			{"id": 1002, "date": "2026-01-18", "amount": 12500, "status": "pending", "items": 1},
-		},
-		3: { // user2
-			{"id": 1003, "date": "2026-01-20", "amount": 3200, "status": "returned", "items": 3},
-			{"id": 1004, "date": "2026-01-22", "amount": 8900, "status": "processing", "items": 1},
-		},
-		4: { // user3
-			{"id": 1005, "date": "2026-01-10", "amount": 15000, "status": "completed", "items": 2},
-		},
-	}
-
-	// Заглушка для возвратов
-	demoReturns = map[int][]map[string]interface{}{
-		3: { // user2
-			{"id": 501, "order_id": 1003, "date": "2026-01-21", "status": "completed", "reason": "Брак товара"},
-		},
-		4: { // user3
-			{"id": 502, "order_id": 1005, "date": "2026-01-23", "status": "processing", "reason": "Не тот товар"},
-		},
-	}
 )
 
 func initDatabase() error {
@@ -1071,11 +1034,49 @@ func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
 
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// Проверяем наличие куки с токеном или сессии
-		// Для простоты пока просто пропускаем все запросы
-		// В будущем здесь будет проверка JWT или session token
-		next(w, r)
+		// Проверяем наличие куки с пользователем
+		cookie, err := r.Cookie("user")
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		// Декодируем пользователя из куки
+		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		var user map[string]interface{}
+		if err := json.Unmarshal(userJSON, &user); err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		// Передаем информацию о пользователе в контекст запроса
+		ctx := context.WithValue(r.Context(), "user", user)
+		next(w, r.WithContext(ctx))
 	}
+}
+
+// requireAdmin — middleware для проверки роли администратора
+func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := r.Context().Value("user").(map[string]interface{})
+		if !ok {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		role, ok := user["role"].(string)
+		if !ok || role != "admin" {
+			http.Error(w, "Доступ запрещён: требуется роль администратора", http.StatusForbidden)
+			return
+		}
+
+		next(w, r)
+	})
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
@@ -2132,16 +2133,33 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Поиск пользователя в заглушке
-	var foundUser *User
-	for i := range demoUsers {
-		if demoUsers[i].Login == req.Login && demoUsers[i].Password == req.Password {
-			foundUser = &demoUsers[i]
-			break
-		}
+	if db == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "База данных не подключена"})
+		return
 	}
 
-	if foundUser == nil {
+	// Поиск пользователя в таблице user_accounts
+	query := `SELECT client_id, login, password_hash, role FROM user_accounts WHERE login = $1`
+	row := db.QueryRow(query, req.Login)
+
+	var foundUser User
+	var passwordHash string
+	err := row.Scan(&foundUser.ID, &foundUser.Login, &passwordHash, &foundUser.Role)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Неверный логин или пароль"})
+			return
+		}
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Ошибка при поиске пользователя"})
+		return
+	}
+
+	// Проверка пароля с использованием bcrypt
+	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password))
+	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Неверный логин или пароль"})
 		return
@@ -2214,8 +2232,31 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 	// Получаем ID клиента из query параметра или из сессии
 	clientIDStr := r.URL.Query().Get("client_id")
 	if clientIDStr == "" {
-		// Пытаемся получить из sessionStorage через JS (заглушка)
-		clientIDStr = "2" // По умолчанию user1
+		cookie, err := r.Cookie("user")
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized"})
+			return
+		}
+		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
+			return
+		}
+		var user map[string]interface{}
+		if err := json.Unmarshal(userJSON, &user); err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
+			return
+		}
+		clientIDFloat, ok := user["id"].(float64)
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid user ID"})
+			return
+		}
+		clientIDStr = fmt.Sprintf("%d", int(clientIDFloat))
 	}
 
 	clientID, err := strconv.Atoi(clientIDStr)
@@ -2225,9 +2266,16 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	orders, exists := demoOrders[clientID]
-	if !exists {
-		orders = []map[string]interface{}{}
+	// Получаем заказы из БД
+	orders, err := GetUserOrders(clientID, 100)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch orders: " + err.Error()})
+		return
+	}
+
+	if orders == nil {
+		orders = []DBRecord{}
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2242,7 +2290,33 @@ func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
 
 	clientIDStr := r.URL.Query().Get("client_id")
 	if clientIDStr == "" {
-		clientIDStr = "2"
+		// Пытаемся получить из куки
+		cookie, err := r.Cookie("user")
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized"})
+			return
+		}
+		// Декодируем пользователя из куки
+		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
+			return
+		}
+		var user map[string]interface{}
+		if err := json.Unmarshal(userJSON, &user); err != nil {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
+			return
+		}
+		clientIDFloat, ok := user["id"].(float64)
+		if !ok {
+			w.WriteHeader(http.StatusUnauthorized)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid user ID"})
+			return
+		}
+		clientIDStr = fmt.Sprintf("%d", int(clientIDFloat))
 	}
 
 	clientID, err := strconv.Atoi(clientIDStr)
@@ -2252,9 +2326,16 @@ func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	returns, exists := demoReturns[clientID]
-	if !exists {
-		returns = []map[string]interface{}{}
+	// Получаем возвраты из БД
+	returns, err := GetUserReturns(clientID, 100)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch returns: " + err.Error()})
+		return
+	}
+
+	if returns == nil {
+		returns = []DBRecord{}
 	}
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
@@ -2331,7 +2412,7 @@ func main() {
 
 	// Страницы
 	http.HandleFunc("/login", loginPage)
-	http.HandleFunc("/admin/profile", authMiddleware(adminProfileHandler))
+	http.HandleFunc("/admin/profile", requireAdmin(adminProfileHandler))
 	http.HandleFunc("/client/orders", authMiddleware(clientOrdersHandler))
 	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
 	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
@@ -2374,10 +2455,10 @@ func main() {
 			http.Redirect(w, r, "/client/profile", http.StatusSeeOther)
 		}
 	})
-	http.HandleFunc("/check", checkHandler)
-	http.HandleFunc("/settings", settingsPage)
-	http.HandleFunc("/history", historyPage)
-	http.HandleFunc("/users", usersPage)
+	http.HandleFunc("/check", requireAdmin(checkHandler))
+	http.HandleFunc("/settings", requireAdmin(settingsPage))
+	http.HandleFunc("/history", requireAdmin(historyPage))
+	http.HandleFunc("/users", requireAdmin(usersPage))
 
 	// API endpoints
 	http.HandleFunc("/api/login", apiLogin)
