@@ -294,12 +294,6 @@ def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     """
     Универсальная функция загрузки fraud модели.
     По умолчанию использует v4 через onnx_feature_pipeline.py.
-
-    Для v4 модели автоматически подгружаются:
-    - models/fraud_model_v4_27patterns.onnx
-    - models/metadata_v4_27patterns.json
-    - models/scaler_v4.pkl
-    - models/anomaly_model_v4.pkl
     """
     if use_v4 and model_path.endswith('.onnx'):
         # v4 модель через FraudDetectionService
@@ -317,6 +311,7 @@ def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     else:
         # Legacy режим
         return load_fraud_model_legacy(model_path)
+
 
 
 async def load_fraud_model_async(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
@@ -357,7 +352,80 @@ def predict_fraud_v4(return_id: int) -> Dict[str, Any]:
         return {'success': False, 'error': str(e)}
 
 def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
-    global _fraud_session, _fraud_input_name
+    global _fraud_session, _fraud_input_name, _fraud_service
+
+    if _fraud_service is not None:
+        try:
+            # Преобразуем FraudFeatures в payload для predict_from_web_payload
+            payload = {
+                "client_id": 0,  # Не используется в legacy режиме
+                "order_id": 0,   # Не используется в legacy режиме
+                "account_age_days": features.account_age_days,
+                "total_orders": features.total_purchases,
+                "total_returns": features.total_returns,
+                "global_return_rate": features.customer_return_rate,
+                "avg_order_amount": features.avg_order_amount,
+                "order_amount": features.order_amount,
+                "items_count": features.items_in_order,
+                "discount_amount": features.order_amount * features.discount_percent / 100.0,
+                "payment_method": "card",
+                "orders_last_30d": features.orders_last_30d,
+                "product_category": features.category,
+                "is_electronics": bool(features.is_electronics),
+                "shipping_region": "Moscow",
+                "region_risk_score": features.shipping_region_risk,
+                "delivery_city": "Moscow",
+                "distance_from_registration_km": features.distance_from_registration_city,
+                "card_country_mismatch": bool(features.card_bin_country_mismatch),
+                "delivery_address_type": "home",
+                "address_match_score": float(features.address_match),
+                "is_address_match": bool(features.address_match),
+                "returns_last_30d": features.refund_velocity_30d,
+                "return_rate_last_30d": features.return_rate_30d,
+                "days_since_last_return": features.days_since_last_return,
+                "days_since_purchase": features.days_since_purchase,
+                "return_channel": features.return_channel,
+                "has_receipt": bool(features.has_receipt),
+                "tags_removed": bool(features.tags_removed),
+                "missing_components": bool(features.missing_components),
+                "claimed_reason": features.claimed_reason,
+                # Дополнительные поля
+                "ip_velocity_24h": features.ip_velocity_24h,
+                "ip_velocity_7d": features.ip_velocity_7d,
+                "accounts_per_ip": features.accounts_per_ip,
+                "accounts_per_phone": features.accounts_per_phone,
+                "accounts_per_device": features.accounts_per_device,
+                "device_is_emulator": features.device_is_emulator,
+                "device_trust_score": features.device_trust_score,
+                "ip_trust_score": features.ip_trust_score,
+                "device_new": features.device_new,
+                "promo_code_used": features.promo_code_used,
+                "weekend_purchase": features.weekend_purchase,
+                "refund_velocity_7d": features.refund_velocity_7d,
+                "support_ticket_count_30d": features.support_ticket_count_30d,
+                "review_count_30d": features.review_count_30d,
+                "negative_review_cluster": features.negative_review_cluster,
+                "chargeback_history_90d": features.chargeback_history_90d,
+                "threat_language_detected": features.threat_language_detected,
+                "legal_claim_threat": features.legal_claim_threat,
+            }
+            result = _fraud_service.predict_from_web_payload(payload)
+            if result.get('success'):
+                final_score = result.get('combined_score', result.get('probability_fraud', 0.0))
+                risk_level = "HIGH" if final_score >= 0.7 else ("MEDIUM" if final_score >= 0.4 else "LOW")
+                recommendation = "Отклонить возврат. Высокий риск мошенничества." if final_score >= 0.7 else \
+                                ("Требуется дополнительная проверка." if final_score >= 0.4 else "Одобрить возврат. Низкий риск.")
+                return FraudPredictionResponse(
+                    success=True,
+                    score=final_score,
+                    risk_level=risk_level,
+                    recommendation=recommendation
+                )
+            else:
+                return FraudPredictionResponse(success=False, score=None, error=result.get('error'))
+        except Exception as e:
+            _log(f"[ERROR] Fraud v4 predict from features: {str(e)}")
+            return FraudPredictionResponse(success=False, score=None, error=str(e))
 
     if _fraud_session is None and _fraud_service is None:
         return FraudPredictionResponse(success=False, score=None, error='Model not loaded')
@@ -454,7 +522,7 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
     return FraudPredictionResponse(
         success=False,
         score=None,
-        error='v4 model requires predict_fraud_v4(return_id) method'
+        error='No model available'
     )
 
 async def predict_fraud_async(features: FraudFeatures) -> FraudPredictionResponse:

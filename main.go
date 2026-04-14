@@ -1945,41 +1945,41 @@ func loadModel(modelPath string) error {
 	return nil
 }
 
-func predictRisk(features []float32) (float32, error) {
+func predictRisk(f FormData) (float32, error) {
 	payload := FastAPIFraudPayloadRequest{
-		ClientID:            int(formData.ClientID),
-		OrderID:             int(formData.OrderID),
+		ClientID:            f.ClientID,
+		OrderID:             f.OrderID,
 		ReturnID:            0, // return_id ещё нет, так как возврат создаётся
-		AccountAgeDays:      formData.AccountAgeDays,
-		TotalOrders:         formData.TotalOrders,
-		TotalReturns:        formData.TotalReturns,
-		GlobalReturnRate:    formData.ReturnRate,
-		AvgOrderAmount:      formData.AvgOrderAmount,
-		OrderAmount:         formData.OrderAmount,
-		ItemsCount:          formData.ItemsInOrder,
-		DiscountAmount:      formData.OrderAmount * formData.DiscountPercent / 100.0,
+		AccountAgeDays:      f.AccountAgeDays,
+		TotalOrders:         f.TotalOrders,
+		TotalReturns:        f.TotalReturns,
+		GlobalReturnRate:    f.ReturnRate,
+		AvgOrderAmount:      f.AvgOrderAmount,
+		OrderAmount:         f.OrderAmount,
+		ItemsCount:          f.ItemsInOrder,
+		DiscountAmount:      f.OrderAmount * f.DiscountPercent / 100.0,
 		PaymentMethod:       "card", // Можно добавить в форму
 		AmountDeviation:     0,      // Расчитывается в БД
-		OrdersLast30d:       int(formData.RefundVelocity30d),
-		ProductCategory:     formData.Category,
-		IsElectronics:       formData.IsElectronics,
+		OrdersLast30d:       int(f.RefundVelocity30d),
+		ProductCategory:     f.Category,
+		IsElectronics:       f.IsElectronics,
 		ShippingRegion:      "Moscow", // Можно добавить в форму
-		RegionRiskScore:     formData.ShippingRegionRisk,
+		RegionRiskScore:     f.ShippingRegionRisk,
 		DeliveryCity:        "Moscow", // Можно добавить в форму
-		DistanceFromRegKm:   formData.DistanceFromRegistration,
-		CardCountryMismatch: formData.CardBinCountryMismatch,
-		DeliveryAddressType: formData.DeliveryAddressType,
+		DistanceFromRegKm:   f.DistanceFromRegistration,
+		CardCountryMismatch: f.CardBinCountryMismatch,
+		DeliveryAddressType: "home", // f.DeliveryAddressType - int, нужен string
 		AddressMatchScore:   1.0,
-		IsAddressMatch:      formData.AddressMatch,
-		ReturnsLast30d:      int(formData.RefundVelocity30d),
-		ReturnRateLast30d:   formData.ReturnRate30d,
+		IsAddressMatch:      f.AddressMatch,
+		ReturnsLast30d:      int(f.RefundVelocity30d),
+		ReturnRateLast30d:   f.ReturnRate30d,
 		DaysSinceLastReturn: 999, // Можно рассчитать
-		DaysSincePurchase:   formData.DaysSincePurchase,
-		ReturnChannel:       formData.ReturnChannel,
-		HasReceipt:          formData.HasReceipt,
-		TagsRemoved:         formData.TagsRemoved,
-		MissingComponents:   formData.MissingComponents,
-		ClaimedReason:       formData.Reason,
+		DaysSincePurchase:   f.DaysSincePurchase,
+		ReturnChannel:       f.ReturnChannel,
+		HasReceipt:          f.HasReceipt,
+		TagsRemoved:         f.TagsRemoved,
+		MissingComponents:   f.MissingComponents,
+		ClaimedReason:       f.Reason,
 	}
 
 	var resp FastAPIFraudPredictionResponse

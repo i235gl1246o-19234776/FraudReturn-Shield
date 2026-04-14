@@ -436,8 +436,10 @@ class FraudDetectionService:
         self.anomaly_threshold = meta.get('anomaly_threshold', -0.1)
 
         # 4. Anomaly Detection
-        self.anomaly_scaler = joblib.load(anomaly_scaler_path)
-        self.anomaly_model = joblib.load(anomaly_model_path)
+        with open(anomaly_scaler_path, 'rb') as f:
+            self.anomaly_scaler = joblib.load(f, encoding='bytes')
+        with open(anomaly_model_path, 'rb') as f:
+            self.anomaly_model = joblib.load(f, encoding='bytes')
 
         # 5. Preprocessor
         self.preprocessor = ONNXPreprocessor(self.expected_columns, self.categorical_cols)
