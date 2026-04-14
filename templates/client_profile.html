@@ -447,89 +447,123 @@
         }
 
         function loadOrders() {
-            // Заглушка для заказов
-            const ordersList = document.getElementById('orders-list');
-            const demoOrders = [
-                { id: 1001, date: '2026-01-15', amount: 5990, status: 'completed', items: 2 },
-                { id: 1002, date: '2026-01-18', amount: 12500, status: 'pending', items: 1 },
-                { id: 1003, date: '2026-01-20', amount: 3200, status: 'returned', items: 3 },
-                { id: 1004, date: '2026-01-22', amount: 8900, status: 'processing', items: 1 },
-            ];
+            fetch('/api/client/orders')
+                .then(response => response.json())
+                .then(data => {
+                    const ordersList = document.getElementById('orders-list');
 
-            if (demoOrders.length === 0) {
-                ordersList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет заказов</p>';
-                return;
-            }
+                    if (data.orders && data.orders.length > 0) {
+                        // Преобразуем данные с сервера в формат для отображения
+                        const orders = data.orders.map(order => ({
+                            id: order.order_id,
+                            date: order.order_timestamp,
+                            amount: parseFloat(order.order_amount) || 0,
+                            status: order.order_status || 'completed',
+                            items: order.items_count || 1,
+                            payment_method: order.payment_method || '-',
+                            product_category: order.product_category || '-'
+                        }));
 
-            ordersList.innerHTML = demoOrders.map(order => `
-                <div class="order-card">
-                    <div class="order-header">
-                        <span class="order-id">Заказ #${order.id}</span>
-                        <span class="order-status ${order.status}">${getStatusText(order.status)}</span>
-                    </div>
-                    <div class="order-details">
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Дата заказа</div>
-                            <div class="order-detail-value">${order.date}</div>
-                        </div>
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Сумма</div>
-                            <div class="order-detail-value">${order.amount.toLocaleString()} ₽</div>
-                        </div>
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Товаров</div>
-                            <div class="order-detail-value">${order.items} шт.</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
-        }
+                        ordersList.innerHTML = orders.map(order => `
+                            <div class="order-card">
+                                <div class="order-header">
+                                    <span class="order-id">Заказ #${order.id}</span>
+                                    <span class="order-status ${order.status}">${getStatusText(order.status)}</span>
+                                </div>
+                                <div class="order-details">
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Дата заказа</div>
+                                        <div class="order-detail-value">${order.date}</div>
+                                    </div>
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Сумма</div>
+                                        <div class="order-detail-value">${order.amount.toLocaleString()} ₽</div>
+                                    </div>
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Товаров</div>
+                                        <div class="order-detail-value">${order.items} шт.</div>
+                                    </div>
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Категория</div>
+                                        <div class="order-detail-value">${order.product_category}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        ordersList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет заказов</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки заказов:', error);
+                    const ordersList = document.getElementById('orders-list');
+                    ordersList.innerHTML = '<p style="text-align: center; color: var(--danger); padding: 40px;">Ошибка загрузки заказов</p>';
+                });
 
         function loadReturns() {
-            // Заглушка для возвратов
-            const returnsList = document.getElementById('returns-list');
-            const demoReturns = [
-                { id: 501, orderId: 1003, date: '2026-01-21', status: 'completed', reason: 'Брак товара' },
-                { id: 502, orderId: 1005, date: '2026-01-23', status: 'processing', reason: 'Не тот товар' },
-            ];
+            fetch('/api/client/returns')
+                .then(response => response.json())
+                .then(data => {
+                    const returnsList = document.getElementById('returns-list');
 
-            if (demoReturns.length === 0) {
-                returnsList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет возвратов</p>';
-                return;
-            }
+                    if (data.returns && data.returns.length > 0) {
+                        // Преобразуем данные с сервера в формат для отображения
+                        const returns = data.returns.map(ret => ({
+                            id: ret.return_id,
+                            orderId: ret.order_id,
+                            date: ret.created_at,
+                            status: 'processing',
+                            reason: ret.return_channel || 'Не указана',
+                            hasReceipt: ret.has_receipt,
+                            tagsRemoved: ret.tags_removed,
+                            missingComponents: ret.missing_components
+                        }));
 
-            returnsList.innerHTML = demoReturns.map(ret => `
-                <div class="return-status-card">
-                    <div class="order-header">
-                        <span class="order-id">Возврат #${ret.id} (Заказ #${ret.orderId})</span>
-                        <span class="order-status ${ret.status}">${getStatusText(ret.status)}</span>
-                    </div>
-                    <div class="order-details">
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Дата оформления</div>
-                            <div class="order-detail-value">${ret.date}</div>
-                        </div>
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Причина</div>
-                            <div class="order-detail-value">${ret.reason}</div>
-                        </div>
-                    </div>
-                    <div class="status-timeline">
-                        <div class="status-step completed">
-                            <strong>Заявка создана</strong>
-                            <div style="font-size: 0.85rem; color: var(--gray-600);">${ret.date}</div>
-                        </div>
-                        <div class="status-step ${ret.status === 'processing' ? 'current' : (ret.status === 'completed' ? 'completed' : '')}">
-                            <strong>Обработка</strong>
-                            <div style="font-size: 0.85rem; color: var(--gray-600);">В процессе</div>
-                        </div>
-                        <div class="status-step ${ret.status === 'completed' ? 'completed' : ''}">
-                            <strong>Возврат завершён</strong>
-                            <div style="font-size: 0.85rem; color: var(--gray-600);">Ожидается</div>
-                        </div>
-                    </div>
-                </div>
-            `).join('');
+                        returnsList.innerHTML = returns.map(ret => `
+                            <div class="return-status-card">
+                                <div class="order-header">
+                                    <span class="order-id">Возврат #${ret.id} (Заказ #${ret.orderId})</span>
+                                    <span class="order-status ${ret.status}">${getStatusText(ret.status)}</span>
+                                </div>
+                                <div class="order-details">
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Дата оформления</div>
+                                        <div class="order-detail-value">${ret.date}</div>
+                                    </div>
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Канал возврата</div>
+                                        <div class="order-detail-value">${ret.reason}</div>
+                                    </div>
+                                    <div class="order-detail-item">
+                                        <div class="order-detail-label">Чек</div>
+                                        <div class="order-detail-value">${ret.hasReceipt ? 'Есть' : 'Нет'}</div>
+                                    </div>
+                                </div>
+                                <div class="status-timeline">
+                                    <div class="status-step completed">
+                                        <strong>Заявка создана</strong>
+                                        <div style="font-size: 0.85rem; color: var(--gray-600);">${ret.date}</div>
+                                    </div>
+                                    <div class="status-step current">
+                                        <strong>Обработка</strong>
+                                        <div style="font-size: 0.85rem; color: var(--gray-600);">В процессе</div>
+                                    </div>
+                                    <div class="status-step">
+                                        <strong>Возврат завершён</strong>
+                                        <div style="font-size: 0.85rem; color: var(--gray-600);">Ожидается</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    } else {
+                        returnsList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет возвратов</p>';
+                    }
+                })
+                .catch(error => {
+                    console.error('Ошибка загрузки возвратов:', error);
+                    const returnsList = document.getElementById('returns-list');
+                    returnsList.innerHTML = '<p style="text-align: center; color: var(--danger); padding: 40px;">Ошибка загрузки возвратов</p>';
+                });
         }
 
         function getStatusText(status) {

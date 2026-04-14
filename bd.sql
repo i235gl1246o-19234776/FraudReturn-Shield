@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS clients (
         delivery_address_type VARCHAR(50),
         address_match_score DECIMAL(3,2) DEFAULT 0.00,
         is_address_match BOOLEAN DEFAULT TRUE,
+        order_status VARCHAR(30) DEFAULT 'completed',
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 

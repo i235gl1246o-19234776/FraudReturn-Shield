@@ -354,35 +354,31 @@
             fetch('/api/client/orders')
                 .then(response => response.json())
                 .then(data => {
-                    if (data.success && data.orders) {
-                        allOrders = data.orders;
+                    if (data.orders && data.orders.length > 0) {
+                        // Преобразуем данные с сервера в формат для отображения
+                        allOrders = data.orders.map(order => ({
+                            id: order.order_id,
+                            date: order.order_timestamp,
+                            amount: order.order_amount || 0,
+                            status: order.order_status || 'completed',
+                            items: order.items_count || 1,
+                            delivery: order.delivery_date || 'Не назначена',
+                            payment_method: order.payment_method || '-',
+                            product_category: order.product_category || '-'
+                        }));
                         filteredOrders = [...allOrders];
                         renderOrders(filteredOrders);
                     } else {
-                        // Демо данные если API не вернул данные
-                        allOrders = [
-                            { id: 1001, date: '2026-01-15', amount: 5990, status: 'completed', items: 2, delivery: '2026-01-17' },
-                            { id: 1002, date: '2026-01-18', amount: 12500, status: 'pending', items: 1, delivery: '-' },
-                            { id: 1003, date: '2026-01-20', amount: 3200, status: 'returned', items: 3, delivery: '2026-01-22' },
-                            { id: 1004, date: '2026-01-22', amount: 8900, status: 'processing', items: 1, delivery: '2026-01-25' },
-                            { id: 1005, date: '2026-01-10', amount: 15600, status: 'completed', items: 2, delivery: '2026-01-13' },
-                            { id: 1006, date: '2026-01-08', amount: 2100, status: 'cancelled', items: 1, delivery: '-' },
-                        ];
-                        filteredOrders = [...allOrders];
-                        renderOrders(filteredOrders);
+                        allOrders = [];
+                        filteredOrders = [];
+                        renderOrders([]);
                     }
                 })
                 .catch(error => {
                     console.error('Ошибка загрузки заказов:', error);
-                    // Демо данные при ошибке
-                    allOrders = [
-                        { id: 1001, date: '2026-01-15', amount: 5990, status: 'completed', items: 2, delivery: '2026-01-17' },
-                        { id: 1002, date: '2026-01-18', amount: 12500, status: 'pending', items: 1, delivery: '-' },
-                        { id: 1003, date: '2026-01-20', amount: 3200, status: 'returned', items: 3, delivery: '2026-01-22' },
-                        { id: 1004, date: '2026-01-22', amount: 8900, status: 'processing', items: 1, delivery: '2026-01-25' },
-                    ];
-                    filteredOrders = [...allOrders];
-                    renderOrders(filteredOrders);
+                    allOrders = [];
+                    filteredOrders = [];
+                    renderOrders([]);
                 });
         }
 
