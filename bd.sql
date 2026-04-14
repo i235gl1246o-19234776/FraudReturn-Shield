@@ -114,8 +114,10 @@ CREATE TABLE IF NOT EXISTS clients (
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
+    -- 8. Пользователи
     CREATE TABLE IF NOT EXISTS user_accounts (
     client_id INTEGER PRIMARY KEY REFERENCES clients(client_id) ON DELETE CASCADE,
+    login VARCHAR(100) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
     role VARCHAR(20) NOT NULL DEFAULT 'client',
     CONSTRAINT check_role_values CHECK (role IN ('client', 'admin'))
@@ -126,6 +128,7 @@ CREATE TABLE IF NOT EXISTS clients (
     CREATE OR REPLACE VIEW reviews AS SELECT * FROM product_reviews;
 
     -- Индексы
+    CREATE INDEX IF NOT EXISTS idx_user_accounts_login ON user_accounts(login);
     CREATE INDEX IF NOT EXISTS idx_orders_client_time ON orders(client_id, order_timestamp);
     CREATE INDEX IF NOT EXISTS idx_returns_client_time ON returns(client_id, created_at);
     CREATE INDEX IF NOT EXISTS idx_returns_order_id ON returns(order_id);
