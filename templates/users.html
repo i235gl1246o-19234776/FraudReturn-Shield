@@ -360,11 +360,12 @@
                 FraudReturn Shield
             </a>
             <ul class="admin-nav-links">
-                <li><a href="/admin/profile">Кабинет</a></li>
+                <li><a href="/admin/profile">Профиль</a></li>
                 <li><a href="/check">Проверка</a></li>
                 <li><a href="/users" class="active">Пользователи</a></li>
                 <li><a href="/history">История</a></li>
                 <li><a href="/settings">Настройки</a></li>
+                <li><a href="/admin/chat">AI Нейросеть</a></li>
             </ul>
             <button class="logout-btn" onclick="logout()">Выйти</button>
         </div>
@@ -506,8 +507,8 @@
                 <!-- Пагинация -->
                 <div class="pagination" id="pagination">
                     <button id="prevBtn" onclick="loadUsers({{sub .Page 1}})" {{if eq .Page 1}}disabled{{end}}>← Назад</button>
-                    <button id="pageBtn" class="active">{{.Page}}</button>
-                    <button id="nextBtn" onclick="loadUsers({{add .Page 1}})">Вперёд →</button>
+                    <span style="display:flex;align-items:center;padding:0 15px;font-weight:600;color:var(--gray-600)">Страница {{.Page}} из {{add (div (sub .Total 1) .Limit) 1}}</span>
+                    <button id="nextBtn" onclick="loadUsers({{add .Page 1}})" {{if ge .Page (add (div (sub .Total 1) .Limit) 1)}}disabled{{end}}>Вперёд →</button>
                 </div>
             </div>
         </main>
@@ -559,7 +560,7 @@
             grid.innerHTML = '<p style="text-align:center;grid-column:1/-1">Загрузка...</p>';
             
             try {
-                const res = await fetch(`/api/users?page=${page}&limit=20`);
+                const res = await fetch(`/api/users?page=${page}&limit=100`);
                 const data = await res.json();
                 
                 if (data.users.length === 0) {
@@ -611,11 +612,9 @@
         function updatePagination(current, totalPages) {
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
-            const pageBtn = document.getElementById('pageBtn');
             
             if (prevBtn) prevBtn.disabled = current <= 1;
             if (nextBtn) nextBtn.disabled = current >= totalPages;
-            if (pageBtn) pageBtn.textContent = current;
             
             // Обновляем URL для навигации
             if (window.history.replaceState) {
@@ -632,7 +631,7 @@
             grid.innerHTML = '<p style="text-align:center;grid-column:1/-1">Поиск...</p>';
             
             try {
-                const res = await fetch(`/api/search/users?q=${encodeURIComponent(query)}&limit=20`);
+                const res = await fetch(`/api/search/users?q=${encodeURIComponent(query)}&limit=100`);
                 const data = await res.json();
                 
                 if (!data.results || data.results.length === 0) {

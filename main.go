@@ -1435,7 +1435,17 @@ func historyPage(w http.ResponseWriter, r *http.Request) {
 
 // usersPage — Страница админ-панели пользователей
 func usersPage(w http.ResponseWriter, r *http.Request) {
-	users, total, err := GetUsersList(1, 20)
+	pageStr := r.URL.Query().Get("page")
+	page := 1
+	if pageStr != "" {
+		page, _ = strconv.Atoi(pageStr)
+		if page < 1 {
+			page = 1
+		}
+	}
+	limit := 100 // Увеличили лимит до 100 пользователей на страницу
+
+	users, total, err := GetUsersList(page, limit)
 	if err != nil {
 		users = []UserCard{}
 		log.Printf("⚠️ Не удалось загрузить пользователей: %v", err)
@@ -1459,8 +1469,8 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 	data := map[string]interface{}{
 		"Users":         users,
 		"Total":         total,
-		"Page":          1,
-		"Limit":         20,
+		"Page":          page,
+		"Limit":         limit,
 		"ActiveCount":   activeCount,
 		"WarningCount":  warningCount,
 		"HighRiskCount": highRiskCount,

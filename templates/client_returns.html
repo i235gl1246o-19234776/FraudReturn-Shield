@@ -421,11 +421,6 @@
             <div id="fraudResultContent"></div>
         </div>
 
-        <!-- История возвратов -->
-        <h2 style="margin-bottom: 20px;">📋 История возвратов</h2>
-        <div id="returns-list">
-            <!-- Возвраты будут загружены через JS -->
-        </div>
     </div>
 
     <script>
@@ -444,78 +439,13 @@
                     document.getElementById('returnOrderId').value = orderId;
                 }
 
-                loadReturns();
             } else {
                 window.location.href = '/login';
             }
         });
 
         function loadReturns() {
-            fetch('/api/client/returns')
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success && data.returns) {
-                        allReturns = data.returns;
-                        renderReturns(allReturns);
-                    } else {
-                        // Демо данные если API не вернул данные
-                        allReturns = [
-                            {
-                                id: 5001,
-                                order_id: 1003,
-                                date: '2026-01-21',
-                                reason: 'Брак товара',
-                                comment: 'Товар пришёл повреждённым',
-                                status: 'approved',
-                                amount: 3200,
-                                timeline: [
-                                    { status: 'Заявка создана', time: '2026-01-21 10:30', completed: true },
-                                    { status: 'Проверка менеджером', time: '2026-01-21 14:00', completed: true },
-                                    { status: 'Одобрено', time: '2026-01-22 09:00', completed: true },
-                                    { status: 'Деньги возвращены', time: '2026-01-23 12:00', completed: true }
-                                ]
-                            },
-                            {
-                                id: 5002,
-                                order_id: 1007,
-                                date: '2026-01-23',
-                                reason: 'Не тот товар',
-                                comment: 'Пришёл товар другого цвета',
-                                status: 'pending',
-                                amount: 5600,
-                                timeline: [
-                                    { status: 'Заявка создана', time: '2026-01-23 16:45', completed: true },
-                                    { status: 'Проверка менеджером', time: '-', completed: false },
-                                    { status: 'Решение', time: '-', completed: false },
-                                    { status: 'Возврат средств', time: '-', completed: false }
-                                ]
-                            }
-                        ];
-                        renderReturns(allReturns);
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка загрузки возвратов:', error);
-                    // Демо данные при ошибке
-                    allReturns = [
-                        {
-                            id: 5001,
-                            order_id: 1003,
-                            date: '2026-01-21',
-                            reason: 'Брак товара',
-                            comment: 'Товар пришёл повреждённым',
-                            status: 'approved',
-                            amount: 3200,
-                            timeline: [
-                                { status: 'Заявка создана', time: '2026-01-21 10:30', completed: true },
-                                { status: 'Проверка менеджером', time: '2026-01-21 14:00', completed: true },
-                                { status: 'Одобрено', time: '2026-01-22 09:00', completed: true },
-                                { status: 'Деньги возвращены', time: '2026-01-23 12:00', completed: true }
-                            ]
-                        }
-                    ];
-                    renderReturns(allReturns);
-                });
+
         }
 
         function getStatusText(status) {

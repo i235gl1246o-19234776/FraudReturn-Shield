@@ -5,7 +5,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>FraudReturn Shield — Кабинет администратора</title>
+    <title>FraudReturn Shield — Профиль администратора</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <script src="/static/js/chat-widget.js" defer></script>
@@ -53,7 +53,7 @@
         }
 
         .admin-header {
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 60px 0;
             text-align: center;
             color: white;
@@ -113,7 +113,7 @@
         .admin-stat-value {
             font-size: 2.5rem;
             font-weight: 800;
-            background: linear-gradient(135deg, #667eea, #764ba2);
+            background: linear-gradient(135deg, #7F30E3, #F90479);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
@@ -192,8 +192,8 @@
         .logout-btn {
             padding: 10px 20px;
             background: white;
-            color: #667eea;
-            border: 2px solid #667eea;
+            color: #7F30E3;
+            border: 2px solid #7F30E3;
             border-radius: var(--radius-lg);
             font-weight: 600;
             cursor: pointer;
@@ -201,74 +201,10 @@
         }
 
         .logout-btn:hover {
-            background: #667eea;
+            background: #7F30E3;
             color: white;
         }
 
-        .recent-activity {
-            background: white;
-            border-radius: var(--radius-xl);
-            padding: 30px;
-            box-shadow: var(--shadow-md);
-            margin-top: 30px;
-        }
-
-        .activity-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-
-        .activity-item {
-            display: flex;
-            align-items: center;
-            padding: 15px 0;
-            border-bottom: 1px solid var(--gray-100);
-        }
-
-        .activity-item:last-child {
-            border-bottom: none;
-        }
-
-        .activity-icon {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-right: 15px;
-            flex-shrink: 0;
-        }
-
-        .activity-icon.success {
-            background: var(--success-bg);
-            color: var(--success);
-        }
-
-        .activity-icon.warning {
-            background: var(--warning-bg);
-            color: var(--warning);
-        }
-
-        .activity-icon.info {
-            background: #e0e7ff;
-            color: var(--wb-purple);
-        }
-
-        .activity-content {
-            flex: 1;
-        }
-
-        .activity-title {
-            font-weight: 600;
-            color: var(--gray-800);
-        }
-
-        .activity-time {
-            font-size: 0.85rem;
-            color: var(--gray-500);
-        }
     </style>
 </head>
 <body>
@@ -282,7 +218,7 @@
                 FraudReturn Shield
             </a>
             <ul class="admin-nav-links">
-                <li><a href="/admin/profile" class="active">Кабинет</a></li>
+                <li><a href="/admin/profile" class="active">Профиль</a></li>
                 <li><a href="/check">Проверка</a></li>
                 <li><a href="/users">Пользователи</a></li>
                 <li><a href="/history">История</a></li>
@@ -371,24 +307,6 @@
                     <div class="action-card-desc">Конфигурация системы</div>
                 </a>
             </div>
-        </div>
-
-        <!-- Недавняя активность -->
-        <div class="recent-activity">
-            <h3>📋 Недавняя активность</h3>
-            <ul class="activity-list" id="activityList">
-                <li class="activity-item">
-                    <div class="activity-icon info">
-                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <path d="M12 2v20M2 12h20"/>
-                        </svg>
-                    </div>
-                    <div class="activity-content">
-                        <div class="activity-title">Система запущена</div>
-                        <div class="activity-time">Только что</div>
-                    </div>
-                </li>
-            </ul>
         </div>
     </div>
 
