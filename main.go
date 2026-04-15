@@ -1020,6 +1020,18 @@ func clientChatHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func adminChatHandler(w http.ResponseWriter, r *http.Request) {
+	tmpl, err := template.ParseFiles("templates/admin_chat.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+
+	if err := tmpl.Execute(w, nil); err != nil {
+		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
+	}
+}
+
 func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
 	if err != nil {
@@ -1443,7 +1455,7 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 			page = 1
 		}
 	}
-	limit := 100 // Увеличили лимит до 100 пользователей на страницу
+	limit := 20
 
 	users, total, err := GetUsersList(page, limit)
 	if err != nil {
@@ -1467,18 +1479,17 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := map[string]interface{}{
-		"Users":         users,
-		"Total":         total,
-		"Page":          page,
-		"Limit":         limit,
-		"ActiveCount":   activeCount,
-		"WarningCount":  warningCount,
-		"HighRiskCount": highRiskCount,
+		"Users":      users,
+		"Total":      total,
+		"Page":       page,
+		"Limit":      limit,
+		"TotalPages": (total + limit - 1) / limit, // Вычисляем общее количество страниц
 	}
 
 	funcMap := template.FuncMap{
 		"sub": func(a, b int) int { return a - b },
 		"add": func(a, b int) int { return a + b },
+		"div": func(a, b int) int { return a / b },
 	}
 
 	tmpl, err := template.New("users.html").Funcs(funcMap).ParseFiles("templates/users.html")
@@ -2439,6 +2450,7 @@ func main() {
 	http.HandleFunc("/login", loginPage)
 	http.HandleFunc("/admin/profile", requireAdmin(adminProfileHandler))
 	http.HandleFunc("/client/orders", authMiddleware(clientOrdersHandler))
+	http.HandleFunc("/admin/chat", requireAdmin(adminChatHandler))
 	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
 	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
 	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))

@@ -17,11 +17,13 @@ import numpy as np
 import onnxruntime as ort
 from tokenizers import Tokenizer
 from rank_bm25 import BM25Okapi
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
 from onnx_feature_pipeline2 import FraudDetectionService
+import psycopg2
+from psycopg2.extras import RealDictCursor
 
 # =============================================================================
 # 🔧 ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ

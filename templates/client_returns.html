@@ -471,56 +471,7 @@
         }
 
         function renderReturns(returns) {
-            const returnsList = document.getElementById('returns-list');
 
-            if (returns.length === 0) {
-                returnsList.innerHTML = `
-                    <div class="empty-state">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                            <polyline points="23 4 23 10 17 10"/>
-                            <polyline points="1 20 1 14 7 14"/>
-                            <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
-                        </svg>
-                        <h3>Возвратов пока нет</h3>
-                        <p>Вы ещё не оформляли ни одного возврата</p>
-                    </div>
-                `;
-                return;
-            }
-
-            returnsList.innerHTML = returns.map(ret => `
-                <div class="return-card ${ret.status}">
-                    <div class="return-header">
-                        <span class="return-id">Возврат #${ret.id} (Заказ #${ret.order_id})</span>
-                        <span class="return-status ${ret.status}">${getStatusText(ret.status)}</span>
-                    </div>
-                    <div class="return-details">
-                        <div class="return-detail-item">
-                            <div class="return-detail-label">Дата создания</div>
-                            <div class="return-detail-value">${ret.date}</div>
-                        </div>
-                        <div class="return-detail-item">
-                            <div class="return-detail-label">Сумма возврата</div>
-                            <div class="order-detail-value">${ret.amount ? ret.amount.toLocaleString() + ' ₽' : '-'}</div>
-                        </div>
-                    </div>
-                    <div class="return-reason">
-                        <div class="return-reason-label">Причина возврата</div>
-                        <div class="return-reason-text">${getReasonText(ret.reason) || ret.reason}</div>
-                        ${ret.comment ? `<div style="margin-top: 10px; font-size: 0.9rem; color: var(--gray-600);">${ret.comment}</div>` : ''}
-                    </div>
-                    ${ret.timeline ? `
-                    <div class="status-timeline">
-                        ${ret.timeline.map((step, index) => `
-                            <div class="status-step ${step.completed ? 'completed' : ''} ${!step.completed && index > 0 && !ret.timeline[index-1].completed ? '' : ''}">
-                                <div class="status-step-title">${step.status}</div>
-                                <div class="status-step-time">${step.time !== '-' ? step.time : 'Ожидается'}</div>
-                            </div>
-                        `).join('')}
-                    </div>
-                    ` : ''}
-                </div>
-            `).join('');
         }
 
         document.getElementById('returnForm').addEventListener('submit', function(e) {
@@ -568,12 +519,10 @@
                         displayFraudResult(fraudData);
 
                         document.getElementById('returnForm').reset();
-                        loadReturns();
                     });
                 } else if (data.success) {
                     showAlert('Возврат успешно оформлен!', 'success');
                     document.getElementById('returnForm').reset();
-                    loadReturns();
                 } else {
                     showAlert(data.message || 'Ошибка при оформлении возврата', 'error');
                 }

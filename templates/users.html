@@ -506,9 +506,9 @@
                 
                 <!-- Пагинация -->
                 <div class="pagination" id="pagination">
-                    <button id="prevBtn" onclick="loadUsers({{sub .Page 1}})" {{if eq .Page 1}}disabled{{end}}>← Назад</button>
-                    <span style="display:flex;align-items:center;padding:0 15px;font-weight:600;color:var(--gray-600)">Страница {{.Page}} из {{add (div (sub .Total 1) .Limit) 1}}</span>
-                    <button id="nextBtn" onclick="loadUsers({{add .Page 1}})" {{if ge .Page (add (div (sub .Total 1) .Limit) 1)}}disabled{{end}}>Вперёд →</button>
+                    <button id="prevBtn" onclick="loadUsers(currentPage - 1)" disabled>← Назад</button>
+                    <span style="display:flex;align-items:center;padding:0 15px;font-weight:600;color:var(--gray-600)">Страница&nbsp; <span id="currentPageNum">1</span>&nbsp;из&nbsp;<span id="totalPagesNum">1</span></span>
+                    <button id="nextBtn" onclick="loadUsers(currentPage + 1)" disabled>Вперёд →</button>
                 </div>
             </div>
         </main>
@@ -536,7 +536,7 @@
 
     <script>
         // Глобальные переменные
-        let currentPage = 1;
+
         const serverData = {
             totalUsers: {{.Total}},
             activeCount: {{.ActiveCount}},
@@ -552,6 +552,9 @@
             div.textContent = text;
             return div.innerHTML;
         }
+        
+        let currentPage = 1;
+        let totalPages = 1;
 
         // Загрузка пользователей с пагинацией
         async function loadUsers(page = 1) {
@@ -560,7 +563,7 @@
             grid.innerHTML = '<p style="text-align:center;grid-column:1/-1">Загрузка...</p>';
             
             try {
-                const res = await fetch(`/api/users?page=${page}&limit=100`);
+                const res = await fetch(`/api/users?page=${page}&limit=20`);
                 const data = await res.json();
                 
                 if (data.users.length === 0) {
@@ -588,7 +591,8 @@
                 `).join('');
                 
                 updateStats(data.users);
-                updatePagination(page, data.pagination?.pages || 5);
+                totalPages = data.pagination?.pages || 1;
+                updatePagination(page, totalPages);
                 
             } catch (err) {
                 console.error('Ошибка загрузки:', err);
@@ -612,9 +616,14 @@
         function updatePagination(current, totalPages) {
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
+            const currentPageNum = document.getElementById('currentPageNum');
+            const totalPagesNum = document.getElementById('totalPagesNum');
             
             if (prevBtn) prevBtn.disabled = current <= 1;
             if (nextBtn) nextBtn.disabled = current >= totalPages;
+
+            if (currentPageNum) currentPageNum.textContent = current;
+            if (totalPagesNum) totalPagesNum.textContent = totalPages;
             
             // Обновляем URL для навигации
             if (window.history.replaceState) {
@@ -631,7 +640,7 @@
             grid.innerHTML = '<p style="text-align:center;grid-column:1/-1">Поиск...</p>';
             
             try {
-                const res = await fetch(`/api/search/users?q=${encodeURIComponent(query)}&limit=100`);
+                const res = await fetch(`/api/search/users?q=${encodeURIComponent(query)}&limit=20`);
                 const data = await res.json();
                 
                 if (!data.results || data.results.length === 0) {
