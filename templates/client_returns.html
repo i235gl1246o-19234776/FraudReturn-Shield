@@ -57,12 +57,38 @@
             padding: 40px 0;
             text-align: center;
             color: white;
+            position: relative;
+            overflow: hidden;
         }
 
-        .page-title {
-            font-size: 2rem;
-            font-weight: 800;
-            margin-bottom: 10px;
+        .shield-container {
+            position: fixed;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 0;
+            pointer-events: none;
+            width: auto;
+        }
+
+        .left-shield {
+            left: 0;
+        }
+
+        .right-shield {
+            right: 0;
+        }
+
+        .page-title img {
+            width: 100px;
+            height: 100px;
+            vertical-align: middle;
+            margin-right: 15px;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .page-title:hover img {
+            transform: scale(1.2);
+            filter: drop-shadow(0 0 20px rgba(0, 191, 255, 0.7));
         }
 
         .page-subtitle {
@@ -355,34 +381,19 @@
             color: var(--danger);
             border: 1px solid var(--danger);
         }
-        .shield-container {
-            position: absolute;
-            top: 15%;
-            transform: translateY(-50%);
-            z-index: 1;
-            pointer-events: none;
-        }
-
-        .left-shield {
-            left: 0;
-        }
-
-        .right-shield {
-            right: 0;
-        }
 
         .shield-wrapper {
-            width: 800px;
-            height: 800px;
-            display: flex;
+            width: 400px;
+            height: 400px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             animation: shieldPulse 3s ease-in-out infinite;
         }
 
         .shield-svg {
-            width: 230px;
-            height: 230px;
+            width: 200px;
+            height: 200px;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             transition: transform 0.3s ease;
         }
@@ -435,7 +446,10 @@
             </div>
         </div>
         <div class="container">
-            <h1 class="page-title">🔄 Возвраты товаров</h1>
+            <h1 class="page-title">
+                <img src="/static/svg/стрелка назад.svg" alt="Возвраты" style="width: 50px; height: 50px; vertical-align: middle; margin-right: 10px;">
+                Возвраты товаров
+            </h1>
             <p class="page-subtitle">Оформление и отслеживание возвратов</p>
         </div>
     </section>

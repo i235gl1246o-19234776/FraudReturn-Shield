@@ -290,11 +290,12 @@
 
         /* Щиты - фиксированные по середине цветной плашки (hero секции) */
         .shield-container {
-            position: absolute;
-            top: 15%;
+            position: fixed;
+            top: 50%;
             transform: translateY(-50%);
-            z-index: 1;
+            z-index: 0;
             pointer-events: none;
+            width: auto;
         }
 
         .left-shield {
@@ -306,17 +307,17 @@
         }
 
         .shield-wrapper {
-            width: 800px;
-            height: 800px;
-            display: flex;
+            width: 400px;
+            height: 400px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             animation: shieldPulse 3s ease-in-out infinite;
         }
 
         .shield-svg {
-            width: 220px;
-            height: 220px;
+            width: 200px;
+            height: 200px;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             transition: transform 0.3s ease;
         }

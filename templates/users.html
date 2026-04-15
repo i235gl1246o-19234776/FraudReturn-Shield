@@ -346,24 +346,22 @@
             border-color: var(--primary-light);
         }
         .shield-container {
-            position: absolute;
+            position: fixed;
             top: 50%;
+            left: 0;
             transform: translateY(-50%);
-            z-index: 1;
+            z-index: 0;
             pointer-events: none;
         }
 
-        .left-shield {
-            left: 0;
-        }
-
         .right-shield {
+            left: auto;
             right: 0;
         }
 
         .shield-wrapper {
-            width: 600px;
-            height: 600px;
+            width: 400px;
+            height: 400px;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -371,8 +369,8 @@
         }
 
         .shield-svg {
-            width: 480px;
-            height: 480px;
+            width: 280px;
+            height: 280px;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             transition: transform 0.3s ease;
         }

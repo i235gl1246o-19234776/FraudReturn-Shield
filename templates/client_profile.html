@@ -139,6 +139,31 @@
         .tab-card-icon {
             font-size: 3.5rem;
             margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .tab-card-icon img {
+            width: 80px;
+            height: 80px;
+            object-fit: contain;
+            transition: transform 0.3s ease, filter 0.3s ease;
+        }
+
+        .tab-orders:hover .tab-card-icon img {
+            transform: scale(2);
+            filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.7));
+        }
+
+        .tab-returns:hover .tab-card-icon img {
+            transform: scale(2);
+            filter: drop-shadow(0 0 20px rgba(0, 191, 255, 0.7));
+        }
+
+        .tab-chat:hover .tab-card-icon img {
+            transform: scale(2);
+            filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
         }
 
         .tab-card-title {
@@ -248,12 +273,22 @@
             color: white;
         }
 
+        .profile-header {
+            background: linear-gradient(135deg, #7F30E3, #F90479);
+            padding: 60px 0;
+            text-align: center;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
         .shield-container {
-            position: absolute;
-            top: 23%;
+            position: fixed;
+            top: 50%;
             transform: translateY(-50%);
-            z-index: 1;
+            z-index: 0;
             pointer-events: none;
+            width: auto;
         }
 
         .left-shield {
@@ -265,17 +300,17 @@
         }
 
         .shield-wrapper {
-            width: 800px;
-            height: 800px;
-            display: flex;
+            width: 400px;
+            height: 400px;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
             animation: shieldPulse 3s ease-in-out infinite;
         }
 
         .shield-svg {
-            width: 480px;
-            height: 480px;
+            width: 200px;
+            height: 200px;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             transition: transform 0.3s ease;
         }
@@ -340,17 +375,23 @@
         <!-- Вкладки - большие карточки -->
         <div class="tabs-large">
             <a href="/client/orders" class="tab-card tab-orders">
-                <div class="tab-card-icon">📦</div>
+                <div class="tab-card-icon">
+                    <img src="/static/svg/коробка.svg" alt="Заказы">
+                </div>
                 <div class="tab-card-title">Мои заказы</div>
                 <div class="tab-card-desc">Просмотр всех заказов</div>
             </a>
             <a href="/client/returns" class="tab-card tab-returns">
-                <div class="tab-card-icon">↩️</div>
+                <div class="tab-card-icon">
+                    <img src="/static/svg/стрелка назад.svg" alt="Возвраты">
+                </div>
                 <div class="tab-card-title">Возвраты</div>
                 <div class="tab-card-desc">Оформить возврат</div>
             </a>
             <a href="/client/chat" class="tab-card tab-chat">
-                <div class="tab-card-icon">🤖</div>
+                <div class="tab-card-icon">
+                    <img src="/static/svg/робот.svg" alt="AI Нейросеть">
+                </div>
                 <div class="tab-card-title">AI Нейросеть</div>
                 <div class="tab-card-desc">Помощник и проверки</div>
             </a>
