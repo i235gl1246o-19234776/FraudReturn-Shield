@@ -355,6 +355,50 @@
             color: var(--danger);
             border: 1px solid var(--danger);
         }
+        .shield-container {
+            position: absolute;
+            top: 15%;
+            transform: translateY(-50%);
+            z-index: 1;
+            pointer-events: none;
+        }
+
+        .left-shield {
+            left: 0;
+        }
+
+        .right-shield {
+            right: 0;
+        }
+
+        .shield-wrapper {
+            width: 800px;
+            height: 800px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: shieldPulse 3s ease-in-out infinite;
+        }
+
+        .shield-svg {
+            width: 230px;
+            height: 230px;
+            filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
+            transition: transform 0.3s ease;
+        }
+
+        .shield-wrapper:hover .shield-svg {
+            transform: scale(1.25);
+        }
+
+        @keyframes shieldPulse {
+            0%, 100% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.05);
+            }
+        }
     </style>
 </head>
 <body>
@@ -379,6 +423,17 @@
 
     <!-- Заголовок страницы -->
     <section class="page-header">
+        <!-- Декоративные щиты -->
+        <div class="shield-container left-shield">
+            <div class="shield-wrapper">
+                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
+            </div>
+        </div>
+        <div class="shield-container right-shield">
+            <div class="shield-wrapper">
+                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
+            </div>
+        </div>
         <div class="container">
             <h1 class="page-title">🔄 Возвраты товаров</h1>
             <p class="page-subtitle">Оформление и отслеживание возвратов</p>

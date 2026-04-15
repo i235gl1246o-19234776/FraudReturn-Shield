@@ -2329,10 +2329,49 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Поддержка CORS preflight
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// GET — получение списка возвратов
+	if r.Method == http.MethodGet {
+		apiGetClientReturns(w, r)
+		return
+	}
+
+	// POST — создание нового возврата
+	if r.Method == http.MethodPost {
+		apiCreateClientReturn(w, r)
+		return
+	}
+
+	// Другие методы не поддерживаются
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+}
+
 // apiGetClientReturns — получение возвратов клиента
 func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Только GET запросы
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
 
 	clientIDStr := r.URL.Query().Get("client_id")
 	if clientIDStr == "" {
@@ -2386,6 +2425,103 @@ func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"returns": returns,
+	})
+}
+
+func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Access-Control-Allow-Origin", "*")
+
+	// Поддержка CORS preflight
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	// Только POST запросы
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Получаем пользователя из куки
+	cookie, err := r.Cookie("user")
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid session"})
+		return
+	}
+
+	var user map[string]interface{}
+	if err := json.Unmarshal(userJSON, &user); err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid session"})
+		return
+	}
+
+	clientIDFloat, ok := user["id"].(float64)
+	if !ok {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid user ID"})
+		return
+	}
+	clientID := int(clientIDFloat)
+
+	// Парсим тело запроса
+	var req struct {
+		OrderID int    `json:"order_id"`
+		Reason  string `json:"reason"`
+		Comment string `json:"comment"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid request body"})
+		return
+	}
+
+	if req.OrderID <= 0 || req.Reason == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Order ID и причина обязательны"})
+		return
+	}
+
+	// Проверяем, существует ли заказ
+	orderQuery := `SELECT order_id FROM orders WHERE order_id = $1 AND client_id = $2`
+	var orderID int
+	err = db.QueryRow(orderQuery, req.OrderID, clientID).Scan(&orderID)
+	if err != nil {
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Заказ не найден"})
+		return
+	}
+
+	// Создаём возврат
+	insertQuery := `INSERT INTO returns (order_id, client_id, days_since_purchase,
+                has_receipt, tags_removed, missing_components, return_channel, reason, comment, created_at)
+                VALUES ($1, $2, 0, true, false, false, 'online', $3, $4, NOW())
+                RETURNING return_id`
+
+	var returnID int
+	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.Reason, req.Comment).Scan(&returnID)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Ошибка создания возврата: " + err.Error()})
+		return
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":   true,
+		"return_id": returnID,
+		"message":   "Возврат успешно создан",
 	})
 }
 
@@ -2510,7 +2646,7 @@ func main() {
 	http.HandleFunc("/api/login", apiLogin)
 	http.HandleFunc("/api/logout", apiLogout)
 	http.HandleFunc("/api/client/orders", apiGetClientOrders)
-	http.HandleFunc("/api/client/returns", apiGetClientReturns)
+	http.HandleFunc("/api/client/returns", apiClientReturnsHandler)
 	http.HandleFunc("/api/client/", apiGetClient)
 	http.HandleFunc("/api/order/", apiGetOrder)
 	http.HandleFunc("/api/orders/", apiGetOrders)

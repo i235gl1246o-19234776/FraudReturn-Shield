@@ -95,18 +95,19 @@
         }
 /* Щиты - фиксированные на экране, посередине цветной плашки */
         .shield-container {
-            position: fixed;
-            top: 15vh;
-            z-index: 0;
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            z-index: 1;
             pointer-events: none;
         }
 
         .left-shield {
-            left: 5%;
+            left: 0;
         }
 
         .right-shield {
-            right: 5%;
+            right: 0;
         }
 
         .shield-wrapper {
@@ -119,8 +120,8 @@
         }
 
         .shield-svg {
-            width: 650px;
-            height: 650px;
+            width: 550px;
+            height: 550px;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             transition: transform 0.3s ease;
         }
@@ -809,5 +810,6 @@ async function loadOrderData(orderId) {
             });
     }
 </script>
+
 </body>
 </html>
