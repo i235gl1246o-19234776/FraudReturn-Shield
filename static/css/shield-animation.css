@@ -1,0 +1,77 @@
+/* ============================================
+   🛡️ АНИМИРОВАННЫЙ ЩИТ - НОВАЯ ВЕРСИЯ
+   ============================================ */
+
+.shield-container {
+    position: fixed;
+    top: 12vh; /* Подняли выше: 12% от высоты экрана - посередине цветной плашки */
+    transform: translateY(-50%);
+    left: 0;
+    z-index: 100;
+    pointer-events: auto;
+    width: 700px; /* Ещё увеличили контейнер */
+    height: 700px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.shield-container.right {
+    left: auto;
+    right: 0;
+}
+
+.shield-wrapper {
+    position: relative;
+    width: 580px; /* Ещё увеличили щит */
+    height: 580px;
+    animation: shieldPulse 2s ease-in-out infinite;
+    transition: transform 0.3s ease;
+    cursor: pointer;
+}
+
+.shield-svg {
+    width: 100%;
+    height: 100%;
+    filter: drop-shadow(0 0 15px rgba(230, 74, 127, 0.4))
+            drop-shadow(0 0 25px rgba(127, 48, 227, 0.3));
+}
+
+/* Увеличение при наведении */
+.shield-wrapper:hover {
+    transform: scale(1.25);
+    filter: drop-shadow(0 0 30px rgba(230, 74, 127, 0.7))
+            drop-shadow(0 0 50px rgba(127, 48, 227, 0.5));
+}
+
+/* Постоянная пульсация */
+@keyframes shieldPulse {
+    0%, 100% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 1024px) {
+    .shield-container {
+        top: 80px;
+        width: 250px;
+        height: 250px;
+        opacity: 0.6;
+    }
+
+    .shield-wrapper {
+        width: 180px;
+        height: 180px;
+    }
+}
+
+/* Скрытие на маленьких экранах */
+@media (max-width: 768px) {
+    .shield-container {
+        display: none;
+    }
+}
