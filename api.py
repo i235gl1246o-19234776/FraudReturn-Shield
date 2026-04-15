@@ -196,6 +196,11 @@ class FraudPayloadRequest(BaseModel):
     tags_removed: bool = False
     missing_components: bool = False
     claimed_reason: str = "Defective"
+    tag_present: bool = True
+    receipt_provided: bool = True
+    has_damage: bool = False
+    has_wear: bool = False
+    return_reason: str = "Не подошел размер"
 
 class FraudV4PredictionResponse(BaseModel):
     success: bool
@@ -207,6 +212,8 @@ class FraudV4PredictionResponse(BaseModel):
     is_anomaly: Optional[bool] = None
     combined_score: Optional[float] = None
     decision: Optional[str] = None
+    top_features: Optional[List[Dict[str, Any]]] = None
+    timestamp: Optional[str] = None
     error: Optional[str] = None
 
 class LoadModelResponse(BaseModel):
@@ -844,7 +851,9 @@ async def api_predict_fraud_payload(request: FraudPayloadRequest):
                 anomaly_score=result.get('anomaly_score'),
                 is_anomaly=result.get('is_anomaly'),
                 combined_score=result.get('combined_score'),
-                decision=result.get('decision')
+                decision=result.get('decision'),
+                top_features=result.get('top_features', []),
+                timestamp=result.get('timestamp')
             )
         else:
             return FraudV4PredictionResponse(success=False, error=result.get('error'))
@@ -921,7 +930,9 @@ async def api_predict_fraud_v4(request: FraudV4PredictionRequest):
                 anomaly_score=result.get('anomaly_score'),
                 is_anomaly=result.get('is_anomaly'),
                 combined_score=result.get('combined_score'),
-                decision=result.get('decision')
+                decision=result.get('decision'),
+                top_features=result.get('top_features', []),
+                timestamp=result.get('timestamp')
             )
         else:
             return FraudV4PredictionResponse(success=False, error=result.get('error'))
