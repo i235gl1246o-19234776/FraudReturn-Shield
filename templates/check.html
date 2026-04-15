@@ -109,7 +109,6 @@
                 <li><a href="/check" class="active">Проверка</a></li>
                 <li><a href="/users">Пользователи</a></li>
                 <li><a href="/history">История</a></li>
-                <li><a href="/settings">Настройки</a></li>
                 <li><a href="/admin/chat">AI Нейросеть</a></li>
             </ul>
             <button class="logout-btn" onclick="logout()">Выйти</button>
@@ -179,15 +178,11 @@
                                 <div class="form-row">
                                     <div class="form-group">
                                         <label for="accountAgeDays">Возраст аккаунта (дни) *</label>
-                                        <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0" max="730">
+                                        <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0">
                                     </div>
                                     <div class="form-group">
                                         <label for="totalOrders">Всего заказов *</label>
-                                        <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0" max="100">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="returnRate">% возвратов *</label>
-                                        <input type="number" id="returnRate" name="returnRate" required placeholder="12.5" min="0" max="100" step="0.1">
+                                        <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0">
                                     </div>
                                 </div>
                             </div>
@@ -217,35 +212,16 @@
                                     </div>
                                     <div class="form-group">
                                         <label for="orderAmount">Сумма заказа (₽) *</label>
-                                        <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" max="200000" step="0.01">
+                                        <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" step="0.01">
                                     </div>
                                     <div class="form-group">
                                         <label for="daysToReturn">Дней до возврата</label>
-                                        <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0" max="365">
+                                        <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0">
                                     </div>
                                 </div>
                             </div>
 
-                            <!-- Секция 4: Дополнительные параметры -->
-                            <div class="form-section">
-                                <h3>Дополнительные параметры</h3>
-                                <div class="checkbox-group">
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="addressMatch" id="addressMatch" checked>
-                                        <span>✓ Адрес доставки совпадает</span>
-                                    </label>
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="deviceNew" id="deviceNew">
-                                        <span>Новое устройство</span>
-                                    </label>
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="isWeekend" id="isWeekend">
-                                        <span>Выходной день</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <!-- Секция 5: Состояние товара -->
+                            <!-- Секция 4: Состояние товара -->
                             <div class="form-section">
                                 <h3>Состояние товара</h3>
                                 <div class="checkbox-group">
@@ -268,7 +244,7 @@
                                 </div>
                             </div>
 
-                            <!-- Секция 6: Причина возврата -->
+                            <!-- Секция 5: Причина возврата -->
                             <div class="form-section">
                                 <h3>Причина возврата *</h3>
                                 <div class="form-group">
@@ -486,9 +462,6 @@ async function loadClientData(clientId) {
             if (client.total_orders) {
                 document.getElementById('totalOrders').value = client.total_orders;
             }
-            if (client.global_return_rate !== undefined) {
-                document.getElementById('returnRate').value = client.global_return_rate;
-            }
             
             // === СКРЫТЫЕ ПОЛЯ — заполняем из БД ===
             setHiddenField('avgOrderAmount', client.avg_order_amount);
@@ -539,6 +512,66 @@ async function loadOrderData(orderId) {
             }
             if (order.items_count) {
                 setHiddenField('itemsInOrder', order.items_count);
+            }
+
+            if (order.product_category) {
+                const categorySelect = document.getElementById('category');
+                const catMap = {
+                    'electronics': 'electronics',
+                    'clothing': 'clothing',
+                    'cosmetics': 'cosmetics',
+                    'books': 'books',
+                    'sports': 'sports',
+                    'home': 'home'
+                };
+                const mappedCat = catMap[order.product_category.toLowerCase()] || '';
+                if (mappedCat && categorySelect) {
+                    categorySelect.value = mappedCat;
+                }
+            }
+
+            if (order.days_to_return !== undefined && order.days_to_return !== null) {
+                const daysInput = document.getElementById('daysToReturn');
+                if (daysInput) {
+                    daysInput.value = order.days_to_return;
+                }
+            }
+
+            if (order.reason) {
+                const reasonSelect = document.getElementById('reason');
+                const reasonMap = {
+                    'defect': 'defect',
+                    'брак': 'defect',
+                    'size': 'size',
+                    'размер': 'size',
+                    'color': 'color',
+                    'цвет': 'color',
+                    'quality': 'quality',
+                    'качество': 'quality',
+                    'changed_mind': 'changed_mind',
+                    'передумал': 'changed_mind',
+                    'other': 'other'
+                };
+                const mappedReason = reasonMap[order.reason.toLowerCase()] || 'other';
+                if (reasonSelect) {
+                    reasonSelect.value = mappedReason;
+                }
+            }
+
+            if (order.return_channel) {
+                const channel = order.return_channel.toLowerCase();
+                // Если возврат через курьера/магазин - обычно товар в хорошем состоянии
+                if (channel.includes('courier') || channel.includes('shop')) {
+                    document.getElementById('hasTag').checked = true;
+                    document.getElementById('hasReceipt').checked = true;
+                    document.getElementById('hasDamage').checked = false;
+                    document.getElementById('isUsed').checked = false;
+                }
+                // Если возврат почтой или с повреждением
+                if (channel.includes('post') || channel.includes('damage')) {
+                    document.getElementById('hasTag').checked = false;
+                    document.getElementById('hasDamage').checked = true;
+                }
             }
             
             // === СКРЫТЫЕ ПОЛЯ из заказа ===

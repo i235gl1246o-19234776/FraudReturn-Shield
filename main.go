@@ -221,21 +221,25 @@ func GetOrderByID(orderID int) (*DBRecord, error) {
 		return nil, fmt.Errorf("база данных не подключена")
 	}
 
-	query := `SELECT order_id, client_id, order_amount, items_count, discount_amount,
-		payment_method, order_timestamp, amount_deviation, orders_last_30d
-		FROM orders WHERE order_id = $1`
+	query := `SELECT o.order_id, o.client_id, o.order_amount, o.items_count, o.discount_amount,
+o.payment_method, o.order_timestamp, o.amount_deviation, o.orders_last_30d, o.product_category,
+r.days_since_purchase, r.claimed_reason, r.return_channel
+FROM orders o
+LEFT JOIN returns r ON o.order_id = r.order_id
+WHERE o.order_id = $1`
 
 	row := db.QueryRow(query, orderID)
 
 	var record DBRecord = make(DBRecord)
 	var timestamp time.Time
-	var oid, cid, itemsCnt, orders30d int
+	var oid, cid, itemsCnt, orders30d, daysSincePurchase sql.NullInt64
 	var ordAmt, discAmt, amtDev sql.NullFloat64
-	var payMethod sql.NullString
+	var payMethod, prodCategory, claimedReason, returnChannel sql.NullString
 
 	err := row.Scan(
 		&oid, &cid, &ordAmt, &itemsCnt, &discAmt,
-		&payMethod, &timestamp, &amtDev, &orders30d,
+		&payMethod, &timestamp, &amtDev, &orders30d, &prodCategory,
+		&daysSincePurchase, &claimedReason, &returnChannel,
 	)
 	if err != nil {
 		return nil, err
@@ -246,7 +250,9 @@ func GetOrderByID(orderID int) (*DBRecord, error) {
 	if ordAmt.Valid {
 		record["order_amount"] = ordAmt.Float64
 	}
-	record["items_count"] = itemsCnt
+	if itemsCnt.Valid {
+		record["items_count"] = itemsCnt.Int64
+	}
 	if discAmt.Valid {
 		record["discount_amount"] = discAmt.Float64
 	}
@@ -257,8 +263,21 @@ func GetOrderByID(orderID int) (*DBRecord, error) {
 	if amtDev.Valid {
 		record["amount_deviation"] = amtDev.Float64
 	}
-	record["orders_last_30d"] = orders30d
-
+	if orders30d.Valid {
+		record["orders_last_30d"] = orders30d.Int64
+	}
+	if prodCategory.Valid {
+		record["product_category"] = prodCategory.String
+	}
+	if daysSincePurchase.Valid {
+		record["days_to_return"] = daysSincePurchase.Int64
+	}
+	if claimedReason.Valid {
+		record["reason"] = claimedReason.String
+	}
+	if returnChannel.Valid {
+		record["return_channel"] = returnChannel.String
+	}
 	return &record, nil
 }
 
@@ -1412,15 +1431,6 @@ func EnrichFromDB(f *FormData) error {
 	return nil
 }
 
-func settingsPage(w http.ResponseWriter, r *http.Request) {
-	tmpl, err := template.ParseFiles("templates/settings.html")
-	if err != nil {
-		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
-		return
-	}
-	tmpl.Execute(w, nil)
-}
-
 func historyPage(w http.ResponseWriter, r *http.Request) {
 	returns, err := GetAllReturns(50)
 	if err != nil {
@@ -2493,7 +2503,6 @@ func main() {
 		}
 	})
 	http.HandleFunc("/check", requireAdmin(checkHandler))
-	http.HandleFunc("/settings", requireAdmin(settingsPage))
 	http.HandleFunc("/history", requireAdmin(historyPage))
 	http.HandleFunc("/users", requireAdmin(usersPage))
 
