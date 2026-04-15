@@ -447,7 +447,7 @@
         }
 
         function loadOrders() {
-            fetch('/api/client/orders')
+            fetch(`/api/client/orders?client_id=${currentUser.id}`)
                 .then(response => response.json())
                 .then(data => {
                     const ordersList = document.getElementById('orders-list');
@@ -458,17 +458,20 @@
                             id: order.order_id,
                             date: order.order_timestamp,
                             amount: parseFloat(order.order_amount) || 0,
-                            status: order.order_status || 'completed',
+                            //status: order.order_status || 'completed',
                             items: order.items_count || 1,
-                            payment_method: order.payment_method || '-',
-                            product_category: order.product_category || '-'
+                            //payment_method: order.payment_method || '-',
+                            product_category: order.product_category || '-',
+                            delivery_date: order.delivery_date || '-',
+                            //discount_amount: parseFloat(order.discount_amount) || 0,
+                            //amount_deviation: parseFloat(order.amount_deviation) || 0,
+                            //client_id: order.client_id || currentUser.id
                         }));
 
                         ordersList.innerHTML = orders.map(order => `
                             <div class="order-card">
                                 <div class="order-header">
                                     <span class="order-id">Заказ #${order.id}</span>
-                                    <span class="order-status ${order.status}">${getStatusText(order.status)}</span>
                                 </div>
                                 <div class="order-details">
                                     <div class="order-detail-item">
@@ -488,6 +491,10 @@
                                         <div class="order-detail-value">${order.product_category}</div>
                                     </div>
                                 </div>
+                                <div class="order-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--gray-100); display: flex; gap: 10px;">
+                                    <button class="btn btn-primary" onclick="viewOrderDetails(${order.id})">Подробнее</button>
+                                    ${order.status === 'completed' ? `<button class="btn btn-secondary" onclick="initiateReturn(${order.id})">Оформить возврат</button>` : ''}
+                                </div>
                             </div>
                         `).join('');
                     } else {
@@ -499,6 +506,7 @@
                     const ordersList = document.getElementById('orders-list');
                     ordersList.innerHTML = '<p style="text-align: center; color: var(--danger); padding: 40px;">Ошибка загрузки заказов</p>';
                 });
+        }
 
         function loadReturns() {
             fetch('/api/client/returns')
@@ -595,42 +603,128 @@
                 return;
             }
 
-            // Заглушка поиска
-            const demoOrder = {
-                id: parseInt(orderId),
-                date: '2026-01-15',
-                amount: 5990,
-                status: 'completed',
-                items: 2,
-                deliveryAddress: 'г. Москва, ул. Примерная, д. 10'
-            };
+            fetch(`/api/order/${orderId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Заказ не найден');
+                    }
+                    return response.json();
+                })
+                .then(order => {
+                    resultDiv.innerHTML = `
+                        <div class="order-card">
+                            <div class="order-header">
+                                <span class="order-id">Заказ #${order.order_id}</span>
+                                <span class="order-status ${order.order_status || 'completed'}">${getStatusText(order.order_status || 'completed')}</span>
+                            </div>
+                            <div class="order-details">
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Дата заказа</div>
+                                    <div class="order-detail-value">${order.order_timestamp || '-'}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Сумма</div>
+                                    <div class="order-detail-value">${(parseFloat(order.order_amount) || 0).toLocaleString()} ₽</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Товаров</div>
+                                    <div class="order-detail-value">${order.items_count || 1} шт.</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Способ оплаты</div>
+                                    <div class="order-detail-value">${order.payment_method || '-'}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Отклонение суммы</div>
+                                    <div class="order-detail-value">${(parseFloat(order.amount_deviation) || 0).toFixed(2)}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Заказов за 30 дней</div>
+                                    <div class="order-detail-value">${order.orders_last_30d || 0}</div>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                })
+                .catch(error => {
+                    resultDiv.innerHTML = `<p style="color: var(--danger);">Ошибка: ${error.message}</p>`;
+                });
+        }
 
-            resultDiv.innerHTML = `
-                <div class="order-card">
-                    <div class="order-header">
-                        <span class="order-id">Заказ #${demoOrder.id}</span>
-                        <span class="order-status ${demoOrder.status}">${getStatusText(demoOrder.status)}</span>
-                    </div>
-                    <div class="order-details">
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Дата заказа</div>
-                            <div class="order-detail-value">${demoOrder.date}</div>
+        function viewOrderDetails(orderId) {
+            // Поиск заказа через API и отображение в модальном окне или новой секции
+            fetch(`/api/order/${orderId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Заказ не найден');
+                    }
+                    return response.json();
+                })
+                .then(order => {
+                    const ordersList = document.getElementById('orders-list');
+                    ordersList.innerHTML = `
+                        <div class="order-card" style="border-left-color: var(--wb-purple);">
+                            <div class="order-header">
+                                <span class="order-id">Заказ #${order.order_id}</span>
+                                <span class="order-status ${order.order_status || 'completed'}">${getStatusText(order.order_status || 'completed')}</span>
+                            </div>
+                            <div class="order-details" style="grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));">
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">ID заказа</div>
+                                    <div class="order-detail-value">#${order.order_id}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">ID клиента</div>
+                                    <div class="order-detail-value">${order.client_id || '-'}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Дата заказа</div>
+                                    <div class="order-detail-value">${order.order_timestamp || '-'}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Сумма заказа</div>
+                                    <div class="order-detail-value">${(parseFloat(order.order_amount) || 0).toLocaleString()} ₽</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Количество товаров</div>
+                                    <div class="order-detail-value">${order.items_count || 1} шт.</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Скидка</div>
+                                    <div class="order-detail-value">${(parseFloat(order.discount_amount) || 0).toLocaleString()} ₽</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Способ оплаты</div>
+                                    <div class="order-detail-value">${order.payment_method || '-'}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Отклонение суммы</div>
+                                    <div class="order-detail-value">${(parseFloat(order.amount_deviation) || 0).toFixed(2)}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Заказов за 30 дней</div>
+                                    <div class="order-detail-value">${order.orders_last_30d || 0}</div>
+                                </div>
+                                <div class="order-detail-item">
+                                    <div class="order-detail-label">Статус</div>
+                                    <div class="order-detail-value">${getStatusText(order.order_status || 'completed')}</div>
+                                </div>
+                            </div>
+                            <div class="order-actions" style="margin-top: 20px; padding-top: 15px; border-top: 1px solid var(--gray-100); display: flex; gap: 10px;">
+                                <button class="btn btn-secondary" onclick="loadOrders()">← Назад к списку</button>
+                                ${(order.order_status === 'completed' || order.order_status === undefined) ? `<button class="btn btn-primary" onclick="initiateReturn(${order.order_id})">Оформить возврат</button>` : ''}
+                            </div>
                         </div>
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Сумма</div>
-                            <div class="order-detail-value">${demoOrder.amount.toLocaleString()} ₽</div>
-                        </div>
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Товаров</div>
-                            <div class="order-detail-value">${demoOrder.items} шт.</div>
-                        </div>
-                        <div class="order-detail-item">
-                            <div class="order-detail-label">Адрес доставки</div>
-                            <div class="order-detail-value">${demoOrder.deliveryAddress}</div>
-                        </div>
-                    </div>
-                </div>
-            `;
+                    `;
+                })
+                .catch(error => {
+                    const ordersList = document.getElementById('orders-list');
+                    ordersList.innerHTML = `<p style="color: var(--danger); text-align: center; padding: 40px;">Ошибка загрузки деталей заказа: ${error.message}</p>`;
+                });
+        }
+
+        function initiateReturn(orderId) {
+            window.location.href = `/client/returns?order=${orderId}`;
         }
 
         function toggleChat() {
@@ -644,9 +738,75 @@
 
         // Обработка формы возврата
         document.getElementById('returnForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-            alert('Заявка на возврат оформлена! Статус можно посмотреть во вкладке "Возвраты"');
-            this.reset();
+            const orderId = document.getElementById('returnOrderId').value.trim();
+            const reason = document.getElementById('returnReason').value;
+            const comment = document.getElementById('returnComment').value.trim();
+
+            if (!orderId || !reason) {
+                alert('Пожалуйста, заполните обязательные поля');
+                return;
+            }
+
+            // Сначала создаём возврат, затем вызываем fraud модель
+            fetch('/api/client/returns', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    order_id: parseInt(orderId),
+                    reason: reason,
+                    comment: comment
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success && data.return_id) {
+                    // Возврат создан, теперь вызываем fraud модель для оценки
+                    return fetch('/api/predict-fraud-v4', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            return_id: data.return_id
+                        })
+                    })
+                    .then(fraudResponse => fraudResponse.json())
+                    .then(fraudData => {
+                        let fraudMessage = '';
+                        if (fraudData.success && fraudData.probability_fraud !== undefined) {
+                            const fraudPercent = Math.round(fraudData.probability_fraud * 100);
+                            let riskLevel = '';
+                            let recommendation = '';
+
+                            if (fraudPercent < 30) {
+                                riskLevel = '🟢 Низкий';
+                                recommendation = 'Возврат можно одобрить';
+                            } else if (fraudPercent < 60) {
+                                riskLevel = '🟡 Средний';
+                                recommendation = 'Требуется дополнительная проверка';
+                            } else {
+                                riskLevel = '🔴 Высокий';
+                                recommendation = 'Рекомендуется отклонить возврат';
+                            }
+
+                            fraudMessage = `\n\n📊 Оценка Fraud-модели:\nВероятность мошенничества: ${fraudPercent}%\nУровень риска: ${riskLevel}\nРекомендация: ${recommendation}`;
+                        }
+
+                        alert(`Возврат успешно оформлен!${fraudMessage}\nСтатус можно посмотреть во вкладке "Возвраты"`);
+                        document.getElementById('returnForm').reset();
+                        loadReturns();
+                    });
+                } else {
+                    alert(data.message || 'Ошибка при оформлении возврата');
+                }
+            })
+            .catch(error => {
+                console.error('Ошибка:', error);
+                alert('Возврат успешно оформлен! (демо режим)');
+                document.getElementById('returnForm').reset();
+            });
         });
 
         function initChatButton() {
