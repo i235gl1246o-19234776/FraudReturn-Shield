@@ -2655,7 +2655,6 @@ func main() {
 	http.HandleFunc("/api/users/", apiGetUserDetail)
 	http.HandleFunc("/api/search/users", apiSearchUsers)
 	http.HandleFunc("/api/chat", handleChat)
-	http.HandleFunc("/api/predict-fraud-v4", apiPredictFraudV4)
 
 	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)

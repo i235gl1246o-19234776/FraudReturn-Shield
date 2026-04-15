@@ -24,8 +24,11 @@ warnings.filterwarnings('ignore', message='.*pandas only supports SQLAlchemy con
 # КОНФИГУРАЦИЯ
 # =============================================================================
 conn_params = {
-    'host': 'localhost', 'port': 5432, 'database': 'postgres',
-    'user': 'postgres', 'password': '1234'  # 🔒 В проде: os.getenv('DB_PASSWORD')
+    'host': 'localhost',  # или IP-адрес сервера
+    'port': 5432,  # стандартный порт PostgreSQL
+    'database': 'fraud_return_db',  # имя базы данных
+    'user': 'postgres',  # имя пользователя
+    'password': 'OmegaBloody13'  # пароль
 }
 
 MODEL_DIR = "models/"

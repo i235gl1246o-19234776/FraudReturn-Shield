@@ -21,7 +21,7 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
-from onnx_feature_pipeline2 import FraudDetectionService
+from onnx_pipeline_3_ import OnnxFraudService, OneHotFeatureEncoder
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
@@ -31,7 +31,7 @@ from psycopg2.extras import RealDictCursor
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
-_fraud_service: Optional[FraudDetectionService] = None
+_fraud_service: Optional[OnnxFraudService] = None
 
 # Fraud модель
 _fraud_session = None
@@ -232,32 +232,10 @@ def load_fraud_model_v4(onnx_path: str, metadata_path: str,
         if not os.path.exists(anomaly_model_path):
             return {'success': False, 'error': f'Anomaly model not found: {anomaly_model_path}'}
 
-        # Для работы требуется БД connection string
-        # Если не передан - используем заглушку (для тестов)
-        if db_connection_string is None:
-            db_connection_string = os.getenv('DATABASE_URL', 'postgresql://postgres:OmegaBloody13@localhost:5432/fraud_return_db')
+        base_dir = os.path.dirname(onnx_path) or 'models'
+        _fraud_service = OnnxFraudService(model_dir=base_dir)
 
-        # Парсинг PostgreSQL connection string
-        from urllib.parse import urlparse
-        parsed = urlparse(db_connection_string)
-        conn_params = {
-            'host': parsed.hostname or 'localhost',
-            'port': parsed.port or 5432,
-            'database': parsed.path.lstrip('/') or 'postgres',
-            'user': parsed.username or 'postgres',
-            'password': parsed.password or '1234',
-            'options': '-c client_encoding=UTF8'
-        }
-
-        _fraud_service = FraudDetectionService(
-            conn_params=conn_params,
-            onnx_path=onnx_path,
-            metadata_path=metadata_path,
-            anomaly_scaler_path=anomaly_scaler_path,
-            anomaly_model_path=anomaly_model_path
-        )
-
-        _log(f"[INFO] Fraud v4 model loaded via FraudDetectionService: {onnx_path}")
+        _log(f"[INFO] Fraud v4 model loaded via OnnxFraudService: {onnx_path}")
         return {'success': True}
     except Exception as e:
         _log(f"[ERROR] Fraud v4 load: {str(e)}")
@@ -842,11 +820,6 @@ app.add_middleware(
 
 @app.post("/api/predict-fraud-payload", response_model=FraudV4PredictionResponse)
 async def api_predict_fraud_payload(request: FraudPayloadRequest):
-    """
-    Предсказание риска мошенничества через v4 модель с передачей данных напрямую.
-    Не требует return_id в БД - данные передаются в запросе.
-    Использует predict_from_web_payload из onnx_feature_pipeline2.py
-    """
     global _fraud_service
     if _fraud_service is None:
         return FraudV4PredictionResponse(
