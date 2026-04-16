@@ -279,12 +279,12 @@
                                         </svg>
                                         <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
                                     </div>
-                                    <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
+                                    <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID или выберите из списка заказов клиента</small>
                                 </div>
                                 <div class="form-group">
                                     <label for="orderID">ID заказа *</label>
                                     <div class="autocomplete-container">
-                                        <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)">
+                                        <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)" onfocus="if(!this.value) searchOrders('', selectedClientId)">
                                         <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <circle cx="11" cy="11" r="8"/>
                                             <path d="m21 21-4.35-4.35"/>
@@ -538,14 +538,20 @@
             return;
         }
         
+        if (!query || query.trim() === '') {
+            query = '';
+        }
+
         try {
             const url = clientId 
                 ? `/api/orders?client_id=${clientId}&q=${encodeURIComponent(query)}`
                 : `/api/orders?q=${encodeURIComponent(query)}`;
             
+            console.log('Fetching orders from:', url);
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
+                console.log('Received orders:', data.orders?.length || 0);
                 
                 if (data.orders && data.orders.length > 0) {
                     dropdown.innerHTML = data.orders.map(order => `
@@ -560,6 +566,7 @@
                     dropdown.style.display = 'block';
                 }
             } else {
+                console.error('API error:', res.status);
                 dropdown.style.display = 'none';
             }
         } catch (err) {

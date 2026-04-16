@@ -1,4 +1,3 @@
-
 <!-- client_returns.html - Страница возвратов клиента -->
 <!DOCTYPE html>
 <html lang="ru">
@@ -60,7 +59,6 @@
             position: relative;
             overflow: hidden;
         }
-
 
         .page-title img {
             width: 100px;
@@ -276,6 +274,7 @@
             border-radius: var(--radius);
             font-size: 1rem;
             font-family: inherit;
+            box-sizing: border-box;
         }
 
         .form-group input:focus,
@@ -388,7 +387,6 @@
 
     <!-- Заголовок страницы -->
     <section class="page-header">
-        </div>
         <div class="container">
             <h1 class="page-title">
                 <img src="/static/svg/стрелка назад.svg" alt="Возвраты" style="width: 50px; height: 50px; vertical-align: middle; margin-right: 10px;">
@@ -402,12 +400,12 @@
     <div class="container">
         <!-- Форма оформления возврата -->
         <div class="return-form-section">
-            <h2 style="margin-bottom: 20px;">📝 Оформить новый возврат</h2>
+            <h2 style="margin-bottom: 20px;">Оформить новый возврат</h2>
             <div id="createFormAlert"></div>
             <form class="return-form" id="returnForm">
                 <div class="form-group">
                     <label for="returnOrderId">ID заказа</label>
-                    <input type="text" id="returnOrderId" placeholder="Введите ID заказа" required>
+                    <input type="number" id="returnOrderId" placeholder="Введите ID заказа" required min="1">
                 </div>
                 <div class="form-group">
                     <label for="returnReason">Причина возврата</label>
@@ -424,220 +422,240 @@
                     <label for="returnComment">Комментарий</label>
                     <textarea id="returnComment" rows="4" placeholder="Опишите подробнее проблему с товаром..."></textarea>
                 </div>
-                <button type="submit" class="btn btn-primary">Оформить возврат</button>
+                <button type="submit" class="btn btn-primary" id="submitBtn">Оформить возврат</button>
             </form>
         </div>
 
         <!-- Результат fraud оценки (скрыт по умолчанию) -->
         <div id="fraudResultSection" style="display: none; background: white; border-radius: var(--radius-xl); padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-md);">
-            <h2 style="margin-bottom: 20px;">📊 Оценка Fraud-модели</h2>
+            <h2 style="margin-bottom: 20px;">Оценка Fraud-модели</h2>
             <div id="fraudResultContent"></div>
         </div>
 
     </div>
 
     <script>
-        let currentUser = null;
-        let allReturns = [];
+    const API_BASE = 'http://localhost:8083';
+    
+    let currentUser = null;
 
-        document.addEventListener('DOMContentLoaded', function() {
-            const storedUser = sessionStorage.getItem('user');
-            if (storedUser) {
-                currentUser = JSON.parse(storedUser);
-
-                // Проверка на наличие параметра order в URL
-                const urlParams = new URLSearchParams(window.location.search);
-                const orderId = urlParams.get('order');
-                if (orderId) {
-                    document.getElementById('returnOrderId').value = orderId;
-                }
-
-            } else {
-                window.location.href = '/login';
+    document.addEventListener('DOMContentLoaded', function() {
+        const storedUser = sessionStorage.getItem('user');
+        if (storedUser) {
+            currentUser = JSON.parse(storedUser);
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('order');
+            if (orderId) {
+                document.getElementById('returnOrderId').value = orderId;
             }
-        });
+        } else {
+            window.location.href = '/login';
+        }
+    });
 
-        function loadReturns() {
+    function getStatusText(status) {
+        const statusMap = {
+            'pending': 'На рассмотрении',
+            'approved': 'Одобрено',
+            'rejected': 'Отклонено',
+            'processing': 'В обработке',
+            'refunded': 'Деньги возвращены'
+        };
+        return statusMap[status] || status;
+    }
 
+    function getReasonText(code) {
+        const reasonMap = {
+            'defect': 'Брак товара',
+            'wrong_item': 'Не тот товар',
+            'not_needed': 'Передумал',
+            'late_delivery': 'Долгая доставка',
+            'other': 'Другое'
+        };
+        return reasonMap[code] || code;
+    }
+
+    document.getElementById('returnForm').addEventListener('submit', function(e) {
+        e.preventDefault();
+
+        const orderIdRaw = document.getElementById('returnOrderId').value.trim();
+        const claimed_reason = document.getElementById('returnReason').value.trim();
+        const comment = document.getElementById('returnComment').value.trim();
+        const submitBtn = document.getElementById('submitBtn');
+
+        if (!orderIdRaw || !claimed_reason) {
+            showAlert('Пожалуйста, заполните обязательные поля', 'error');
+            return;
         }
 
-        function getStatusText(status) {
-            const statusMap = {
-                'pending': 'На рассмотрении',
-                'approved': 'Одобрено',
-                'rejected': 'Отклонено',
-                'processing': 'В обработке',
-                'refunded': 'Деньги возвращены'
-            };
-            return statusMap[status] || status;
+        const orderId = parseInt(orderIdRaw, 10);
+        if (isNaN(orderId) || orderId <= 0) {
+            showAlert('ID заказа должен быть корректным положительным числом', 'error');
+            return;
         }
 
-        function getReasonText(code) {
-            const reasonMap = {
-                'defect': 'Брак товара',
-                'wrong_item': 'Не тот товар',
-                'not_needed': 'Передумал',
-                'late_delivery': 'Долгая доставка',
-                'other': 'Другое'
-            };
-            return reasonMap[code] || code;
-        }
+        // 🔥 Логирование для отладки
+        const payload = {
+            order_id: orderId,
+            claimed_reason: claimed_reason,
+            comment: comment
+        };
+        console.log('📤 Отправка на бэкенд:', API_BASE + '/api/client/returns');
+        console.log('📦 Payload:', payload);
 
-        function renderReturns(returns) {
+        submitBtn.disabled = true;
+        submitBtn.textContent = 'Отправка...';
 
-        }
-
-        document.getElementById('returnForm').addEventListener('submit', function(e) {
-            e.preventDefault();
-
-            const orderId = document.getElementById('returnOrderId').value.trim();
-            const claimed_reason = document.getElementById('returnReason').value;
-            const comment = document.getElementById('returnComment').value.trim();
-
-            console.log('Отправка возврата:', { order_id: parseInt(orderId), claimed_reason: claimed_reason, comment: comment });
-
-            if (!orderId || !claimed_reason) {
-                showAlert('Пожалуйста, заполните обязательные поля', 'error');
-                return;
+        fetch(`${API_BASE}/api/client/returns`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        })
+        .then(async response => {
+            console.log('Ответ сервера:', response.status, response.statusText);
+            if (!response.ok) {
+                const errData = await response.json().catch(() => ({}));
+                console.error('Ошибка бэкенда:', errData);
+                throw new Error(errData.message || `Ошибка ${response.status}`);
             }
-
-            // Отправка данных на сервер
-            fetch('/api/client/returns', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    order_id: parseInt(orderId),
-                    claimed_reason: claimed_reason,
-                    comment: comment
+            return response.json();
+        })
+        .then(data => {
+            console.log('Данные от сервера:', data);
+            if (data.success && data.return_id) {
+                return fetch(`${API_BASE}/api/predict-fraud-v4`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
+                    body: JSON.stringify({ return_id: data.return_id })
                 })
-            })
-            .then(response => {
-                if (!response.ok) {
-                    return response.json().then(errData => {
-                        throw new Error(errData.message || 'Ошибка сервера');
-                    });
-                }
-                return response.json();
-            })
-            .then(data => {
-                if (data.success && data.return_id) {
-                    // Возврат создан, теперь вызываем fraud модель
-                    return fetch('/api/predict-fraud-v4', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            return_id: data.return_id
-                        })
-                    })
-                    .then(fraudResponse => fraudResponse.json())
-                    .then(fraudData => {
-                        showAlert('Возврат успешно оформлен!', 'success');
-
-                        // Отображаем результат fraud оценки
-                        displayFraudResult(fraudData);
-
-                        document.getElementById('returnForm').reset();
-                    });
-                } else if (data.success) {
+                .then(async res => {
+                    // Проверяем Content-Type перед парсингом
+                    const contentType = res.headers.get('content-type');
+                    if (!contentType || !contentType.includes('application/json')) {
+                        // Если не JSON — пробуем прочитать как текст для отладки
+                        const text = await res.text().catch(() => '');
+                        console.warn('Ожидался JSON, получено:', text.substring(0, 200));
+                        return { success: true }; // Игнорируем ошибку fraud-модели
+                    }
+                    if (!res.ok) {
+                        console.warn('Fraud API вернул ошибку:', res.status);
+                        return { success: true };
+                    }
+                    return res.json();
+                })
+                .then(fraudData => {
                     showAlert('Возврат успешно оформлен!', 'success');
+                    if (fraudData?.success) {
+                        displayFraudResult(fraudData);
+                    }
                     document.getElementById('returnForm').reset();
-                } else {
-                    showAlert(data.message || 'Ошибка при оформлении возврата', 'error');
-                }
-            })
-            .catch(error => {
-                console.error('Ошибка:', error);
-                showAlert(error.message || 'Ошибка при оформлении возврата', 'error');
-            });
-        });
-
-        function displayFraudResult(fraudData) {
-            const section = document.getElementById('fraudResultSection');
-            const content = document.getElementById('fraudResultContent');
-
-            if (!fraudData.success) {
-                content.innerHTML = `<p style="color: var(--gray-600);">Не удалось получить оценку fraud-модели</p>`;
-                section.style.display = 'block';
-                return;
-            }
-
-            const fraudPercent = Math.round((fraudData.probability_fraud || 0) * 100);
-            let riskColor, riskBg, riskLevel, recommendation, riskIcon;
-
-            if (fraudPercent < 30) {
-                riskColor = 'var(--success)';
-                riskBg = 'var(--success-bg)';
-                riskLevel = 'Низкий';
-                riskIcon = '/static/svg/галочка.svg';
-                recommendation = `<img src="${riskIcon}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"> Возврат можно одобрить`;
-            } else if (fraudPercent < 60) {
-                riskColor = 'var(--warning)';
-                riskBg = 'var(--warning-bg)';
-                riskLevel = 'Средний';
-                riskIcon = '/static/svg/знак внимания.svg';
-                recommendation = `<img src="${riskIcon}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"> Требуется дополнительная проверка`;
+                })
+                .catch(err => {
+                    // Ловим ошибку парсинга JSON
+                    if (err instanceof SyntaxError) {
+                        console.warn('Fraud API вернул не-JSON, продолжаем без оценки');
+                        showAlert('Возврат успешно оформлен!', 'success');
+                        document.getElementById('returnForm').reset();
+                        return;
+                    }
+                    console.error('Ошибка fraud-модели:', err);
+                    // Не прерываем поток — возврат всё равно создан
+                    showAlert('Возврат оформлен (оценка риска недоступна)', 'success');
+                    document.getElementById('returnForm').reset();
+});
+            } else if (data.success) {
+                showAlert('Возврат успешно оформлен!', 'success');
+                document.getElementById('returnForm').reset();
             } else {
-                riskColor = 'var(--danger)';
-                riskBg = 'var(--danger-bg)';
-                riskLevel = 'Высокий';
-                riskIcon = '/static/svg/крест.svg';
-                recommendation = `<img src="${riskIcon}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"> Рекомендуется отклонить возврат`;
+                showAlert(data.message || 'Ошибка при оформлении возврата', 'error');
             }
+        })
+        .catch(error => {
+            console.error('Ошибка в fetch:', error);
+            showAlert(error.message || 'Ошибка соединения с сервером', 'error');
+        })
+        .finally(() => {
+            submitBtn.disabled = false;
+            submitBtn.textContent = 'Оформить возврат';
+        });
+    });
 
-            content.innerHTML = `
-                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
-                    <div style="background: ${riskBg}; padding: 20px; border-radius: var(--radius); text-align: center;">
-                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Вероятность мошенничества</div>
-                        <div style="font-size: 2rem; font-weight: 800; color: ${riskColor};">${fraudPercent}%</div>
-                    </div>
-                    <div style="background: var(--gray-50); padding: 20px; border-radius: var(--radius); text-align: center;">
-                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Уровень риска</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: ${riskColor};">${riskLevel}</div>
-                    </div>
-                    ${fraudData.anomaly_score !== undefined ? `
-                    <div style="background: var(--gray-50); padding: 20px; border-radius: var(--radius); text-align: center;">
-                        <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Аномалия score</div>
-                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--wb-purple);">${(fraudData.anomaly_score || 0).toFixed(3)}</div>
-                    </div>
-                    ` : ''}
-                </div>
-                <div style="background: var(--gray-50); padding: 20px; border-radius: var(--radius);">
-                    <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Рекомендация системы</div>
-                    <div style="font-size: 1.1rem; font-weight: 600; color: var(--gray-800);">${recommendation}</div>
-                </div>
-            `;
+    function displayFraudResult(fraudData) {
+        const section = document.getElementById('fraudResultSection');
+        const content = document.getElementById('fraudResultContent');
 
+        if (!fraudData || !fraudData.success) {
+            content.innerHTML = `<p style="color: var(--gray-600);">Не удалось получить оценку fraud-модели</p>`;
             section.style.display = 'block';
+            return;
         }
 
-        function showAlert(message, type) {
-            const alertDiv = document.getElementById('createFormAlert');
-            alertDiv.className = `alert alert-${type}`;
-            alertDiv.textContent = message;
-            setTimeout(() => {
+        const fraudPercent = Math.round((fraudData.probability_fraud || 0) * 100);
+        let riskColor, riskBg, riskLevel, recommendation, riskIcon;
+
+        if (fraudPercent < 30) {
+            riskColor = 'var(--success)'; riskBg = 'var(--success-bg)'; riskLevel = 'Низкий';
+            riskIcon = '/static/svg/галочка.svg';
+            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Возврат можно одобрить`;
+        } else if (fraudPercent < 60) {
+            riskColor = 'var(--warning)'; riskBg = 'var(--warning-bg)'; riskLevel = 'Средний';
+            riskIcon = '/static/svg/знак внимания.svg';
+            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Требуется дополнительная проверка`;
+        } else {
+            riskColor = 'var(--danger)'; riskBg = 'var(--danger-bg)'; riskLevel = 'Высокий';
+            riskIcon = '/static/svg/крест.svg';
+            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Рекомендуется отклонить возврат`;
+        }
+
+        content.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
+                <div style="background: ${riskBg}; padding: 20px; border-radius: var(--radius); text-align: center;">
+                    <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Вероятность мошенничества</div>
+                    <div style="font-size: 2rem; font-weight: 800; color: ${riskColor};">${fraudPercent}%</div>
+                </div>
+                <div style="background: var(--gray-50); padding: 20px; border-radius: var(--radius); text-align: center;">
+                    <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Уровень риска</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: ${riskColor};">${riskLevel}</div>
+                </div>
+                ${fraudData.anomaly_score !== undefined ? `
+                <div style="background: var(--gray-50); padding: 20px; border-radius: var(--radius); text-align: center;">
+                    <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Аномалия score</div>
+                    <div style="font-size: 1.5rem; font-weight: 700; color: var(--wb-purple);">${(fraudData.anomaly_score || 0).toFixed(3)}</div>
+                </div>` : ''}
+            </div>
+            <div style="background: var(--gray-50); padding: 20px; border-radius: var(--radius);">
+                <div style="font-size: 0.85rem; color: var(--gray-600); margin-bottom: 5px;">Рекомендация системы</div>
+                <div style="font-size: 1.1rem; font-weight: 600; color: var(--gray-800);">${recommendation}</div>
+            </div>
+        `;
+        section.style.display = 'block';
+    }
+
+    function showAlert(message, type) {
+        const alertDiv = document.getElementById('createFormAlert');
+        alertDiv.className = `alert alert-${type}`;
+        alertDiv.textContent = message;
+        setTimeout(() => {
+            if (alertDiv.textContent === message) {
                 alertDiv.textContent = '';
                 alertDiv.className = '';
-            }, 5000);
-        }
+            }
+        }, 5000);
+    }
 
-        function logout() {
-            sessionStorage.removeItem('user');
-            fetch('/api/logout', { method: 'POST' })
-                .then(() => {
-                    window.location.href = '/login';
-                })
-                .catch(() => {
-                    window.location.href = '/login';
-                });
-        }
+    function logout() {
+        sessionStorage.removeItem('user');
+        fetch(`${API_BASE}/api/logout`, { method: 'POST', credentials: 'include' })
+            .finally(() => { window.location.href = '/login'; });
+    }
 
-        document.addEventListener('DOMContentLoaded', () => {
+    document.addEventListener('DOMContentLoaded', () => {
+        if (typeof ChatWidget !== 'undefined') {
             window.chatWidget = new ChatWidget();
-        });
-    </script>
+        }
+    });
+</script>
 </body>
 </html>

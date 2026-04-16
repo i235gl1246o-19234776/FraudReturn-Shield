@@ -861,6 +861,160 @@ async def api_predict_fraud_payload(request: FraudPayloadRequest):
         _log(f"[ERROR] API predict fraud payload: {str(e)}")
         return FraudV4PredictionResponse(success=False, error=str(e))
 
+
+@app.get("/api/client/{client_id}")
+async def get_client(client_id: int):
+    """Получить данные клиента по ID"""
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host='localhost',
+            port=5432,
+            database='fraud_return_db',
+            user='postgres',
+            password='OmegaBloody13'
+        )
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT client_id, account_age_days, total_orders, total_returns,
+                   avg_order_amount, created_at
+            FROM clients
+            WHERE client_id = %s
+        """, (client_id,))
+        client = cur.fetchone()
+        cur.close()
+
+        if client:
+            return {
+                "client_id": client['client_id'],
+                "account_age_days": client['account_age_days'],
+                "total_orders": client['total_orders'],
+                "total_returns": client['total_returns'],
+                "avg_order_amount": float(client['avg_order_amount']) if client['avg_order_amount'] else 0
+            }
+        raise HTTPException(status_code=404, detail="Клиент не найден")
+    except HTTPException:
+        raise
+    except Exception as e:
+        _log(f"[ERROR] Get client: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/api/orders")
+async def get_orders(client_id: int = None, q: str = ""):
+    """Получить список заказов (опционально фильтруя по клиенту)"""
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host='localhost',
+            port=5432,
+            database='fraud_return_db',
+            user='postgres',
+            password='OmegaBloody13'
+        )
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+
+        if client_id:
+            # Заказы конкретного клиента
+            cur.execute("""
+                SELECT order_id, client_id, order_amount, items_count,
+                       product_category, order_timestamp
+                FROM orders
+                WHERE client_id = %s
+                ORDER BY order_timestamp DESC
+                LIMIT 50
+            """, (client_id,))
+        else:
+            # Поиск по query (если указан)
+            if q and q.isdigit():
+                cur.execute("""
+                    SELECT order_id, client_id, order_amount, items_count,
+                           product_category, order_timestamp
+                    FROM orders
+                    WHERE order_id::text LIKE %s
+                    ORDER BY order_timestamp DESC
+                    LIMIT 50
+                """, (f"%{q}%",))
+            else:
+                cur.execute("""
+                    SELECT order_id, client_id, order_amount, items_count,
+                           product_category, order_timestamp
+                    FROM orders
+                    ORDER BY order_timestamp DESC
+                    LIMIT 50
+                """)
+
+        orders = cur.fetchall()
+        cur.close()
+
+        return {
+            "orders": [
+                {
+                    "order_id": o['order_id'],
+                    "client_id": o['client_id'],
+                    "order_amount": float(o['order_amount']) if o['order_amount'] else 0,
+                    "items_count": o['items_count'],
+                    "product_category": o['product_category'],
+                    "order_timestamp": o['order_timestamp'].isoformat() if o['order_timestamp'] else None
+                }
+                for o in orders
+            ]
+        }
+    except Exception as e:
+        _log(f"[ERROR] Get orders: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
+
+@app.get("/api/order/{order_id}")
+async def get_order(order_id: int):
+    """Получить данные заказа по ID"""
+    conn = None
+    try:
+        conn = psycopg2.connect(
+            host='localhost',
+            port=5432,
+            database='fraud_return_db',
+            user='postgres',
+            password='OmegaBloody13'
+        )
+        cur = conn.cursor(cursor_factory=RealDictCursor)
+        cur.execute("""
+            SELECT order_id, client_id, order_amount, items_count,
+                   discount_amount, payment_method, order_timestamp,
+                   product_category, is_electronics
+            FROM orders
+            WHERE order_id = %s
+        """, (order_id,))
+        order = cur.fetchone()
+        cur.close()
+
+        if order:
+            return {
+                "order_id": order['order_id'],
+                "client_id": order['client_id'],
+                "order_amount": float(order['order_amount']) if order['order_amount'] else 0,
+                "items_count": order['items_count'],
+                "discount_amount": float(order['discount_amount']) if order['discount_amount'] else 0,
+                "payment_method": order['payment_method'],
+                "product_category": order['product_category'],
+                "is_electronics": order['is_electronics']
+            }
+        raise HTTPException(status_code=404, detail="Заказ не найден")
+    except HTTPException:
+        raise
+    except Exception as e:
+        _log(f"[ERROR] Get order: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        if conn:
+            conn.close()
+
 @app.get("/")
 async def root():
     return {
@@ -870,7 +1024,10 @@ async def root():
             "health": "/health",
             "load_model": "/api/load-models",
             "predict_fraud": "/api/predict-fraud",
-            "chat": "/api/chat"
+            "chat": "/api/chat",
+            "get_client": "/api/client/{client_id}",
+            "get_orders": "/api/orders",
+            "get_order": "/api/order/{order_id}"
         }
     }
 

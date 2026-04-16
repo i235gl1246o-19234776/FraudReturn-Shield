@@ -26,15 +26,13 @@ import (
 // 📊 СТРУКТУРЫ ДАННЫХ
 // ============================================
 
-// FormData — данные формы проверки
-// FormData — данные формы проверки (ОБНОВЛЁННАЯ ВЕРСИЯ)
 type FormData struct {
 	// === Основные поля из формы ===
 	OrderNumber       string  `json:"orderNumber"`
 	OrderAmount       float64 `json:"orderAmount"`
 	AccountAgeDays    int     `json:"accountAgeDays"`
 	TotalOrders       int     `json:"totalOrders"`
-	TotalReturns      int     `json:"totalReturns"` // 🔧 ДОБАВЛЕНО
+	TotalReturns      int     `json:"totalReturns"`
 	ReturnRate        float64 `json:"returnRate"`
 	DaysToReturn      int     `json:"daysToReturn"`
 	Category          string  `json:"category"`
@@ -53,42 +51,42 @@ type FormData struct {
 	TagsRemoved       bool    `json:"tagsRemoved"`
 	MissingComponents bool    `json:"missingComponents"`
 
-	// === Скрытые поля (из формы или БД) ===
+	// === Скрытые поля ===
 	DiscountPercent         float64 `json:"discountPercent"`
 	PromoCodeUsed           bool    `json:"promoCodeUsed"`
-	FirstOrderDiscountAbuse bool    `json:"firstOrderDiscountAbuse"` // 🔧 ДОБАВЛЕНО
+	FirstOrderDiscountAbuse bool    `json:"firstOrderDiscountAbuse"`
 	ItemsInOrder            int     `json:"itemsInOrder"`
 	IsElectronics           bool    `json:"isElectronics"`
 
 	// === Риски и геолокация ===
 	PaymentMethodRisk        float64 `json:"paymentMethodRisk"`
-	ChargebackHistory90d     bool    `json:"chargebackHistory90d"`   // 🔧 ДОБАВЛЕНО
-	CardBinCountryMismatch   bool    `json:"cardBinCountryMismatch"` // 🔧 ДОБАВЛЕНО
+	ChargebackHistory90d     bool    `json:"chargebackHistory90d"`
+	CardBinCountryMismatch   bool    `json:"cardBinCountryMismatch"`
 	ShippingRegionRisk       float64 `json:"shippingRegionRisk"`
-	DeliveryAddressType      int     `json:"deliveryAddressType"` // 🔧 ДОБАВЛЕНО
+	DeliveryAddressType      int     `json:"deliveryAddressType"`
 	DistanceFromRegistration float64 `json:"distanceFromRegistration"`
 
 	// === Время заказа ===
-	OrderHour      int  `json:"orderHour"`      // 🔧 ДОБАВЛЕНО
-	OrderTimeNight bool `json:"orderTimeNight"` // 🔧 ДОБАВЛЕНО
+	OrderHour      int  `json:"orderHour"`
+	OrderTimeNight bool `json:"orderTimeNight"`
 
 	// === IP/Device velocity ===
-	IPVelocity24h     int  `json:"ipVelocity24h"`    // 🔧 ДОБАВЛЕНО
-	IPVelocity7d      int  `json:"ipVelocity7d"`     // 🔧 ДОБАВЛЕНО
-	AccountsPerIP     int  `json:"accountsPerIP"`    // 🔧 ДОБАВЛЕНО
-	AccountsPerPhone  int  `json:"accountsPerPhone"` // 🔧 ДОБАВЛЕНО
+	IPVelocity24h     int  `json:"ipVelocity24h"`
+	IPVelocity7d      int  `json:"ipVelocity7d"`
+	AccountsPerIP     int  `json:"accountsPerIP"`
+	AccountsPerPhone  int  `json:"accountsPerPhone"`
 	AccountsPerDevice int  `json:"accountsPerDevice"`
-	DeviceIsEmulator  bool `json:"deviceIsEmulator"` // 🔧 ДОБАВЛЕНО
+	DeviceIsEmulator  bool `json:"deviceIsEmulator"`
 
 	// === Trust scores ===
 	DeviceTrustScore float64 `json:"deviceTrustScore"`
 	IPTrustScore     float64 `json:"ipTrustScore"`
 
 	// === История и активность ===
-	AvgOrderAmount    float64 `json:"avgOrderAmount"`    // 🔧 ДОБАВЛЕНО
-	ReturnRate30d     float64 `json:"returnRate30d"`     // 🔧 ДОБАВЛЕНО
-	RefundVelocity7d  int     `json:"refundVelocity7d"`  // 🔧 ДОБАВЛЕНО
-	RefundVelocity30d int     `json:"refundVelocity30d"` // 🔧 ДОБАВЛЕНО
+	AvgOrderAmount    float64 `json:"avgOrderAmount"`
+	ReturnRate30d     float64 `json:"returnRate30d"`
+	RefundVelocity7d  int     `json:"refundVelocity7d"`
+	RefundVelocity30d int     `json:"refundVelocity30d"`
 	SupportTickets30d int     `json:"supportTickets30d"`
 	ReviewCount30d    int     `json:"reviewCount30d"`
 
@@ -98,7 +96,6 @@ type FormData struct {
 	LegalClaimThreat       bool `json:"legalClaimThreat"`
 }
 
-// ResultData — результат расчёта риска
 type ResultData struct {
 	FormData
 	RiskScore        float64  `json:"riskScore"`
@@ -112,10 +109,8 @@ type ResultData struct {
 	ClientID         int      `json:"clientID"`
 }
 
-// DBRecord — универсальная запись из БД
 type DBRecord map[string]interface{}
 
-// UserCard — данные для карточки пользователя
 type UserCard struct {
 	ClientID         int     `json:"client_id"`
 	AccountAgeDays   int     `json:"account_age_days"`
@@ -131,8 +126,15 @@ type UserCard struct {
 type User struct {
 	ID       int    `json:"id"`
 	Login    string `json:"login"`
-	Password string `json:"-"`    // Не передаётся в JSON
-	Role     string `json:"role"` // "admin" или "client"
+	Password string `json:"-"`
+	Role     string `json:"role"`
+}
+
+// Запрос на создание возврата
+type CreateReturnRequest struct {
+	OrderID       int    `json:"order_id"`
+	ClaimedReason string `json:"claimed_reason"`
+	Comment       string `json:"comment"`
 }
 
 // Глобальные переменные
@@ -140,6 +142,122 @@ var (
 	pythonModelLoaded bool = false
 	db                *sql.DB
 )
+
+// ============================================
+// 🔧 CORS УТИЛИТЫ
+// ============================================
+
+// setCORSHeaders — настройка CORS с поддержкой credentials
+func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
+	origin := r.Header.Get("Origin")
+	allowedOrigins := []string{
+		"http://localhost:3000",
+		"http://127.0.0.1:3000",
+		"http://localhost:8080",
+		"http://localhost:8083",
+		"http://127.0.0.1:8083",
+	}
+
+	for _, o := range allowedOrigins {
+		if origin == o {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+			break
+		}
+	}
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+}
+
+// applyJSONHeaders — заголовки для JSON-ответов
+func applyJSONHeaders(w http.ResponseWriter) {
+	w.Header().Set("Content-Type", "application/json")
+}
+
+// ============================================
+// 🔐 АУТЕНТИФИКАЦИЯ
+// ============================================
+
+func getClientIDFromRequest(r *http.Request) (int, error) {
+	clientIDStr := r.URL.Query().Get("client_id")
+
+	if clientIDStr == "" {
+		cookie, err := r.Cookie("user")
+		if err != nil {
+			return 0, fmt.Errorf("no user cookie")
+		}
+
+		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			return 0, fmt.Errorf("invalid cookie encoding")
+		}
+
+		var user map[string]interface{}
+		if err := json.Unmarshal(userJSON, &user); err != nil {
+			return 0, fmt.Errorf("invalid user JSON")
+		}
+
+		clientIDFloat, ok := user["id"].(float64)
+		if !ok {
+			return 0, fmt.Errorf("invalid user ID type")
+		}
+		clientIDStr = fmt.Sprintf("%d", int(clientIDFloat))
+	}
+
+	clientID, err := strconv.Atoi(clientIDStr)
+	if err != nil || clientID <= 0 {
+		return 0, fmt.Errorf("invalid client ID: %s", clientIDStr)
+	}
+
+	return clientID, nil
+}
+
+func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		cookie, err := r.Cookie("user")
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
+		if err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		var user map[string]interface{}
+		if err := json.Unmarshal(userJSON, &user); err != nil {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), "user", user)
+		next(w, r.WithContext(ctx))
+	}
+}
+
+func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
+	return authMiddleware(func(w http.ResponseWriter, r *http.Request) {
+		user, ok := r.Context().Value("user").(map[string]interface{})
+		if !ok {
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+
+		role, ok := user["role"].(string)
+		if !ok || role != "admin" {
+			http.Error(w, "Доступ запрещён: требуется роль администратора", http.StatusForbidden)
+			return
+		}
+
+		next(w, r)
+	})
+}
+
+// ============================================
+// 🗄️ БАЗА ДАННЫХ
+// ============================================
 
 func initDatabase() error {
 	dbHost := getEnv("DB_HOST", "localhost")
@@ -391,7 +509,7 @@ func SaveReturnToDB(form FormData) error {
 	query := `INSERT INTO returns (order_id, client_id, days_since_purchase,
                 has_receipt, tags_removed, missing_components,
                 return_channel, claimed_reason, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`
 
 	_, err := db.Exec(query,
 		form.OrderID,
@@ -402,6 +520,7 @@ func SaveReturnToDB(form FormData) error {
 		form.MissingComponents,
 		form.ReturnChannel,
 		form.ClaimedReason,
+		"", // comment можно добавить позже
 	)
 
 	return err
@@ -416,14 +535,12 @@ func SaveCheckHistory(result ResultData) error {
 		return nil
 	}
 
-	// Преобразуем top_factors в массив PostgreSQL
 	var factorsStr string
 	if len(result.TopFactors) == 0 {
 		factorsStr = "{}"
 	} else {
 		factorsStr = "{"
 		for i, f := range result.TopFactors {
-			// Экранируем двойные кавычки и обратные слеши в строках
 			escaped := strings.ReplaceAll(f, `"`, `\"`)
 			escaped = strings.ReplaceAll(escaped, `\`, `\\`)
 			if i > 0 {
@@ -452,7 +569,6 @@ func SaveCheckHistory(result ResultData) error {
 	return err
 }
 
-// GetAllCheckHistory получает всю историю проверок
 func GetAllCheckHistory(limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -473,8 +589,7 @@ func GetAllCheckHistory(limit int) ([]DBRecord, error) {
 		var checkedAt time.Time
 		var checkID, orderID, clientID int
 		var orderAmt, riskScore sql.NullFloat64
-		var riskLevel, riskClass sql.NullString
-		var recommendation sql.NullString
+		var riskLevel, riskClass, recommendation sql.NullString
 
 		err := rows.Scan(
 			&checkID, &orderID, &clientID, &orderAmt, &riskScore,
@@ -510,7 +625,6 @@ func GetAllCheckHistory(limit int) ([]DBRecord, error) {
 	return results, nil
 }
 
-// ClearCheckHistory очищает историю проверок
 func ClearCheckHistory() error {
 	if db == nil {
 		return fmt.Errorf("база данных не подключена")
@@ -527,10 +641,17 @@ func CloseDB() {
 	}
 }
 
-// apiGetOrders — GET /api/orders?client_id=1&q=...
+// ============================================
+// 📦 ЗАКАЗЫ
+// ============================================
+
 func apiGetOrders(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
@@ -541,33 +662,28 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 	var err error
 
 	if clientID != "" {
-		// 🔥 Поиск заказов конкретного клиента
 		orders, err = GetOrdersByClientID(clientID, query)
 	} else if query != "" {
-		// Поиск по ID заказа
 		order, err := GetOrderByID(parseInt(query))
 		if err != nil {
-			http.Error(w, `{"error":"Order not found"}`, http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Order not found"})
 			return
 		}
 		orders = []DBRecord{*order}
 	} else {
-		// Последние 20 заказов
 		orders, err = GetRecentOrders(20)
 	}
 
 	if err != nil {
-		http.Error(w, `{"error":"Failed to fetch orders"}`, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch orders"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"orders": orders,
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"orders": orders})
 }
 
-// GetOrdersByClientID — получает заказы клиента с опциональным поиском
 func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -658,7 +774,6 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 	return results, nil
 }
 
-// GetRecentOrders — последние заказы
 func GetRecentOrders(limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -715,16 +830,14 @@ func GetRecentOrders(limit int) ([]DBRecord, error) {
 }
 
 // ============================================
-// 👥 API: ПОЛЬЗОВАТЕЛИ (АДМИН-ПАНЕЛЬ)
+// 👥 ПОЛЬЗОВАТЕЛИ
 // ============================================
 
-// GetUsersList — список всех пользователей с пагинацией
 func GetUsersList(page, limit int) ([]UserCard, int, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("база данных не подключена")
 	}
 
-	// Считаем общее количество
 	var total int
 	db.QueryRow("SELECT COUNT(*) FROM clients").Scan(&total)
 
@@ -786,13 +899,6 @@ func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error
 		return 0, 0, 0, fmt.Errorf("база данных не подключена")
 	}
 
-	// Сначала проверим сырые данные для отладки
-	var totalClients, nullRateCount, zeroRateCount int
-	db.QueryRow("SELECT COUNT(*) FROM clients").Scan(&totalClients)
-	db.QueryRow("SELECT COUNT(*) FROM clients WHERE global_return_rate IS NULL").Scan(&nullRateCount)
-	db.QueryRow("SELECT COUNT(*) FROM clients WHERE global_return_rate = 0").Scan(&zeroRateCount)
-	log.Printf("DEBUG Stats: Total=%d, NULL rate=%d, Zero rate=%d", totalClients, nullRateCount, zeroRateCount)
-
 	query := `
                 SELECT
                         COUNT(CASE WHEN global_return_rate IS NOT NULL AND global_return_rate <= 0.2 THEN 1 END) as active,
@@ -806,11 +912,9 @@ func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error
 		return 0, 0, 0, err
 	}
 
-	log.Printf("DEBUG Stats Result: active=%d, warning=%d, high=%d", activeCount, warningCount, highRiskCount)
 	return activeCount, warningCount, highRiskCount, nil
 }
 
-// GetUserOrders — заказы конкретного пользователя
 func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -835,16 +939,14 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 	var orders []DBRecord
 	for rows.Next() {
 		var record DBRecord = make(DBRecord)
-		var ts time.Time
-		var createdAt time.Time
+		var ts, createdAt time.Time
 
 		var orderID int
 		var orderAmount sql.NullFloat64
 		var itemsCount int
 		var paymentMethod sql.NullString
 		var amountDev sql.NullFloat64
-		var orderStatus sql.NullString
-		var productCategory sql.NullString
+		var orderStatus, productCategory sql.NullString
 
 		err := rows.Scan(
 			&orderID, &orderAmount, &itemsCount,
@@ -883,7 +985,6 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 	return orders, nil
 }
 
-// GetUserReturns — возвраты конкретного пользователя
 func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -891,7 +992,7 @@ func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 
 	query := `
 		SELECT return_id, order_id, days_since_purchase, return_channel,
-		       has_receipt, tags_removed, missing_components, created_at
+		       has_receipt, tags_removed, missing_components, comment, created_at
 		FROM returns
 		WHERE client_id = $1
 		ORDER BY created_at DESC
@@ -909,18 +1010,14 @@ func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 		var record DBRecord = make(DBRecord)
 		var ts time.Time
 
-		var returnID int
-		var orderID int
-		var daysSincePurchase int
-		var returnChannel sql.NullString
-		var hasReceipt bool
-		var tagsRemoved bool
-		var missingComponents bool
+		var returnID, orderID, daysSincePurchase int
+		var returnChannel, comment sql.NullString
+		var hasReceipt, tagsRemoved, missingComponents bool
 
 		err := rows.Scan(
 			&returnID, &orderID, &daysSincePurchase,
 			&returnChannel, &hasReceipt,
-			&tagsRemoved, &missingComponents, &ts,
+			&tagsRemoved, &missingComponents, &comment, &ts,
 		)
 		if err != nil {
 			return nil, err
@@ -935,6 +1032,9 @@ func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 		record["has_receipt"] = hasReceipt
 		record["tags_removed"] = tagsRemoved
 		record["missing_components"] = missingComponents
+		if comment.Valid {
+			record["comment"] = comment.String
+		}
 		record["created_at"] = ts.Format("02.01.2006 15:04")
 
 		returns = append(returns, record)
@@ -943,75 +1043,92 @@ func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 }
 
 // ============================================
-// 🔗 API HANDLERS
+// 🔗 API HANDLERS — ПРОСТЫЕ
 // ============================================
 
 func apiGetClient(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/api/client/")
 	clientID, err := strconv.Atoi(path)
 	if err != nil {
-		http.Error(w, `{"error": "Invalid client ID"}`, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid client ID"})
 		return
 	}
 
 	client, err := GetClientByID(clientID)
 	if err != nil {
-		http.Error(w, `{"error": "Client not found"}`, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Client not found"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(client)
 }
 
 func apiGetOrder(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/api/order/")
 	orderID, err := strconv.Atoi(path)
 	if err != nil {
-		http.Error(w, `{"error": "Invalid order ID"}`, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid order ID"})
 		return
 	}
 
 	order, err := GetOrderByID(orderID)
 	if err != nil {
-		http.Error(w, `{"error": "Order not found"}`, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Order not found"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(order)
 }
 
 func apiGetStats(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error": "Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
 	stats, err := GetStats()
 	if err != nil {
-		http.Error(w, `{"error": "Failed to get stats"}`, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to get stats"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(stats)
 }
 
-// apiGetUsers — GET /api/users?page=1&limit=20
 func apiGetUsers(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
@@ -1033,11 +1150,11 @@ func apiGetUsers(w http.ResponseWriter, r *http.Request) {
 
 	users, total, err := GetUsersList(page, limit)
 	if err != nil {
-		http.Error(w, `{"error":"Failed to fetch users"}`, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch users"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"users": users,
 		"pagination": map[string]int{
@@ -1049,30 +1166,34 @@ func apiGetUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// apiGetUserDetail — GET /api/users/{id}
 func apiGetUserDetail(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
 	path := strings.TrimPrefix(r.URL.Path, "/api/users/")
 	clientID, err := strconv.Atoi(path)
 	if err != nil {
-		http.Error(w, `{"error":"Invalid user ID"}`, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid user ID"})
 		return
 	}
 
 	client, err := GetClientByID(clientID)
 	if err != nil {
-		http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "User not found"})
 		return
 	}
 
 	orders, _ := GetUserOrders(clientID, 5)
 	returns, _ := GetUserReturns(clientID, 5)
 
-	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"client":         client,
 		"recent_orders":  orders,
@@ -1080,16 +1201,20 @@ func apiGetUserDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// apiSearchUsers — GET /api/search/users?q=...
 func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
 	query := r.URL.Query().Get("q")
 	if query == "" {
-		http.Error(w, `{"error":"Search query is required"}`, http.StatusBadRequest)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Search query is required"})
 		return
 	}
 
@@ -1101,7 +1226,8 @@ func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 	if id, err := strconv.Atoi(query); err == nil {
 		user, err := GetClientByID(id)
 		if err != nil {
-			http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "User not found"})
 			return
 		}
 
@@ -1114,7 +1240,6 @@ func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		w.Header().Set("Content-Type", "application/json")
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"results": []UserCard{{
 				ClientID:         id,
@@ -1133,12 +1258,17 @@ func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
+	w.WriteHeader(http.StatusNotFound)
+	json.NewEncoder(w).Encode(map[string]interface{}{"error": "User not found"})
 }
 
 func apiGetHistory(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodGet {
-		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
@@ -1149,31 +1279,195 @@ func apiGetHistory(w http.ResponseWriter, r *http.Request) {
 
 	checks, err := GetAllCheckHistory(limit)
 	if err != nil {
-		http.Error(w, `{"error":"Failed to fetch history"}`, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch history"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"checks": checks,
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"checks": checks})
 }
 
-// apiClearHistory — POST /api/clear-history
 func apiClearHistory(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
 	if r.Method != http.MethodPost {
-		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
 	if err := ClearCheckHistory(); err != nil {
-		http.Error(w, `{"error":"Failed to clear history"}`, http.StatusInternalServerError)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to clear history"})
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
+}
+
+// ============================================
+// 🔁 ВОЗВРАТЫ КЛИЕНТА — ИСПРАВЛЕННЫЕ
+// ============================================
+
+func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	switch r.Method {
+	case http.MethodGet:
+		apiGetClientReturns(w, r)
+	case http.MethodPost:
+		apiCreateClientReturn(w, r)
+	default:
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+	}
+}
+
+func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	clientID, err := getClientIDFromRequest(r)
+	if err != nil {
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized: " + err.Error()})
+		return
+	}
+
+	returns, err := GetUserReturns(clientID, 100)
+	if err != nil {
+		log.Printf("❌ Ошибка получения возвратов: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch returns"})
+		return
+	}
+
+	if returns == nil {
+		returns = []DBRecord{}
+	}
+
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "returns": returns})
+}
+
+func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// 🔐 Авторизация
+	clientID, err := getClientIDFromRequest(r)
+	if err != nil {
+		log.Printf("❌ Auth error: %v", err)
+		w.WriteHeader(http.StatusUnauthorized)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Unauthorized"})
+		return
+	}
+
+	// 📋 Чтение и логирование тела запроса
+	bodyBytes, err := io.ReadAll(r.Body)
+	if err != nil {
+		log.Printf("❌ Ошибка чтения тела: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Cannot read request body"})
+		return
+	}
+	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	log.Printf("📥 Raw body: %s", string(bodyBytes))
+
+	// Парсинг JSON
+	var req CreateReturnRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		log.Printf("❌ Ошибка парсинга JSON: %v", err)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid JSON format"})
+		return
+	}
+
+	log.Printf("📦 Parsed: order_id=%d, claimed_reason='%s'", req.OrderID, req.ClaimedReason)
+
+	// ✅ Валидация
+	if req.OrderID <= 0 {
+		log.Printf("❌ Validation: invalid order_id=%d", req.OrderID)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Order ID должен быть положительным числом",
+		})
+		return
+	}
+
+	if req.ClaimedReason == "" {
+		log.Printf("❌ Validation: empty claimed_reason")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Причина возврата обязательна",
+		})
+		return
+	}
+
+	// 🔎 Проверка заказа
+	orderQuery := `SELECT order_id FROM orders WHERE order_id = $1 AND client_id = $2 LIMIT 1`
+	var orderID int
+	err = db.QueryRow(orderQuery, req.OrderID, clientID).Scan(&orderID)
+	if err != nil {
+		log.Printf("❌ Order not found: order_id=%d, client_id=%d", req.OrderID, clientID)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Заказ не найден или не принадлежит вам",
+		})
+		return
+	}
+
+	// 💾 Создание возврата — ❗ БЕЗ поля comment
+	insertQuery := `INSERT INTO returns (
+		order_id, client_id, days_since_purchase,
+		has_receipt, tags_removed, missing_components,
+		return_channel, claimed_reason, created_at
+	) VALUES ($1, $2, 0, true, false, false, 'online', $3, NOW())
+	RETURNING return_id`
+
+	var returnID int
+	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.ClaimedReason).Scan(&returnID)
+	if err != nil {
+		log.Printf("❌ Ошибка создания возврата: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success": false,
+			"message": "Ошибка создания возврата: " + err.Error(),
+		})
+		return
+	}
+
+	log.Printf("Возврат создан: return_id=%d", returnID)
+
 	json.NewEncoder(w).Encode(map[string]interface{}{
-		"status": "ok",
+		"success":   true,
+		"return_id": returnID,
+		"message":   "Возврат успешно создан",
 	})
 }
 
@@ -1187,174 +1481,93 @@ func loginPage(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, nil)
 }
 
 func clientProfileHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	tmpl, err := template.ParseFiles("templates/client_profile.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, nil)
 }
 
 func clientOrdersHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	tmpl, err := template.ParseFiles("templates/client_orders.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, nil)
 }
 
 func clientReturnsHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	tmpl, err := template.ParseFiles("templates/client_returns.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, nil)
 }
 
 func clientChatHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	tmpl, err := template.ParseFiles("templates/client_chat.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, nil)
 }
 
 func adminChatHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	tmpl, err := template.ParseFiles("templates/admin_chat.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, nil); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, nil)
 }
 
 func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	stats, err := GetStats()
 	if err != nil {
-		stats = map[string]interface{}{
-			"total_clients": 0,
-			"total_orders":  0,
-			"total_returns": 0,
-			"high_risk":     0,
-		}
+		stats = map[string]interface{}{"total_clients": 0, "total_orders": 0, "total_returns": 0, "high_risk": 0}
 	}
 
-	data := map[string]interface{}{
-		"Stats":       stats,
-		"DBConnected": db != nil,
-	}
+	data := map[string]interface{}{"Stats": stats, "DBConnected": db != nil}
 
 	tmpl, err := template.ParseFiles("templates/admin_profile.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
-}
-
-func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) {
-		// Проверяем наличие куки с пользователем
-		cookie, err := r.Cookie("user")
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		// Декодируем пользователя из куки
-		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		var user map[string]interface{}
-		if err := json.Unmarshal(userJSON, &user); err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		// Передаем информацию о пользователе в контекст запроса
-		ctx := context.WithValue(r.Context(), "user", user)
-		next(w, r.WithContext(ctx))
-	}
-}
-
-// requireAdmin — middleware для проверки роли администратора
-func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
-	return authMiddleware(func(w http.ResponseWriter, r *http.Request) {
-		user, ok := r.Context().Value("user").(map[string]interface{})
-		if !ok {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-
-		role, ok := user["role"].(string)
-		if !ok || role != "admin" {
-			http.Error(w, "Доступ запрещён: требуется роль администратора", http.StatusForbidden)
-			return
-		}
-
-		next(w, r)
-	})
+	tmpl.Execute(w, data)
 }
 
 func homePage(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
 	if err != nil {
-		stats = map[string]interface{}{
-			"total_clients": 0,
-			"total_orders":  0,
-			"total_returns": 0,
-			"high_risk":     0,
-		}
+		stats = map[string]interface{}{"total_clients": 0, "total_orders": 0, "total_returns": 0, "high_risk": 0}
 	}
-
-	data := map[string]interface{}{
-		"Stats":       stats,
-		"DBConnected": db != nil,
-	}
+	data := map[string]interface{}{"Stats": stats, "DBConnected": db != nil}
 
 	tmpl, err := template.ParseFiles("templates/index.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, data)
 }
 
 func checkHandler(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
 	if r.Method == http.MethodGet {
 		tmpl, err := template.ParseFiles("templates/check.html")
 		if err != nil {
@@ -1367,55 +1580,31 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method == http.MethodPost {
 		r.ParseForm()
-
-		// 1. Собираем базовые данные из формы
 		form := FormData{
-			ClientID:          parseInt(r.FormValue("clientID")),
-			OrderID:           parseInt(r.FormValue("orderID")),
-			Category:          r.FormValue("category"),
-			ClaimedReason:     r.FormValue("reason"),
-			AddressMatch:      r.FormValue("addressMatch") == "on",
-			DeviceNew:         r.FormValue("deviceNew") == "on",
-			IsWeekend:         parseBool(r.FormValue("isWeekend")),
-			HasTag:            parseBool(r.FormValue("hasTag")),
-			HasReceipt:        parseBool(r.FormValue("hasReceipt")),
-			HasDamage:         parseBool(r.FormValue("hasDamage")),
-			IsUsed:            parseBool(r.FormValue("isUsed")),
-			TagsRemoved:       r.FormValue("tagsRemoved") == "on",
+			ClientID: parseInt(r.FormValue("clientID")), OrderID: parseInt(r.FormValue("orderID")),
+			Category: r.FormValue("category"), ClaimedReason: r.FormValue("reason"),
+			AddressMatch: r.FormValue("addressMatch") == "on", DeviceNew: r.FormValue("deviceNew") == "on",
+			IsWeekend: parseBool(r.FormValue("isWeekend")), HasTag: parseBool(r.FormValue("hasTag")),
+			HasReceipt: parseBool(r.FormValue("hasReceipt")), HasDamage: parseBool(r.FormValue("hasDamage")),
+			IsUsed: parseBool(r.FormValue("isUsed")), TagsRemoved: r.FormValue("tagsRemoved") == "on",
 			MissingComponents: r.FormValue("missingComponents") == "on",
 			DaysToReturn:      parseInt(r.FormValue("daysToReturn")),
 		}
 
-		// 2. 🔥 ЗАГРУЖАЕМ ВСЕ ОСТАЛЬНЫЕ ПРИЗНАКИ ИЗ БД
 		if err := EnrichFromDB(&form); err != nil {
-			log.Printf("[WARN] %v (используем дефолты)", err)
+			log.Printf("[WARN] %v", err)
 		}
 
-		log.Printf("[DEBUG] 📝 Raw form: %+v", form)
-
-		// 3. Лог для отладки
-		log.Printf("[DEBUG] Final FormData: %+v", form)
-
-		// 4. Сохраняем возврат
 		if form.OrderID > 0 && form.ClientID > 0 {
-			if err := SaveReturnToDB(form); err != nil {
-				log.Printf("⚠️ DB Save error: %v", err)
-			}
+			SaveReturnToDB(form)
 		}
 
-		// 5. Считаем риск
 		result := calculateRisk(form)
-
-		//6. Сохраняем результат в историю
 		if result.OrderID > 0 && result.ClientID > 0 {
-			if err := SaveCheckHistory(result); err != nil {
-				log.Printf("⚠️ History Save error: %v", err)
-			}
+			SaveCheckHistory(result)
 		}
 
-		// 7. Рендерим
-		w.Header().Set("Content-Type", "application/json")
-
+		applyJSONHeaders(w)
 		json.NewEncoder(w).Encode(result)
 		return
 	}
@@ -1423,245 +1612,21 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
-// EnrichFromDB загружает ВСЕ признаки из PostgreSQL
-func EnrichFromDB(f *FormData) error {
-	if db == nil || f.ClientID <= 0 || f.OrderID <= 0 {
-		return fmt.Errorf("БД не подключена или не указаны ClientID/OrderID")
-	}
-
-	// ===== 1. Данные клиента =====
-	clientQuery := `
-		SELECT 
-			account_age_days, 
-			total_orders, 
-			total_returns,
-			global_return_rate,
-			avg_order_amount,
-			address_change_frequency
-		FROM clients 
-		WHERE client_id = $1
-	`
-
-	var accountAge, totalOrders, totalReturns int
-	var globalRate, avgOrderAmt, addrFreq sql.NullFloat64
-
-	err := db.QueryRow(clientQuery, f.ClientID).Scan(
-		&accountAge, &totalOrders, &totalReturns,
-		&globalRate, &avgOrderAmt, &addrFreq,
-	)
-	if err == nil {
-		f.AccountAgeDays = accountAge
-		f.TotalOrders = totalOrders
-		if totalOrders > 0 {
-			f.ReturnRate = float64(totalReturns) / float64(totalOrders) * 100
-		} else {
-			f.ReturnRate = 0
-		}
-		if avgOrderAmt.Valid {
-			f.AvgOrderAmount = avgOrderAmt.Float64
-		}
-	}
-
-	// ===== 2. Данные заказа =====
-	orderQuery := `
-		SELECT 
-			order_amount,
-			items_count,
-			discount_amount,
-			payment_method,
-			order_timestamp
-		FROM orders 
-		WHERE order_id = $1 AND client_id = $2
-	`
-
-	var orderAmt, discAmt sql.NullFloat64
-	var itemsCount int
-	var payMethod sql.NullString
-	var orderTS time.Time
-
-	err = db.QueryRow(orderQuery, f.OrderID, f.ClientID).Scan(
-		&orderAmt, &itemsCount, &discAmt, &payMethod, &orderTS,
-	)
-	if err == nil {
-		if orderAmt.Valid {
-			f.OrderAmount = orderAmt.Float64
-		}
-		f.ItemsInOrder = itemsCount
-		if discAmt.Valid && f.OrderAmount > 0 {
-			f.DiscountPercent = (discAmt.Float64 / f.OrderAmount) * 100
-		}
-
-		// Время заказа
-		f.OrderHour = orderTS.Hour()
-		f.IsWeekend = orderTS.Weekday() == time.Saturday || orderTS.Weekday() == time.Sunday
-		if f.OrderHour >= 0 && f.OrderHour <= 5 {
-			f.OrderTimeNight = true
-		}
-	}
-
-	// ===== 3. Velocity признаки (из returns) =====
-	velocityQuery := `
-		SELECT COUNT(*) 
-		FROM returns 
-		WHERE client_id = $1 
-		AND created_at > NOW() - INTERVAL '30 days'
-	`
-	var refundVelocity30d int
-	db.QueryRow(velocityQuery, f.ClientID).Scan(&refundVelocity30d)
-	f.RefundVelocity30d = refundVelocity30d
-
-	// ===== 4. IP/Device velocity (из orders) =====
-	ipVelocityQuery := `
-		SELECT COUNT(DISTINCT o2.order_id)
-		FROM orders o2
-		WHERE o2.client_id = $1 
-		AND o2.order_timestamp > NOW() - INTERVAL '24 hours'
-	`
-	var ipVel24h int
-	db.QueryRow(ipVelocityQuery, f.ClientID).Scan(&ipVel24h)
-	f.IPVelocity24h = ipVel24h
-
-	ipVelocity7dQuery := `
-		SELECT COUNT(DISTINCT o2.order_id)
-		FROM orders o2
-		WHERE o2.client_id = $1 
-		AND o2.order_timestamp > NOW() - INTERVAL '7 days'
-	`
-	var ipVel7d int
-	db.QueryRow(ipVelocity7dQuery, f.ClientID).Scan(&ipVel7d)
-	f.IPVelocity7d = ipVel7d
-
-	// ===== 5. Support tickets (из returns с проблемами) =====
-	ticketsQuery := `
-		SELECT COUNT(*) 
-		FROM returns 
-		WHERE client_id = $1 
-		AND created_at > NOW() - INTERVAL '30 days'
-		AND (tags_removed = true OR missing_components = true)
-	`
-	var supportTickets int
-	db.QueryRow(ticketsQuery, f.ClientID).Scan(&supportTickets)
-	f.SupportTickets30d = supportTickets
-
-	// ===== 6. Accounts per IP/Device/Phone (агрегация) =====
-	accountsPerIPQuery := `
-		SELECT COUNT(DISTINCT o3.client_id)
-		FROM orders o3
-		JOIN orders o4 ON o3.client_id != o4.client_id
-		WHERE o4.client_id = $1
-		AND o3.order_timestamp > NOW() - INTERVAL '30 days'
-		GROUP BY o3.client_id
-		LIMIT 1
-	`
-
-	var accountsPerIP int
-	err = db.QueryRow(accountsPerIPQuery, f.ClientID).Scan(&accountsPerIP)
-	if err == nil && accountsPerIP > 0 {
-		f.AccountsPerIP = accountsPerIP
-	} else {
-		f.AccountsPerIP = 1
-	}
-	f.AccountsPerDevice = 1
-	f.AccountsPerPhone = 1
-
-	// Упрощённая версия — берём из clients если есть
-	if addrFreq.Valid {
-		f.AccountsPerIP = int(addrFreq.Float64) + 1
-	} else {
-		f.AccountsPerIP = 1
-	}
-	f.AccountsPerDevice = 1
-	f.AccountsPerPhone = 1
-
-	// ===== 7. Payment method risk =====
-	if payMethod.Valid {
-		switch strings.ToLower(payMethod.String) {
-		case "card", "online", "elektronno":
-			f.PaymentMethodRisk = 0.1
-		case "cash", "nalichnie", "cod":
-			f.PaymentMethodRisk = 0.3
-		default:
-			f.PaymentMethodRisk = 0.2
-		}
-	}
-
-	// ===== 8. Shipping region risk =====
-	if addrFreq.Valid && addrFreq.Float64 > 2.0 {
-		f.ShippingRegionRisk = 0.4
-	} else {
-		f.ShippingRegionRisk = 0.2
-	}
-
-	// ===== 9. Distance =====
-	if addrFreq.Valid {
-		f.DistanceFromRegistration = addrFreq.Float64 * 100
-	} else {
-		f.DistanceFromRegistration = 50
-	}
-
-	// ===== 10. Trust scores (вычисляем из истории) =====
-	if f.TotalOrders > 0 {
-		returnRate := float64(f.TotalReturns) / float64(f.TotalOrders)
-		f.DeviceTrustScore = 1.0 - (returnRate * 0.5)
-		f.IPTrustScore = 1.0 - (returnRate * 0.5)
-		if f.DeviceTrustScore < 0.3 {
-			f.DeviceTrustScore = 0.3
-		}
-		if f.IPTrustScore < 0.3 {
-			f.IPTrustScore = 0.3
-		}
-	} else {
-		f.DeviceTrustScore = 0.75
-		f.IPTrustScore = 0.75
-	}
-
-	// ===== 11. Promo code used =====
-	f.PromoCodeUsed = (f.DiscountPercent > 10)
-
-	// ===== 12. First order discount abuse =====
-	if f.TotalOrders == 1 && f.DiscountPercent > 20 {
-		f.FirstOrderDiscountAbuse = true
-	}
-
-	// ===== 13. Review count =====
-	f.ReviewCount30d = f.TotalOrders / 3 // примерная оценка
-
-	// ===== 14. Return rate 30d =====
-	if f.TotalOrders > 0 {
-		f.ReturnRate30d = float64(refundVelocity30d) / float64(f.TotalOrders)
-	}
-
-	log.Printf("[DEBUG] DB-Enriched: AccountAge=%d, Orders=%d, Returns=%d, Velocity30d=%d",
-		f.AccountAgeDays, f.TotalOrders, f.TotalReturns, refundVelocity30d)
-
-	return nil
-}
-
 func historyPage(w http.ResponseWriter, r *http.Request) {
 	checks, err := GetAllCheckHistory(50)
 	if err != nil {
 		checks = []DBRecord{}
-		log.Printf("⚠️ Не удалось загрузить историю из БД: %v", err)
 	}
-
-	data := map[string]interface{}{
-		"Checks":      checks,
-		"UseDatabase": db != nil && len(checks) > 0,
-		"DBConnected": db != nil,
-	}
+	data := map[string]interface{}{"Checks": checks, "UseDatabase": db != nil && len(checks) > 0, "DBConnected": db != nil}
 
 	tmpl, err := template.ParseFiles("templates/history.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, data)
 }
 
-// usersPage — Страница админ-панели пользователей
 func usersPage(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	page := 1
@@ -1676,59 +1641,38 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 	users, total, err := GetUsersList(page, limit)
 	if err != nil {
 		users = []UserCard{}
-		log.Printf("⚠️ Не удалось загрузить пользователей: %v", err)
 	}
 
-	activeCount, warningCount, highRiskCount, err := GetUserRiskStats()
-	if err != nil {
-		log.Printf("⚠️ Не удалось загрузить статистику рисков: %v", err)
-		activeCount, warningCount, highRiskCount = 0, 0, 0
-	}
+	activeCount, warningCount, highRiskCount, _ := GetUserRiskStats()
 
 	data := map[string]interface{}{
-		"Users":         users,
-		"Total":         total,
-		"ActiveCount":   activeCount,
-		"WarningCount":  warningCount,
-		"HighRiskCount": highRiskCount,
-		"Page":          page,
-		"Limit":         limit,
-		"TotalPages":    (total + limit - 1) / limit, // Вычисляем общее количество страниц
+		"Users": users, "Total": total, "ActiveCount": activeCount,
+		"WarningCount": warningCount, "HighRiskCount": highRiskCount,
+		"Page": page, "Limit": limit, "TotalPages": (total + limit - 1) / limit,
 	}
 
-	funcMap := template.FuncMap{
-		"sub": func(a, b int) int { return a - b },
-		"add": func(a, b int) int { return a + b },
-		"div": func(a, b int) int { return a / b },
-	}
-
+	funcMap := template.FuncMap{"sub": func(a, b int) int { return a - b }, "add": func(a, b int) int { return a + b }, "div": func(a, b int) int { return a / b }}
 	tmpl, err := template.New("users.html").Funcs(funcMap).ParseFiles("templates/users.html")
 	if err != nil {
 		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
 		return
 	}
-
-	if err := tmpl.Execute(w, data); err != nil {
-		http.Error(w, "Ошибка рендеринга: "+err.Error(), 500)
-	}
+	tmpl.Execute(w, data)
 }
 
 // ============================================
-// 🧮 ЛОГИКА РАСЧЁТА РИСКА
+// 🧮 ЛОГИКА РИСКА
 // ============================================
 
 func calculateRisk(f FormData) ResultData {
-
 	log.Printf("[DEBUG] FormData: %+v", f)
 	score, err := predictRisk(f)
 
 	if err != nil {
 		log.Printf("⚠️ Python ONNX ошибка: %v, используем заглушку", err)
 		score = calculateRiskFallback(f)
-		log.Printf("[DEBUG] Fallback score: %.4f", score)
 	}
 
-	// Нормализация
 	if score < 0 {
 		score = 0
 	}
@@ -1736,7 +1680,6 @@ func calculateRisk(f FormData) ResultData {
 		score = 1
 	}
 
-	// // Обогащение из БД
 	if db != nil && f.ClientID > 0 {
 		enrichedScore, _ := enrichRiskFromDB(f.ClientID, float64(score))
 		score = float32(enrichedScore)
@@ -1748,16 +1691,10 @@ func calculateRisk(f FormData) ResultData {
 	log.Printf("[INFO] Final score: %.4f, Level: %s", score, level)
 
 	return ResultData{
-		FormData:         f,
-		RiskScore:        float64(score),
-		RiskLevel:        level,
-		RiskClass:        class,
-		Recommendation:   recommendation,
-		TopFactors:       factors,
-		StrokeDashOffset: (1 - float64(score)) * 283,
-		RiskPercent:      int(float64(score) * 100),
-		OrderID:          f.OrderID,
-		ClientID:         f.ClientID,
+		FormData: f, RiskScore: float64(score), RiskLevel: level,
+		RiskClass: class, Recommendation: recommendation, TopFactors: factors,
+		StrokeDashOffset: (1 - float64(score)) * 283, RiskPercent: int(float64(score) * 100),
+		OrderID: f.OrderID, ClientID: f.ClientID,
 	}
 }
 
@@ -1770,38 +1707,26 @@ func enrichRiskFromDB(clientID int, baseScore float64) (float64, []string) {
 		return score, extraFactors
 	}
 
-	if rate, ok := (*client)["global_return_rate"].(float64); ok {
-		if rate > 30 {
-			score += 0.15
-			extraFactors = append(extraFactors, "Высокий % возвратов у клиента")
-		}
+	if rate, ok := (*client)["global_return_rate"].(float64); ok && rate > 30 {
+		score += 0.15
+		extraFactors = append(extraFactors, "Высокий % возвратов у клиента")
 	}
-
-	if age, ok := (*client)["account_age_days"].(int); ok {
-		if age < 30 {
-			score += 0.10
-			extraFactors = append(extraFactors, "Новый аккаунт")
-		}
+	if age, ok := (*client)["account_age_days"].(int); ok && age < 30 {
+		score += 0.10
+		extraFactors = append(extraFactors, "Новый аккаунт")
 	}
-
-	if total, ok := (*client)["total_returns"].(int); ok {
-		if total > 10 {
-			score += 0.08
-			extraFactors = append(extraFactors, "Много возвратов в истории")
-		}
+	if total, ok := (*client)["total_returns"].(int); ok && total > 10 {
+		score += 0.08
+		extraFactors = append(extraFactors, "Много возвратов в истории")
 	}
-
-	if freq, ok := (*client)["address_change_frequency"].(float64); ok {
-		if freq > 2.0 {
-			score += 0.07
-			extraFactors = append(extraFactors, "Частая смена адресов")
-		}
+	if freq, ok := (*client)["address_change_frequency"].(float64); ok && freq > 2.0 {
+		score += 0.07
+		extraFactors = append(extraFactors, "Частая смена адресов")
 	}
 
 	if score > 1.0 {
 		score = 1.0
 	}
-
 	return score, extraFactors
 }
 
@@ -1816,42 +1741,30 @@ func getRiskLevel(score float32) (string, string, string) {
 
 func prepareFeatures(f FormData) []float32 {
 	features := make([]float32, 48)
-
-	// 0-4: Основные (НОРМАЛИЗОВАННЫЕ как в обучении!)
 	features[0] = float32(f.AccountAgeDays) / 730.0
 	features[1] = float32(f.TotalOrders) / 100.0
 	features[2] = float32(f.TotalReturns) / 50.0
 	features[3] = float32(f.ReturnRate) / 100.0
 	features[4] = float32(f.OrderAmount) / 200000.0
 
-	// 5: Category
-	catMap := map[string]float32{
-		"electronics": 0, "clothing": 1, "cosmetics": 2,
-		"books": 3, "sports": 4, "home": 5,
-	}
+	catMap := map[string]float32{"electronics": 0, "clothing": 1, "cosmetics": 2, "books": 3, "sports": 4, "home": 5}
 	features[5] = catMap[f.Category]
 
-	// 6-11: Флаги
 	features[6] = b2f(f.OrderAmount > 30000)
 	features[7] = b2f(f.IsWeekend)
 	features[8] = b2f(f.AddressMatch)
 	features[9] = b2f(f.DeviceNew)
 	features[10] = b2f(f.HasReceipt)
 
-	reasonMap := map[string]float32{
-		"defect": 2, "size": 0, "color": 1,
-		"quality": 2, "changed_mind": 1, "other": 14,
-	}
+	reasonMap := map[string]float32{"defect": 2, "size": 0, "color": 1, "quality": 2, "changed_mind": 1, "other": 14}
 	features[11] = reasonMap[f.ClaimedReason]
 
-	// 12-16: Заказ
 	features[12] = float32(f.DiscountPercent) / 50.0
 	features[13] = b2f(f.PromoCodeUsed)
 	features[14] = b2f(f.FirstOrderDiscountAbuse)
 	features[15] = b2f(f.Category == "electronics")
 	features[16] = float32(f.ItemsInOrder) / 10.0
 
-	// 17-22: Риски
 	features[17] = float32(f.PaymentMethodRisk)
 	features[18] = b2f(f.ChargebackHistory90d)
 	features[19] = b2f(f.CardBinCountryMismatch)
@@ -1859,33 +1772,27 @@ func prepareFeatures(f FormData) []float32 {
 	features[21] = float32(f.DeliveryAddressType) / 2.0
 	features[22] = float32(f.DistanceFromRegistration) / 2000.0
 
-	// 23-24: Время
 	features[23] = float32(f.OrderHour) / 23.0
 	features[24] = b2f(f.OrderTimeNight)
 
-	// 25-29: IP/Accounts
 	features[25] = float32(f.IPVelocity24h) / 20.0
 	features[26] = float32(f.IPVelocity7d) / 50.0
 	features[27] = float32(f.AccountsPerIP) / 10.0
 	features[28] = float32(f.AccountsPerPhone) / 10.0
 	features[29] = float32(f.AccountsPerDevice) / 10.0
 
-	// 30-32: Trust
 	features[30] = b2f(f.DeviceIsEmulator)
 	features[31] = float32(f.DeviceTrustScore)
 	features[32] = float32(f.IPTrustScore)
 
-	// 33-34: История
 	features[33] = float32(f.AvgOrderAmount) / 200000.0
 	features[34] = float32(f.ReturnRate30d)
 
-	// 35-38: Активность
 	features[35] = float32(f.RefundVelocity7d) / 10.0
 	features[36] = float32(f.RefundVelocity30d) / 20.0
 	features[37] = float32(f.SupportTickets30d) / 10.0
 	features[38] = float32(f.ReviewCount30d) / 20.0
 
-	// 39-41: Контент
 	features[39] = b2f(f.NegativeReviewCluster)
 	features[40] = b2f(f.ThreatLanguageDetected)
 	features[41] = b2f(f.LegalClaimThreat)
@@ -1909,8 +1816,6 @@ func b2f(b bool) float32 {
 
 func calculateRiskFallback(f FormData) float32 {
 	score := 0.0
-
-	// Признаки из формы
 	if !f.HasTag {
 		score += 0.25
 	}
@@ -1929,8 +1834,6 @@ func calculateRiskFallback(f FormData) float32 {
 	if f.MissingComponents {
 		score += 0.18
 	}
-
-	// Поведенческие признаки
 	if f.ClaimedReason == "changed_mind" {
 		score += 0.15
 	}
@@ -1946,8 +1849,6 @@ func calculateRiskFallback(f FormData) float32 {
 	if f.OrderAmount > 30000 {
 		score += 0.10
 	}
-
-	// Дополнительные риски из формы
 	if f.PaymentMethodRisk > 0.5 {
 		score += 0.10
 	}
@@ -1963,21 +1864,17 @@ func calculateRiskFallback(f FormData) float32 {
 	if f.IPTrustScore < 0.5 {
 		score += 0.10
 	}
-
-	// Ограничиваем 0-1
 	if score > 1.0 {
 		score = 1.0
 	}
 	if score < 0.0 {
 		score = 0.0
 	}
-
 	return float32(score)
 }
 
 func getRiskFactors(f FormData) []string {
 	factors := []string{}
-
 	if !f.HasTag {
 		factors = append(factors, "Бирка отсутствует")
 	}
@@ -2002,23 +1899,20 @@ func getRiskFactors(f FormData) []string {
 	if f.ReturnRate > 30 {
 		factors = append(factors, "Высокий % возвратов у клиента")
 	}
-
 	if len(factors) == 0 {
 		factors = append(factors, "Все параметры в норме")
 	}
-
 	return factors
 }
 
 // ============================================
-// 🐍 PYTHON ONNX ИНТЕГРАЦИЯ
+// 🐍 PYTHON / FASTAPI ИНТЕГРАЦИЯ
 // ============================================
 
 var fastAPIURL = "http://localhost:8000"
 
 func callFastAPI(endpoint string, payload interface{}, result interface{}) error {
 	url := fastAPIURL + endpoint
-
 	jsonData, err := json.Marshal(payload)
 	if err != nil {
 		return fmt.Errorf("ошибка маршалинга JSON: %v", err)
@@ -2054,74 +1948,6 @@ type FastAPILoadModelRequest struct {
 type FastAPILoadModelResponse struct {
 	Success bool   `json:"success"`
 	Error   string `json:"error,omitempty"`
-}
-
-type FastAPIFraudFeatures struct {
-	AccountAgeDays          int     `json:"account_age_days"`
-	TotalPurchases          int     `json:"total_purchases"`
-	TotalReturns            int     `json:"total_returns"`
-	CustomerReturnRate      float64 `json:"customer_return_rate"`
-	AvgOrderAmount          float64 `json:"avg_order_amount"`
-	OrderAmount             float64 `json:"order_amount"`
-	ItemsInOrder            int     `json:"items_in_order"`
-	DiscountPercent         float64 `json:"discount_percent"`
-	PaymentMethodRisk       float64 `json:"payment_method_risk"`
-	AmountDeviation         float64 `json:"amount_deviation"`
-	OrdersLast30d           int     `json:"orders_last_30d"`
-	ReturnRate30d           float64 `json:"return_rate_30d"`
-	RefundVelocity30d       int     `json:"refund_velocity_30d"`
-	DaysSinceLastReturn     int     `json:"days_since_last_return"`
-	DaysSincePurchase       int     `json:"days_since_purchase"`
-	HasReceipt              int     `json:"has_receipt"`
-	ReceiptProvided         int     `json:"receipt_provided"`
-	TagsRemoved             int     `json:"tags_removed"`
-	MissingComponents       int     `json:"missing_components"`
-	OrderHour               int     `json:"order_hour"`
-	HighValueFlag           int     `json:"high_value_flag"`
-	OrderTimeNight          int     `json:"order_time_night"`
-	FastReturnFlag          int     `json:"fast_return_flag"`
-	NewAccountFlag          int     `json:"new_account_flag"`
-	FirstOrderDiscountAbuse int     `json:"first_order_discount_abuse"`
-	IsElectronics           int     `json:"is_electronics"`
-	IPVelocity24h           int     `json:"ip_velocity_24h"`
-	IPVelocity7d            int     `json:"ip_velocity_7d"`
-	AccountsPerIP           int     `json:"accounts_per_ip"`
-	AccountsPerPhone        int     `json:"accounts_per_phone"`
-	AccountsPerDevice       int     `json:"accounts_per_device"`
-	DeviceIsEmulator        int     `json:"device_is_emulator"`
-	DeviceTrustScore        float64 `json:"device_trust_score"`
-	IPTrustScore            float64 `json:"ip_trust_score"`
-	AddressMatch            int     `json:"address_match"`
-	DeviceNew               int     `json:"device_new"`
-	PromoCodeUsed           int     `json:"promo_code_used"`
-	WeekendPurchase         int     `json:"weekend_purchase"`
-	RefundVelocity7d        int     `json:"refund_velocity_7d"`
-	SupportTicketCount30d   int     `json:"support_ticket_count_30d"`
-	ReviewCount30d          int     `json:"review_count_30d"`
-	NegativeReviewCluster   int     `json:"negative_review_cluster"`
-	ShippingRegionRisk      float64 `json:"shipping_region_risk"`
-	DistanceFromRegCity     float64 `json:"distance_from_registration_city"`
-	CardBinCountryMismatch  int     `json:"card_bin_country_mismatch"`
-	ChargebackHistory90d    int     `json:"chargeback_history_90d"`
-	ThreatLanguageDetected  int     `json:"threat_language_detected"`
-	LegalClaimThreat        int     `json:"legal_claim_threat"`
-}
-
-type FastAPIFraudPredictionResponse struct {
-	Success        bool    `json:"success"`
-	Score          float64 `json:"score,omitempty"`
-	Error          string  `json:"error,omitempty"`
-	RiskLevel      string  `json:"risk_level,omitempty"`
-	Recommendation string  `json:"recommendation,omitempty"`
-
-	ReturnID         int     `json:"return_id,omitempty"`
-	ClientID         int     `json:"client_id,omitempty"`
-	OrderID          int     `json:"order_id,omitempty"`
-	ProbabilityFraud float64 `json:"probability_fraud,omitempty"`
-	AnomalyScore     float64 `json:"anomaly_score,omitempty"`
-	IsAnomaly        bool    `json:"is_anomaly,omitempty"`
-	CombinedScore    float64 `json:"combined_score,omitempty"`
-	Decision         string  `json:"decision,omitempty"`
 }
 
 type FastAPIFraudPayloadRequest struct {
@@ -2163,8 +1989,20 @@ type FastAPIFraudPayloadRequest struct {
 	ClaimedReason       string  `json:"claimed_reason"`
 }
 
-func parseBool(value string) bool {
-	return value == "1" || value == "true" || value == "on" || value == "yes"
+type FastAPIFraudPredictionResponse struct {
+	Success          bool    `json:"success"`
+	Score            float64 `json:"score,omitempty"`
+	Error            string  `json:"error,omitempty"`
+	RiskLevel        string  `json:"risk_level,omitempty"`
+	Recommendation   string  `json:"recommendation,omitempty"`
+	ReturnID         int     `json:"return_id,omitempty"`
+	ClientID         int     `json:"client_id,omitempty"`
+	OrderID          int     `json:"order_id,omitempty"`
+	ProbabilityFraud float64 `json:"probability_fraud,omitempty"`
+	AnomalyScore     float64 `json:"anomaly_score,omitempty"`
+	IsAnomaly        bool    `json:"is_anomaly,omitempty"`
+	CombinedScore    float64 `json:"combined_score,omitempty"`
+	Decision         string  `json:"decision,omitempty"`
 }
 
 type FastAPIChatRequest struct {
@@ -2177,17 +2015,13 @@ type FastAPIChatResponse struct {
 }
 
 func loadModel(modelPath string) error {
-	req := FastAPILoadModelRequest{
-		ModelPath: modelPath,
-		ModelType: "fraud",
-	}
+	req := FastAPILoadModelRequest{ModelPath: modelPath, ModelType: "fraud"}
 	var resp FastAPILoadModelResponse
 
 	err := callFastAPI("/api/load-models", req, &resp)
 	if err != nil {
 		return fmt.Errorf("ошибка загрузки fraud модели: %v", err)
 	}
-
 	if !resp.Success {
 		return fmt.Errorf("%s", resp.Error)
 	}
@@ -2198,39 +2032,24 @@ func loadModel(modelPath string) error {
 
 func predictRisk(f FormData) (float32, error) {
 	payload := FastAPIFraudPayloadRequest{
-		ClientID:            f.ClientID,
-		OrderID:             f.OrderID,
-		ReturnID:            0, // return_id ещё нет, так как возврат создаётся
-		AccountAgeDays:      f.AccountAgeDays,
-		TotalOrders:         f.TotalOrders,
-		TotalReturns:        f.TotalReturns,
-		GlobalReturnRate:    f.ReturnRate,
-		AvgOrderAmount:      f.AvgOrderAmount,
-		OrderAmount:         f.OrderAmount,
-		ItemsCount:          f.ItemsInOrder,
-		DiscountAmount:      f.OrderAmount * f.DiscountPercent / 100.0,
-		PaymentMethod:       "card", // Можно добавить в форму
-		AmountDeviation:     0,      // Расчитывается в БД
-		OrdersLast30d:       int(f.RefundVelocity30d),
-		ProductCategory:     f.Category,
-		IsElectronics:       f.IsElectronics,
-		ShippingRegion:      "Moscow", // Можно добавить в форму
-		RegionRiskScore:     f.ShippingRegionRisk,
-		DeliveryCity:        "Moscow", // Можно добавить в форму
+		ClientID: f.ClientID, OrderID: f.OrderID, ReturnID: 0,
+		AccountAgeDays: f.AccountAgeDays, TotalOrders: f.TotalOrders,
+		TotalReturns: f.TotalReturns, GlobalReturnRate: f.ReturnRate,
+		AvgOrderAmount: f.AvgOrderAmount, OrderAmount: f.OrderAmount,
+		ItemsCount:     f.ItemsInOrder,
+		DiscountAmount: f.OrderAmount * f.DiscountPercent / 100.0,
+		PaymentMethod:  "card", AmountDeviation: 0,
+		OrdersLast30d: int(f.RefundVelocity30d), ProductCategory: f.Category,
+		IsElectronics: f.IsElectronics, ShippingRegion: "Moscow",
+		RegionRiskScore: f.ShippingRegionRisk, DeliveryCity: "Moscow",
 		DistanceFromRegKm:   f.DistanceFromRegistration,
 		CardCountryMismatch: f.CardBinCountryMismatch,
-		DeliveryAddressType: "home", // f.DeliveryAddressType - int, нужен string
-		AddressMatchScore:   1.0,
-		IsAddressMatch:      f.AddressMatch,
-		ReturnsLast30d:      int(f.RefundVelocity30d),
-		ReturnRateLast30d:   f.ReturnRate30d,
-		DaysSinceLastReturn: 999, // Можно рассчитать
-		DaysSincePurchase:   f.DaysSincePurchase,
-		ReturnChannel:       f.ReturnChannel,
-		HasReceipt:          f.HasReceipt,
-		TagsRemoved:         f.TagsRemoved,
-		MissingComponents:   f.MissingComponents,
-		ClaimedReason:       f.ClaimedReason,
+		DeliveryAddressType: "home", AddressMatchScore: 1.0,
+		IsAddressMatch: f.AddressMatch, ReturnsLast30d: int(f.RefundVelocity30d),
+		ReturnRateLast30d: f.ReturnRate30d, DaysSinceLastReturn: 999,
+		DaysSincePurchase: f.DaysSincePurchase, ReturnChannel: f.ReturnChannel,
+		HasReceipt: f.HasReceipt, TagsRemoved: f.TagsRemoved,
+		MissingComponents: f.MissingComponents, ClaimedReason: f.ClaimedReason,
 	}
 
 	var resp FastAPIFraudPredictionResponse
@@ -2239,7 +2058,6 @@ func predictRisk(f FormData) (float32, error) {
 		log.Printf("[ERROR] FastAPI predict error: %v", err)
 		return 0, err
 	}
-
 	if !resp.Success {
 		return 0, fmt.Errorf("%s", resp.Error)
 	}
@@ -2276,27 +2094,17 @@ func parseFloat(value string) float64 {
 	return f
 }
 
+func parseBool(value string) bool {
+	return value == "1" || value == "true" || value == "on" || value == "yes"
+}
+
 // ============================================
 // 💬 CHAT API
 // ============================================
 
-// ChatRequest — запрос к чату
-type ChatRequest struct {
-	Message string `json:"message"`
-}
-
-// ChatResponse — ответ от чата
-type ChatResponse struct {
-	Response string `json:"response,omitempty"`
-	Error    string `json:"error,omitempty"`
-}
-
-// handleChat — обработчик запросов к AI-помощнику
 func handleChat(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -2305,40 +2113,39 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(ChatResponse{Error: "Method not allowed"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
 		return
 	}
 
-	var req ChatRequest
+	var req struct {
+		Message string `json:"message"`
+	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ChatResponse{Error: "Invalid request body"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request body"})
 		return
 	}
 
 	if req.Message == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(ChatResponse{Error: "Message is required"})
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Message is required"})
 		return
 	}
 
-	// Вызов Python-скрипта с ONNX моделью для генерации ответа
 	response, err := callPythonModelForChat(req.Message)
 	if err != nil {
 		log.Printf("[ERROR] Chat model error: %v", err)
-		json.NewEncoder(w).Encode(ChatResponse{
-			Response: "Извините, я пока учусь и не могу ответить на этот вопрос. Попробуйте спросить что-то другое!",
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"response": "Извините, я пока учусь и не могу ответить на этот вопрос. Попробуйте спросить что-то другое!",
 		})
 		return
 	}
 
-	json.NewEncoder(w).Encode(ChatResponse{Response: response})
+	json.NewEncoder(w).Encode(map[string]interface{}{"response": response})
 }
 
 func callPythonModelForChat(message string) (string, error) {
-	req := FastAPIChatRequest{
-		Message: message,
-	}
+	req := FastAPIChatRequest{Message: message}
 	var resp FastAPIChatResponse
 
 	err := callFastAPI("/api/chat", req, &resp)
@@ -2346,20 +2153,19 @@ func callPythonModelForChat(message string) (string, error) {
 		log.Printf("[ERROR] FastAPI chat error: %v", err)
 		return "Сервис чата временно недоступен. Попробуйте позже.", nil
 	}
-
 	if resp.Error != "" {
 		log.Printf("[ERROR] Chat API error: %s", resp.Error)
 	}
-
 	return resp.Response, nil
-
 }
 
+// ============================================
+// 🔐 AUTH API
+// ============================================
+
 func apiLogin(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-	w.Header().Set("Access-Control-Allow-Methods", "POST, OPTIONS")
-	w.Header().Set("Access-Control-Allow-Headers", "Content-Type")
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -2389,7 +2195,6 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Поиск пользователя в таблице user_accounts
 	query := `SELECT client_id, login, password_hash, role FROM user_accounts WHERE login = $1`
 	row := db.QueryRow(query, req.Login)
 
@@ -2407,7 +2212,6 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Проверка пароля с использованием bcrypt
 	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password))
 	if err != nil {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -2415,38 +2219,21 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	userData := map[string]interface{}{
-		"id":    foundUser.ID,
-		"login": foundUser.Login,
-		"role":  foundUser.Role,
-	}
+	userData := map[string]interface{}{"id": foundUser.ID, "login": foundUser.Login, "role": foundUser.Role}
 	userJSON, _ := json.Marshal(userData)
-
-	// Кодируем в base64 для безопасной передачи в куке
 	encodedUser := base64.StdEncoding.EncodeToString(userJSON)
 
 	http.SetCookie(w, &http.Cookie{
-		Name:     "user",
-		Value:    encodedUser,
-		Path:     "/",
-		MaxAge:   86400, // 24 часа
-		HttpOnly: false, // false чтобы JS мог читать (для sessionStorage)
-		SameSite: http.SameSiteLaxMode,
+		Name: "user", Value: encodedUser, Path: "/", MaxAge: 86400,
+		HttpOnly: false, SameSite: http.SameSiteLaxMode,
 	})
 
-	// Успешный вход
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"user": map[string]interface{}{
-			"id":    foundUser.ID,
-			"login": foundUser.Login,
-			"role":  foundUser.Role,
-		},
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"user": userData})
 }
 
 func apiLogout(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
 
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -2459,54 +2246,29 @@ func apiLogout(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Очищаем куку пользователя
 	http.SetCookie(w, &http.Cookie{
-		Name:     "user",
-		Value:    "",
-		Path:     "/",
-		MaxAge:   -1, // Удаляем куку
-		HttpOnly: false,
-		SameSite: http.SameSiteLaxMode,
+		Name: "user", Value: "", Path: "/", MaxAge: -1,
+		HttpOnly: false, SameSite: http.SameSiteLaxMode,
 	})
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success": true,
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
-// apiGetClientOrders — получение заказов клиента
 func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
 
-	// Получаем ID клиента из query параметра или из сессии
 	clientIDStr := r.URL.Query().Get("client_id")
+
+	// Если client_id не передан в query — получаем из сессии/куки
 	if clientIDStr == "" {
-		cookie, err := r.Cookie("user")
+		clientID, err := getClientIDFromRequest(r)
 		if err != nil {
 			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized"})
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized: " + err.Error()})
 			return
 		}
-		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
-			return
-		}
-		var user map[string]interface{}
-		if err := json.Unmarshal(userJSON, &user); err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
-			return
-		}
-		clientIDFloat, ok := user["id"].(float64)
-		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid user ID"})
-			return
-		}
-		clientIDStr = fmt.Sprintf("%d", int(clientIDFloat))
+		clientIDStr = fmt.Sprintf("%d", clientID)
 	}
 
 	clientID, err := strconv.Atoi(clientIDStr)
@@ -2516,7 +2278,6 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Получаем заказы из БД
 	orders, err := GetUserOrders(clientID, 100)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -2528,218 +2289,146 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 		orders = []DBRecord{}
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"orders": orders,
-	})
-}
-
-func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	// Поддержка CORS preflight
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	// GET — получение списка возвратов
-	if r.Method == http.MethodGet {
-		apiGetClientReturns(w, r)
-		return
-	}
-
-	// POST — создание нового возврата
-	if r.Method == http.MethodPost {
-		apiCreateClientReturn(w, r)
-		return
-	}
-
-	// Другие методы не поддерживаются
-	w.WriteHeader(http.StatusMethodNotAllowed)
-	json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
-}
-
-// apiGetClientReturns — получение возвратов клиента
-func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	// Только GET запросы
-	if r.Method != http.MethodGet {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
-		return
-	}
-
-	clientIDStr := r.URL.Query().Get("client_id")
-	if clientIDStr == "" {
-		// Пытаемся получить из куки
-		cookie, err := r.Cookie("user")
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Unauthorized"})
-			return
-		}
-		// Декодируем пользователя из куки
-		userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
-		if err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
-			return
-		}
-		var user map[string]interface{}
-		if err := json.Unmarshal(userJSON, &user); err != nil {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid session"})
-			return
-		}
-		clientIDFloat, ok := user["id"].(float64)
-		if !ok {
-			w.WriteHeader(http.StatusUnauthorized)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid user ID"})
-			return
-		}
-		clientIDStr = fmt.Sprintf("%d", int(clientIDFloat))
-	}
-
-	clientID, err := strconv.Atoi(clientIDStr)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid client ID"})
-		return
-	}
-
-	// Получаем возвраты из БД
-	returns, err := GetUserReturns(clientID, 100)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch returns: " + err.Error()})
-		return
-	}
-
-	if returns == nil {
-		returns = []DBRecord{}
-	}
-
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"returns": returns,
-	})
-}
-
-func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
-	w.Header().Set("Content-Type", "application/json")
-	w.Header().Set("Access-Control-Allow-Origin", "*")
-
-	// Поддержка CORS preflight
-	if r.Method == http.MethodOptions {
-		w.WriteHeader(http.StatusOK)
-		return
-	}
-
-	// Только POST запросы
-	if r.Method != http.MethodPost {
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
-		return
-	}
-
-	// Получаем пользователя из куки
-	cookie, err := r.Cookie("user")
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Unauthorized"})
-		return
-	}
-
-	userJSON, err := base64.StdEncoding.DecodeString(cookie.Value)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid session"})
-		return
-	}
-
-	var user map[string]interface{}
-	if err := json.Unmarshal(userJSON, &user); err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid session"})
-		return
-	}
-
-	clientIDFloat, ok := user["id"].(float64)
-	if !ok {
-		w.WriteHeader(http.StatusUnauthorized)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid user ID"})
-		return
-	}
-	clientID := int(clientIDFloat)
-
-	// Парсим тело запроса
-	var req struct {
-		OrderID       int    `json:"order_id"`
-		ClaimedReason string `json:"claimed_reason"`
-		Comment       string `json:"comment"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Invalid request body"})
-		return
-	}
-
-	if req.OrderID <= 0 || req.ClaimedReason == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Order ID и причина обязательны"})
-		return
-	}
-
-	// Проверяем, существует ли заказ
-	orderQuery := `SELECT order_id FROM orders WHERE order_id = $1 AND client_id = $2`
-	var orderID int
-	err = db.QueryRow(orderQuery, req.OrderID, clientID).Scan(&orderID)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Заказ не найден"})
-		return
-	}
-
-	// Создаём возврат
-	insertQuery := `INSERT INTO returns (order_id, client_id, days_since_purchase,
-                has_receipt, tags_removed, missing_components, return_channel, claimed_reason)
-                VALUES ($1, $2, 0, true, false, false, 'online', $3)
-                RETURNING return_id`
-
-	var returnID int
-	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.ClaimedReason).Scan(&returnID)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Ошибка создания возврата: " + err.Error()})
-		return
-	}
-
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":   true,
-		"return_id": returnID,
-		"message":   "Возврат успешно создан",
-	})
+	json.NewEncoder(w).Encode(map[string]interface{}{"orders": orders})
 }
 
 // ============================================
-// 🚀 ОСНОВНОЙ СЕРВЕР
+// 🧩 DB ENRICHMENT
+// ============================================
+
+func EnrichFromDB(f *FormData) error {
+	if db == nil || f.ClientID <= 0 || f.OrderID <= 0 {
+		return fmt.Errorf("БД не подключена или не указаны ClientID/OrderID")
+	}
+
+	clientQuery := `SELECT account_age_days, total_orders, total_returns, global_return_rate, avg_order_amount, address_change_frequency FROM clients WHERE client_id = $1`
+	var accountAge, totalOrders, totalReturns int
+	var globalRate, avgOrderAmt, addrFreq sql.NullFloat64
+
+	err := db.QueryRow(clientQuery, f.ClientID).Scan(&accountAge, &totalOrders, &totalReturns, &globalRate, &avgOrderAmt, &addrFreq)
+	if err == nil {
+		f.AccountAgeDays = accountAge
+		f.TotalOrders = totalOrders
+		if totalOrders > 0 {
+			f.ReturnRate = float64(totalReturns) / float64(totalOrders) * 100
+		}
+		if avgOrderAmt.Valid {
+			f.AvgOrderAmount = avgOrderAmt.Float64
+		}
+	}
+
+	orderQuery := `SELECT order_amount, items_count, discount_amount, payment_method, order_timestamp FROM orders WHERE order_id = $1 AND client_id = $2`
+	var orderAmt, discAmt sql.NullFloat64
+	var itemsCount int
+	var payMethod sql.NullString
+	var orderTS time.Time
+
+	err = db.QueryRow(orderQuery, f.OrderID, f.ClientID).Scan(&orderAmt, &itemsCount, &discAmt, &payMethod, &orderTS)
+	if err == nil {
+		if orderAmt.Valid {
+			f.OrderAmount = orderAmt.Float64
+		}
+		f.ItemsInOrder = itemsCount
+		if discAmt.Valid && f.OrderAmount > 0 {
+			f.DiscountPercent = (discAmt.Float64 / f.OrderAmount) * 100
+		}
+		f.OrderHour = orderTS.Hour()
+		f.IsWeekend = orderTS.Weekday() == time.Saturday || orderTS.Weekday() == time.Sunday
+		if f.OrderHour >= 0 && f.OrderHour <= 5 {
+			f.OrderTimeNight = true
+		}
+	}
+
+	velocityQuery := `SELECT COUNT(*) FROM returns WHERE client_id = $1 AND created_at > NOW() - INTERVAL '30 days'`
+	var refundVelocity30d int
+	db.QueryRow(velocityQuery, f.ClientID).Scan(&refundVelocity30d)
+	f.RefundVelocity30d = refundVelocity30d
+
+	ipVelocityQuery := `SELECT COUNT(DISTINCT o2.order_id) FROM orders o2 WHERE o2.client_id = $1 AND o2.order_timestamp > NOW() - INTERVAL '24 hours'`
+	var ipVel24h int
+	db.QueryRow(ipVelocityQuery, f.ClientID).Scan(&ipVel24h)
+	f.IPVelocity24h = ipVel24h
+
+	ipVelocity7dQuery := `SELECT COUNT(DISTINCT o2.order_id) FROM orders o2 WHERE o2.client_id = $1 AND o2.order_timestamp > NOW() - INTERVAL '7 days'`
+	var ipVel7d int
+	db.QueryRow(ipVelocity7dQuery, f.ClientID).Scan(&ipVel7d)
+	f.IPVelocity7d = ipVel7d
+
+	ticketsQuery := `SELECT COUNT(*) FROM returns WHERE client_id = $1 AND created_at > NOW() - INTERVAL '30 days' AND (tags_removed = true OR missing_components = true)`
+	var supportTickets int
+	db.QueryRow(ticketsQuery, f.ClientID).Scan(&supportTickets)
+	f.SupportTickets30d = supportTickets
+
+	if addrFreq.Valid {
+		f.AccountsPerIP = int(addrFreq.Float64) + 1
+	} else {
+		f.AccountsPerIP = 1
+	}
+	f.AccountsPerDevice = 1
+	f.AccountsPerPhone = 1
+
+	if payMethod.Valid {
+		switch strings.ToLower(payMethod.String) {
+		case "card", "online", "elektronno":
+			f.PaymentMethodRisk = 0.1
+		case "cash", "nalichnie", "cod":
+			f.PaymentMethodRisk = 0.3
+		default:
+			f.PaymentMethodRisk = 0.2
+		}
+	}
+
+	if addrFreq.Valid && addrFreq.Float64 > 2.0 {
+		f.ShippingRegionRisk = 0.4
+	} else {
+		f.ShippingRegionRisk = 0.2
+	}
+
+	if addrFreq.Valid {
+		f.DistanceFromRegistration = addrFreq.Float64 * 100
+	} else {
+		f.DistanceFromRegistration = 50
+	}
+
+	if f.TotalOrders > 0 {
+		returnRate := float64(f.TotalReturns) / float64(f.TotalOrders)
+		f.DeviceTrustScore = 1.0 - (returnRate * 0.5)
+		f.IPTrustScore = 1.0 - (returnRate * 0.5)
+		if f.DeviceTrustScore < 0.3 {
+			f.DeviceTrustScore = 0.3
+		}
+		if f.IPTrustScore < 0.3 {
+			f.IPTrustScore = 0.3
+		}
+	} else {
+		f.DeviceTrustScore = 0.75
+		f.IPTrustScore = 0.75
+	}
+
+	f.PromoCodeUsed = (f.DiscountPercent > 10)
+	if f.TotalOrders == 1 && f.DiscountPercent > 20 {
+		f.FirstOrderDiscountAbuse = true
+	}
+	f.ReviewCount30d = f.TotalOrders / 3
+	if f.TotalOrders > 0 {
+		f.ReturnRate30d = float64(refundVelocity30d) / float64(f.TotalOrders)
+	}
+
+	log.Printf("[DEBUG] DB-Enriched: AccountAge=%d, Orders=%d, Returns=%d, Velocity30d=%d",
+		f.AccountAgeDays, f.TotalOrders, f.TotalReturns, refundVelocity30d)
+
+	return nil
+}
+
+// ============================================
+// 🚀 MAIN
 // ============================================
 
 func main() {
 	pythonModelLoaded = false
-
 	go startFastAPIService()
 
 	execDir, err := os.Getwd()
-
 	log.Println("[INFO] Ожидание запуска FastAPI сервиса...")
 	time.Sleep(3 * time.Second)
 
@@ -2748,9 +2437,8 @@ func main() {
 	}
 
 	modelPath := filepath.Join(execDir, "models", "fraud_model_v4_27patterns.onnx")
-
 	if err := loadModel(modelPath); err != nil {
-		log.Printf("⚠️ Не удалось загрузить модель: %v (будет использована заглушка)", err)
+		log.Printf("⚠️ Не удалось загрузить модель: %v", err)
 		pythonModelLoaded = false
 	} else {
 		pythonModelLoaded = true
@@ -2758,27 +2446,22 @@ func main() {
 	}
 
 	if err := initDatabase(); err != nil {
-		log.Printf("⚠️ Не удалось подключиться к БД: %v (работа продолжится без БД)", err)
+		log.Printf("⚠️ Не удалось подключиться к БД: %v", err)
 	}
 	defer CloseDB()
 
 	staticDir := filepath.Join(execDir, "static")
-
 	if _, err := os.Stat(staticDir); os.IsNotExist(err) {
-		log.Fatalf("Директория static не найдена по пути: %s", staticDir)
+		log.Fatalf("Директория static не найдена: %s", staticDir)
 	}
 
 	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
 		relativePath := strings.TrimPrefix(r.URL.Path, "/static/")
 		path := filepath.Join(staticDir, relativePath)
-
-		// Проверяем, что файл существует
 		if _, err := os.Stat(path); os.IsNotExist(err) {
 			http.NotFound(w, r)
 			return
 		}
-
-		// Устанавливаем правильные MIME-типы
 		if strings.HasSuffix(path, ".css") {
 			w.Header().Set("Content-Type", "text/css; charset=utf-8")
 		} else if strings.HasSuffix(path, ".js") {
@@ -2792,7 +2475,6 @@ func main() {
 		} else if strings.HasSuffix(path, ".ico") {
 			w.Header().Set("Content-Type", "image/x-icon")
 		}
-
 		http.ServeFile(w, r, path)
 	})
 
@@ -2804,49 +2486,37 @@ func main() {
 	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
 	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
 	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
+
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("user")
 		if err != nil {
-			// Не авторизован — перенаправляем на login
-			log.Printf("[DEBUG] Нет куки user: %v", err)
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-
-		log.Printf("[DEBUG] Кука user: %s", cookie.Value)
-
-		// Декодируем из base64
 		decodedUser, err := base64.StdEncoding.DecodeString(cookie.Value)
 		if err != nil {
-			log.Printf("[DEBUG] Ошибка декодирования base64 из куки: %v", err)
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-
-		// Декодируем информацию о пользователе из куки
 		var userData struct {
 			Role string `json:"role"`
 		}
 		if err := json.Unmarshal(decodedUser, &userData); err != nil {
-			log.Printf("[DEBUG] Ошибка парсинга JSON из куки: %v", err)
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
 			return
 		}
-
-		log.Printf("[DEBUG] Роль пользователя: %s", userData.Role)
-
-		// Авторизован — перенаправляем в зависимости от роли
 		if userData.Role == "admin" {
 			http.Redirect(w, r, "/admin/profile", http.StatusSeeOther)
 		} else {
 			http.Redirect(w, r, "/client/profile", http.StatusSeeOther)
 		}
 	})
+
 	http.HandleFunc("/check", requireAdmin(checkHandler))
 	http.HandleFunc("/history", requireAdmin(historyPage))
 	http.HandleFunc("/users", requireAdmin(usersPage))
 
-	// API endpoints
+	// API
 	http.HandleFunc("/api/login", apiLogin)
 	http.HandleFunc("/api/logout", apiLogout)
 	http.HandleFunc("/api/client/orders", apiGetClientOrders)
@@ -2887,7 +2557,6 @@ func startFastAPIService() {
 	cmd.Stderr = os.Stderr
 
 	log.Printf("[INFO] Запуск FastAPI сервиса: %s %s", pythonPath, scriptPath)
-
 	if err := cmd.Run(); err != nil {
 		log.Printf("[ERROR] FastAPI сервис остановился: %v", err)
 	}

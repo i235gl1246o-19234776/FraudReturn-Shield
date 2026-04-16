@@ -486,20 +486,19 @@ if __name__ == "__main__":
                 'completed'
             ))
 
-            # Insert return
-            return_inserts.append((
-                len(order_inserts),  # order_id
-                client_id,
-                0,  # returns_last_30d
-                0.0,  # return_rate_last_30d
-                0,  # days_since_last_return
-                row['days_to_return'],
-                'online',  # return_channel
-                bool(row['receipt_provided']),
-                bool(row['tag_removed']),
-                bool(row['missing_components']),
-                row['claimed_reason']
-            ))
+            return_inserts.append({
+                'temp_order_index': len(order_inserts) - 1,
+                'client_temp_id': client_id,
+                'returns_last_30d': 0,
+                'return_rate_last_30d': 0.0,
+                'days_since_last_return': 0,
+                'days_to_return': row['days_to_return'],
+                'return_channel': 'online',
+                'has_receipt': bool(row['receipt_provided']),
+                'tags_removed': bool(row['tag_removed']),
+                'missing_components': bool(row['missing_components']),
+                'claimed_reason': row['claimed_reason']
+            })
 
             # Insert session
             session_inserts.append((
@@ -517,16 +516,35 @@ if __name__ == "__main__":
 
         # Insert clients
         if client_inserts:
-            execute_values(cur, """
+            cur.execute("""
                 INSERT INTO clients (
                     account_age_days, total_orders, total_returns, global_return_rate,
                     avg_order_amount, address_change_frequency, category_returns_count,
                     registration_city, client_lat, client_lng, phone_hash
                 ) VALUES %s
+                RETURNING client_id
             """, client_inserts)
+            real_client_ids = [row[0] for row in cur.fetchall()]
+        else:
+            real_client_ids = []
 
-        # Insert orders
-        if order_inserts:
+        if order_inserts and real_client_ids:
+            order_inserts_with_real_ids = []
+            for i, order in enumerate(order_inserts):
+                if i < len(real_client_ids):
+                    order_with_real_id = list(order)
+                    order_with_real_id[0] = real_client_ids[i]
+                    order_inserts_with_real_ids.append(tuple(order_with_real_id))
+
+        if order_inserts and real_client_ids:
+            order_inserts_with_real_ids = []
+            for i, order in enumerate(order_inserts):
+                if i < len(real_client_ids):
+                    # Replace the client_id (first element) with the real ID
+                    order_with_real_id = list(order)
+                    order_with_real_id[0] = real_client_ids[i]
+                    order_inserts_with_real_ids.append(tuple(order_with_real_id))
+                    
             execute_values(cur, """
                 INSERT INTO orders (
                     client_id, order_amount, items_count, discount_amount, payment_method,
@@ -536,7 +554,7 @@ if __name__ == "__main__":
                     payment_card_bin, card_issuing_country, card_country_mismatch,
                     delivery_address_type, address_match_score, is_address_match, order_status
                 ) VALUES %s
-            """, order_inserts)
+            """, order_inserts_with_real_ids)
 
         # Insert returns
         if return_inserts:
