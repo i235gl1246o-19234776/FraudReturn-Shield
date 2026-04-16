@@ -602,11 +602,11 @@
         } else if (fraudPercent < 60) {
             riskColor = 'var(--warning)'; riskBg = 'var(--warning-bg)'; riskLevel = 'Средний';
             riskIcon = '/static/svg/знак внимания.svg';
-            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Требуется дополнительная проверка`;
+            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Вам скорее всего не одобрят возврат`;
         } else {
             riskColor = 'var(--danger)'; riskBg = 'var(--danger-bg)'; riskLevel = 'Высокий';
             riskIcon = '/static/svg/крест.svg';
-            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Рекомендуется отклонить возврат`;
+            recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Вам отклонят возврат`;
         }
 
         content.innerHTML = `

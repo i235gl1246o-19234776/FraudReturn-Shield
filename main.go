@@ -363,8 +363,8 @@ WHERE o.order_id = $1`
 		return nil, err
 	}
 
-	record["order_id"] = oid
-	record["client_id"] = cid
+	record["order_id"] = oid.Int64
+	record["client_id"] = cid.Int64
 	if ordAmt.Valid {
 		record["order_amount"] = ordAmt.Float64
 	}
@@ -696,7 +696,7 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		querySQL = `
             SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
                    o.payment_method, o.order_timestamp, o.amount_deviation,
-                   o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
+                   o.orders_last_30d, o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
             FROM orders o
             LEFT JOIN returns r ON o.order_id = r.order_id
             WHERE o.client_id = $1 AND o.order_id::TEXT LIKE $2
@@ -708,7 +708,7 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		querySQL = `
             SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
                    o.payment_method, o.order_timestamp, o.amount_deviation,
-                   o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
+                   o.orders_last_30d, o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
             FROM orders o
             LEFT JOIN returns r ON o.order_id = r.order_id
             WHERE o.client_id = $1
@@ -1579,16 +1579,41 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
-		r.ParseForm()
-		form := FormData{
-			ClientID: parseInt(r.FormValue("clientID")), OrderID: parseInt(r.FormValue("orderID")),
-			Category: r.FormValue("category"), ClaimedReason: r.FormValue("reason"),
-			AddressMatch: r.FormValue("addressMatch") == "on", DeviceNew: r.FormValue("deviceNew") == "on",
-			IsWeekend: parseBool(r.FormValue("isWeekend")), HasTag: parseBool(r.FormValue("hasTag")),
-			HasReceipt: parseBool(r.FormValue("hasReceipt")), HasDamage: parseBool(r.FormValue("hasDamage")),
-			IsUsed: parseBool(r.FormValue("isUsed")), TagsRemoved: r.FormValue("tagsRemoved") == "on",
-			MissingComponents: r.FormValue("missingComponents") == "on",
-			DaysToReturn:      parseInt(r.FormValue("daysToReturn")),
+		// Поддерживаем и JSON, и form-urlencoded
+		var form FormData
+
+		// Проверяем Content-Type
+		contentType := r.Header.Get("Content-Type")
+		if strings.Contains(contentType, "application/json") {
+			// JSON формат (из JavaScript fetch)
+			if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
+				http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
+				return
+			}
+		} else {
+			// Form-urlencoded (традиционная отправка формы)
+			r.ParseForm()
+			form = FormData{
+				ClientID: parseInt(r.FormValue("clientID")), OrderID: parseInt(r.FormValue("orderID")),
+				Category: r.FormValue("category"), ClaimedReason: r.FormValue("reason"),
+				AddressMatch: r.FormValue("addressMatch") == "on", DeviceNew: r.FormValue("deviceNew") == "on",
+				IsWeekend: parseBool(r.FormValue("isWeekend")), HasTag: parseBool(r.FormValue("hasTag")),
+				HasReceipt: parseBool(r.FormValue("hasReceipt")), HasDamage: parseBool(r.FormValue("hasDamage")),
+				IsUsed: parseBool(r.FormValue("isUsed")), TagsRemoved: r.FormValue("tagsRemoved") == "on",
+				MissingComponents: r.FormValue("missingComponents") == "on",
+				DaysToReturn:      parseInt(r.FormValue("daysToReturn")),
+			}
+		}
+
+		// Заполняем поля по умолчанию если они не установлены
+		if form.OrderAmount <= 0 {
+			form.OrderAmount = parseFloat(r.FormValue("orderAmount"))
+		}
+		if form.AccountAgeDays <= 0 {
+			form.AccountAgeDays = parseInt(r.FormValue("accountAgeDays"))
+		}
+		if form.TotalOrders <= 0 {
+			form.TotalOrders = parseInt(r.FormValue("totalOrders"))
 		}
 
 		if err := EnrichFromDB(&form); err != nil {
@@ -2763,16 +2788,36 @@ func resultPage(w http.ResponseWriter, r *http.Request) {
 	orderID := r.URL.Query().Get("order_id")
 	clientID := r.URL.Query().Get("client_id")
 	riskScore := r.URL.Query().Get("risk_score")
+	riskLevel := r.URL.Query().Get("risk_level")
+	riskClass := r.URL.Query().Get("risk_class")
+	recommendation := r.URL.Query().Get("recommendation")
+	orderAmount := r.URL.Query().Get("order_amount")
 	decision := r.URL.Query().Get("decision")
 	checkID := r.URL.Query().Get("check_id")
 
+	var topFactors []string
+	i := 0
+	for {
+		factor := r.URL.Query().Get(fmt.Sprintf("factor_%d", i))
+		if factor == "" {
+			break
+		}
+		topFactors = append(topFactors, factor)
+		i++
+	}
+
 	data := map[string]interface{}{
-		"OrderID":     orderID,
-		"ClientID":    clientID,
-		"RiskScore":   riskScore,
-		"Decision":    decision,
-		"CheckID":     checkID,
-		"DBConnected": db != nil,
+		"OrderID":        orderID,
+		"ClientID":       clientID,
+		"RiskScore":      riskScore,
+		"RiskLevel":      riskLevel,
+		"RiskClass":      riskClass,
+		"Recommendation": recommendation,
+		"OrderAmount":    orderAmount,
+		"TopFactors":     topFactors,
+		"Decision":       decision,
+		"CheckID":        checkID,
+		"DBConnected":    db != nil,
 	}
 
 	// Пытаемся загрузить полные данные из БД если есть check_id
@@ -2788,10 +2833,13 @@ func resultPage(w http.ResponseWriter, r *http.Request) {
 			var riskLevel, riskClass, recommendation sql.NullString
 			var factorsStr string
 
+			var orderIDVal, clientIDVal int
 			err := row.Scan(
-				&record["order_id"], &record["client_id"], &orderAmt, &riskScore,
+				&orderIDVal, &clientIDVal, &orderAmt, &riskScore,
 				&riskLevel, &riskClass, &recommendation, &factorsStr,
 			)
+			record["order_id"] = orderIDVal
+			record["client_id"] = clientIDVal
 			if err == nil {
 				if orderAmt.Valid {
 					record["order_amount"] = orderAmt.Float64

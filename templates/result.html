@@ -64,6 +64,30 @@
             background: #667eea;
             color: white;
         }
+
+        .risk-gauge { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px 0; }
+        .gauge-circle { position: relative; width: 120px; height: 120px; }
+        .gauge-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
+        .gauge-bg { fill: none; stroke: var(--gray-200); stroke-width: 8; }
+        .gauge-fill {
+            fill: none; stroke: var(--wb-purple); stroke-width: 8;
+            stroke-linecap: round; stroke-dasharray: 283; stroke-dashoffset: 283;
+            transition: stroke-dashoffset 0.8s ease-out, stroke 0.3s ease;
+        }
+        .gauge-fill.low { stroke: var(--success); }
+        .gauge-fill.medium { stroke: #f59e0b; }
+        .gauge-fill.high { stroke: var(--error); }
+        .gauge-value {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            font-size: 1.5rem; font-weight: 800; color: var(--text);
+        }
+        .risk-badge {
+            display: flex; align-items: center; gap: 10px; padding: 10px 20px;
+            border-radius: var(--radius-lg); background: var(--gray-100); font-weight: 600;
+        }
+        .risk-badge.low { background: rgba(34,197,94,0.15); color: var(--success); }
+        .risk-badge.medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
+        .risk-badge.high { background: rgba(239,68,68,0.15); color: var(--error); }
     </style>
 </head>
 <body>
@@ -71,7 +95,9 @@
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
-                <img src="/static/svg/щит.svg" alt="Shield">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
                 FraudReturn Shield
             </a>
             <ul class="admin-nav-links">
@@ -88,7 +114,7 @@
         <!-- Основной контент -->
         <main class="main">
             <div class="container">
-                <div class="card result-card {{.RiskClass}}">
+                <div class="card result-card">
                     <div class="card-header">
                         <h2>Результат анализа</h2>
                         <a href="/check" class="btn btn-secondary">Новая проверка</a>
@@ -98,27 +124,19 @@
                             <div class="gauge-circle">
                                 <svg viewBox="0 0 100 100">
                                     <circle class="gauge-bg" cx="50" cy="50" r="45"/>
-                                    <circle class="gauge-fill {{.RiskClass}}" cx="50" cy="50" r="45" style="stroke-dashoffset: {{.StrokeDashOffset}}"/>
+                                   <circle class="gauge-fill" cx="50" cy="50" r="45"/>
                                 </svg>
-                                <div class="gauge-value">{{.RiskPercent}}%</div>
+                                <div class="gauge-value">—%</div>
                             </div>
-                            <div class="risk-badge {{.RiskClass}}">
-                                <img src="/static/svg/{{if eq .RiskClass "low"}}зеленый{{else if eq .RiskClass "medium"}}желтый{{else}}красный{{end}}.svg" alt="" style="width: 80px; height: 80px; vertical-align: middle;">
-                                <span>{{.RiskLevel}} риск</span>
+                            <div class="risk-badge">
+                                <img src="/static/svg/зеленый.svg" alt="" style="width: 80px; height: 80px; vertical-align: middle;">
+                                <span>— риск</span>
                             </div>
                         </div>
                         <div class="recommendation">
                             <strong>Рекомендация</strong>
-                            <p>{{.Recommendation}}</p>
+                            <p>Загрузка...</p>
                         </div>
-                        {{if .TopFactors}}
-                        <div class="factors">
-                            <h3>🔍 Факторы риска</h3>
-                            <ul class="factor-list">
-                                {{range .TopFactors}}<li>{{.}}</li>{{end}}
-                            </ul>
-                        </div>
-                        {{end}}
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
                             <a href="/history" class="btn btn-secondary" style="flex: 1;">В историю</a>
                             <a href="/" class="btn btn-primary" style="flex: 1;">На главную</a>
@@ -137,49 +155,147 @@
     </div>
 
 <script>
-    (function saveToHistory() {
-        const resultData = {
-            orderID: {{.OrderID}},
-            clientID: {{.ClientID}},
-            orderAmount: {{.OrderAmount}},
-            riskScore: {{.RiskScore}},
-            riskLevel: "{{.RiskLevel}}",
-            riskClass: "{{.RiskClass}}",
-            recommendation: "{{.Recommendation}}"
-        };
+        // Получаем параметры из URL
+        
+        const urlParams = new URLSearchParams(window.location.search);
+        const orderID = urlParams.get('order_id') || '—';
+        const clientID = urlParams.get('client_id') || '—';
+        const riskScore = parseFloat(urlParams.get('risk_score')) || 0;
+        const riskLevel = urlParams.get('risk_level') || 'unknown';
+        const riskClass = urlParams.get('risk_class') || 'medium';
+        const recommendation = urlParams.get('recommendation') || 'Нет рекомендации';
+        const orderAmount = parseFloat(urlParams.get('order_amount')) || 0;
 
-        const historyItem = {
-            timestamp: new Date().toISOString(),
-            data: resultData
-        };
-
-        // Получаем существующую историю
-        let fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
-
-        // Добавляем новую запись в начало
-        fraudHistory.unshift(historyItem);
-
-        // Храним только последние 100 записей
-        if (fraudHistory.length > 100) {
-            fraudHistory = fraudHistory.slice(0, 100);
+        // Собираем факторы риска
+        const topFactors = [];
+        let i = 0;
+        while (urlParams.get(`factor_${i}`)) {
+            topFactors.push(urlParams.get(`factor_${i}`));
+            i++;
         }
 
-        // Сохраняем обратно
-        localStorage.setItem('fraudHistory', JSON.stringify(fraudHistory));
-        console.log('Проверка сохранена в историю');
-    })();
+        // Вычисляем параметры для индикатора
+        const riskPercent = Math.round(riskScore * 100);
+        const strokeDashOffset = (1 - riskScore) * 283;
 
-    function logout() {
-        sessionStorage.removeItem('user');
-        fetch('/api/logout', { method: 'POST' })
-            .then(() => {
-                window.location.href = '/login';
-            })
-            .catch(() => {
-                window.location.href = '/login';
-            });
-    }
-</script>
+        // Определяем иконку
+        let iconPath = 'зеленый.svg';
+        if (riskClass === 'medium') iconPath = 'желтый.svg';
+        if (riskClass === 'high') iconPath = 'красный.svg';
+
+        // Обновляем DOM после загрузки страницы
+        document.addEventListener('DOMContentLoaded', function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const riskScore = parseFloat(urlParams.get('risk_score')) || 0;
+            const riskClass = urlParams.get('risk_class') || 'medium';
+            const riskPercent = Math.round(riskScore * 100);
+            
+            // 🔥 Теперь обновляем gauge (после объявления переменных!)
+            const gaugeValue = document.querySelector('.gauge-value');
+            if (gaugeValue) gaugeValue.textContent = `${riskPercent}%`;
+            
+            const gaugeFill = document.querySelector('.gauge-fill');
+            if (gaugeFill) {
+                gaugeFill.style.strokeDashoffset = (1 - riskScore) * 283;
+                gaugeFill.classList.add(riskClass);
+            }
+            // Обновляем текст в карточке результата
+            const resultCard = document.querySelector('.result-card');
+            if (resultCard) {
+                resultCard.className = `card result-card ${riskClass}`;
+            }
+
+            // Обновляем индикатор риска
+            const riskBadge = document.querySelector('.risk-badge');
+            if (riskBadge) {
+                riskBadge.className = `risk-badge ${riskClass}`;
+                const img = riskBadge.querySelector('img');
+                if (img) img.src = `/static/svg/${iconPath}`;
+                const span = riskBadge.querySelector('span');
+                if (span) {
+                    // 🔥 FIX: сравниваем riskClass (англ.), а не riskLevel (рус.)
+                    const levelText = riskClass === 'low' ? 'Низкий' : riskClass === 'medium' ? 'Средний' : 'Высокий';
+                    span.textContent = `${levelText} риск`;
+                }
+            }
+
+            // Обновляем рекомендацию
+            const recEl = document.querySelector('.recommendation p');
+            if (recEl) recEl.textContent = recommendation;
+
+            // Обновляем список факторов
+            if (topFactors.length > 0) {
+                const factorsSection = document.querySelector('.factors');
+                if (!factorsSection) {
+                    // Создаем секцию факторов если её нет
+                    const recSection = document.querySelector('.recommendation');
+                    if (recSection) {
+                        const factorsHtml = `
+                            <div class="factors" style="margin-top: 20px;">
+                                <h3>Факторы риска</h3>
+                                <ul class="factor-list">
+                                    ${topFactors.map(f => `<li>${f}</li>`).join('')}
+                                </ul>
+                            </div>
+                        `;
+                        recSection.insertAdjacentHTML('afterend', factorsHtml);
+                    }
+                } else {
+                    const factorList = factorsSection.querySelector('.factor-list');
+                    if (factorList) {
+                        factorList.innerHTML = topFactors.map(f => `<li>${f}</li>`).join('');
+                    }
+                }
+            }
+
+            // Сохраняем в историю
+            saveToHistory();
+        });
+
+        function saveToHistory() {
+            const resultData = {
+                orderID: parseInt(orderID) || 0,
+                clientID: parseInt(clientID) || 0,
+                orderAmount: orderAmount,
+                riskScore: riskScore,
+                riskLevel: riskLevel,
+                riskClass: riskClass,
+                recommendation: recommendation,
+                topFactors: topFactors
+            };
+
+            const historyItem = {
+                timestamp: new Date().toISOString(),
+                data: resultData
+            };
+
+            // Получаем существующую историю
+            let fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+
+            // Добавляем новую запись в начало
+            fraudHistory.unshift(historyItem);
+
+            // Храним только последние 100 записей
+            if (fraudHistory.length > 100) {
+                fraudHistory = fraudHistory.slice(0, 100);
+            }
+
+            // Сохраняем обратно
+            localStorage.setItem('fraudHistory', JSON.stringify(fraudHistory));
+            console.log('Проверка сохранена в историю');
+        }
+
+        function logout() {
+            sessionStorage.removeItem('user');
+            fetch('/api/logout', { method: 'POST' })
+                .then(() => {
+                    window.location.href = '/login';
+                })
+                .catch(() => {
+                    window.location.href = '/login';
+                });
+        }
+    </script>
 
 </body>
 </html>
