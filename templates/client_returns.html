@@ -61,22 +61,6 @@
             overflow: hidden;
         }
 
-        .shield-container {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 0;
-            pointer-events: none;
-            width: auto;
-        }
-
-        .left-shield {
-            left: 0;
-        }
-
-        .right-shield {
-            right: 0;
-        }
 
         .page-title img {
             width: 100px;
@@ -382,34 +366,6 @@
             border: 1px solid var(--danger);
         }
 
-        .shield-wrapper {
-            width: 400px;
-            height: 400px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            animation: shieldPulse 3s ease-in-out infinite;
-        }
-
-        .shield-svg {
-            width: 200px;
-            height: 200px;
-            filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
-            transition: transform 0.3s ease;
-        }
-
-        .shield-wrapper:hover .shield-svg {
-            transform: scale(1.25);
-        }
-
-        @keyframes shieldPulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
     </style>
 </head>
 <body>
@@ -434,16 +390,6 @@
 
     <!-- Заголовок страницы -->
     <section class="page-header">
-        <!-- Декоративные щиты -->
-        <div class="shield-container left-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
-        </div>
-        <div class="shield-container right-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
         </div>
         <div class="container">
             <h1 class="page-title">
@@ -614,23 +560,26 @@
             }
 
             const fraudPercent = Math.round((fraudData.probability_fraud || 0) * 100);
-            let riskColor, riskBg, riskLevel, recommendation;
+            let riskColor, riskBg, riskLevel, recommendation, riskIcon;
 
             if (fraudPercent < 30) {
                 riskColor = 'var(--success)';
                 riskBg = 'var(--success-bg)';
                 riskLevel = 'Низкий';
-                recommendation = '✅ Возврат можно одобрить';
+                riskIcon = '/static/svg/галочка.svg';
+                recommendation = `<img src="${riskIcon}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"> Возврат можно одобрить`;
             } else if (fraudPercent < 60) {
                 riskColor = 'var(--warning)';
                 riskBg = 'var(--warning-bg)';
                 riskLevel = 'Средний';
-                recommendation = '⚠️ Требуется дополнительная проверка';
+                riskIcon = '/static/svg/знак внимания.svg';
+                recommendation = `<img src="${riskIcon}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"> Требуется дополнительная проверка`;
             } else {
                 riskColor = 'var(--danger)';
                 riskBg = 'var(--danger-bg)';
                 riskLevel = 'Высокий';
-                recommendation = '❌ Рекомендуется отклонить возврат';
+                riskIcon = '/static/svg/крест.svg';
+                recommendation = `<img src="${riskIcon}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"> Рекомендуется отклонить возврат`;
             }
 
             content.innerHTML = `

@@ -62,23 +62,6 @@
             overflow: hidden;
         }
 
-        .shield-container {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 0;
-            pointer-events: none;
-            width: auto;
-        }
-
-        .left-shield {
-            left: 0;
-        }
-
-        .right-shield {
-            right: 0;
-        }
-
         .page-title img {
             width: 100px;
             height: 100px;
@@ -370,15 +353,6 @@
         .shield-wrapper:hover .shield-svg {
             transform: scale(1.25);
         }
-
-        @keyframes shieldPulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
     </style>
 </head>
 <body>
@@ -403,16 +377,6 @@
 
     <!-- Заголовок страницы -->
     <section class="page-header">
-        <!-- Декоративные щиты -->
-        <div class="shield-container left-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
-        </div>
-        <div class="shield-container right-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
         </div>
         <div class="container">
             <h1 class="page-title">

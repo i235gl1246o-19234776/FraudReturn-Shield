@@ -105,7 +105,7 @@
                                 <div class="gauge-value">{{.RiskPercent}}%</div>
                             </div>
                             <div class="risk-badge {{.RiskClass}}">
-                                <span>{{if eq .RiskClass "low"}}🟢{{else if eq .RiskClass "medium"}}🟡{{else}}🔴{{end}}</span>
+                                <img src="/static/svg/{{if eq .RiskClass "low"}}зеленый{{else if eq .RiskClass "medium"}}желтый{{else}}красный{{end}}.svg" alt="" style="width: 20px; height: 20px; vertical-align: middle;">
                                 <span>{{.RiskLevel}} риск</span>
                             </div>
                         </div>
@@ -168,7 +168,7 @@
 
         // Сохраняем обратно
         localStorage.setItem('fraudHistory', JSON.stringify(fraudHistory));
-        console.log('✅ Проверка сохранена в историю');
+        console.log('Проверка сохранена в историю');
     })();
 
     function logout() {

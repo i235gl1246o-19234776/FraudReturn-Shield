@@ -93,58 +93,6 @@
             color: var(--success); font-size: 0.85rem; margin-left: 10px;
             animation: fadeIn 0.3s ease;
         }
-/* Щиты - фиксированные на экране, посередине цветной плашки */
-        .shield-container {
-            position: fixed;
-            top: 50%;
-            left: 0;
-            transform: translateY(-50%);
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .right-shield {
-            left: auto;
-            right: 0;
-        }
-
-
-        .shield-wrapper {
-            width: 400px;
-            height: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: shieldPulse 3s ease-in-out infinite;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform-style: preserve-3d;
-            will-change: transform;
-        }
-
-        .shield-svg {
-            width: 280px;
-            height: 280px;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-            filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
-            transition: transform 0.3s ease;
-        }
-
-        .shield-wrapper:hover .shield-svg {
-            transform: scale(1.25);
-        }
-
-        @keyframes shieldPulse {
-            0%, 100% {
-                transform: scale(1) translateZ(0);
-            }
-            50% {
-                transform: scale(1.05) translateZ(0);
-            }
-        }
 
     </style>
 </head>
@@ -170,18 +118,7 @@
 
         <!-- Hero -->
         <section class="hero">
-<!-- Декоративные щиты -->
-            <div class="shield-container left-shield">
-                <div class="shield-wrapper">
-                    <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-                </div>
             </div>
-            <div class="shield-container right-shield">
-                <div class="shield-wrapper">
-                    <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-                </div>
-            </div>
-
             <div class="container">
                 <div class="hero-badge">AI-Powered Fraud Detection v3.0</div>
                 <h1>Проверка возврата</h1>
@@ -382,22 +319,22 @@
                                 <div class="gauge-value" id="riskScore">0%</div>
                             </div>
                             <div class="risk-badge" id="riskBadge">
-                                <span>🟢</span>
+                                <img src="/static/svg/зеленый.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;" id="riskIcon">
                                 <span id="riskText">Низкий риск</span>
                             </div>
                         </div>
                         <div class="recommendation">
                             <strong>Рекомендация</strong>
-                            <p id="recommendationText">✅Автоматическое одобрение возврата</p>
+                            <p id="recommendationText"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;"> Автоматическое одобрение возврата</p>
                         </div>
                         <div class="factors">
                             <h3>Факторы риска</h3>
                             <ul class="factor-list" id="shapList"></ul>
                         </div>
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
-                            <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;">✅ Одобрить</button>
-                            <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;">⚠️ На проверку</button>
-                            <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;">❌ Отклонить</button>
+                            <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> Одобрить</button>
+                            <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;"><img src="/static/svg/знак внимания.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> На проверку</button>
+                            <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;"><img src="/static/svg/крест.svg" alt="" style="width: 18px; height: 40px; vertical-align: middle; margin-right: 8px;"> Отклонить</button>
                         </div>
                     </div>
                 </div>
@@ -744,8 +681,9 @@ async function loadOrderData(orderId) {
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
+        const iconSrc = type === 'success' ? '/static/svg/галочка.svg' : type === 'error' ? '/static/svg/крест.svg' : '/static/svg/знак внимания.svg';
         toast.innerHTML = `
-            <span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span>
+            <img src="${iconSrc}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;">
             <span>${message}</span>
         `;
         document.body.appendChild(toast);

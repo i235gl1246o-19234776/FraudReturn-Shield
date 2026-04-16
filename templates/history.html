@@ -169,7 +169,9 @@
             tbody.innerHTML = checks.map(item => {
                 const date = new Date(item.checked_at).toLocaleDateString('ru-RU');
                 const riskClass = item.risk_class || 'low';
-                const riskBadge = riskClass === 'low' ? '🟢 Низкий' : riskClass === 'medium' ? '🟡 Средний' : '🔴 Высокий';
+                const riskIcon = riskClass === 'low' ? '/static/svg/зеленый.svg' : riskClass === 'medium' ? '/static/svg/желтый.svg' : '/static/svg/красный.svg';
+                const riskText = riskClass === 'low' ? 'Низкий' : riskClass === 'medium' ? 'Средний' : 'Высокий';
+                const riskBadge = `<img src="${riskIcon}" alt="" style="width: 16px; height: 16px; vertical-align: middle; margin-right: 4px;"> ${riskText}`;
                 const amount = (item.order_amount || 0).toLocaleString();
                 return `<tr>
                     <td>${date}</td>
@@ -210,7 +212,8 @@
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
-            toast.innerHTML = `<span>${type === 'success' ? '✅' : '❌'}</span><span>${message}</span>`;
+            const iconSrc = type === 'success' ? '/static/svg/галочка.svg' : '/static/svg/крест.svg';
+            toast.innerHTML = `<img src="${iconSrc}" alt="" style="width: 18px; height: 18px; vertical-align: middle; margin-right: 4px;"><span>${message}</span>`;
             document.body.appendChild(toast);
             setTimeout(() => {
                 toast.style.animation = 'fadeOut 0.5s ease-out forwards';

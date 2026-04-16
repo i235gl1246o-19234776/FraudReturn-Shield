@@ -149,20 +149,27 @@
             height: 80px;
             object-fit: contain;
             transition: transform 0.3s ease, filter 0.3s ease;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            shape-rendering: geometricPrecision;
+            text-rendering: geometricPrecision;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform: translate3d(0, 0, 0);
         }
 
         .tab-orders:hover .tab-card-icon img {
-            transform: scale(2);
+            transform: scale(2) translate3d(0, 0, 0);
             filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.7));
         }
 
         .tab-returns:hover .tab-card-icon img {
-            transform: scale(2);
+            transform: scale(2) translate3d(0, 0, 0);
             filter: drop-shadow(0 0 20px rgba(0, 191, 255, 0.7));
         }
 
         .tab-chat:hover .tab-card-icon img {
-            transform: scale(2);
+            transform: scale(2) translate3d(0, 0, 0);
             filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
         }
 
@@ -282,52 +289,6 @@
             overflow: hidden;
         }
 
-        .shield-container {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 0;
-            pointer-events: none;
-            width: auto;
-        }
-
-        .left-shield {
-            left: 0;
-        }
-
-        .right-shield {
-            right: 0;
-        }
-
-        .shield-wrapper {
-            width: 400px;
-            height: 400px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            animation: shieldPulse 3s ease-in-out infinite;
-        }
-
-        .shield-svg {
-            width: 200px;
-            height: 200px;
-            filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
-            transition: transform 0.3s ease;
-        }
-
-        .shield-wrapper:hover .shield-svg {
-            transform: scale(1.25);
-        }
-
-        @keyframes shieldPulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
     </style>
 </head>
 <body>
@@ -352,16 +313,6 @@
 
     <!-- Заголовок профиля -->
     <section class="profile-header">
-        <!-- Декоративные щиты -->
-        <div class="shield-container left-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
-        </div>
-        <div class="shield-container right-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
         </div>
         <div class="container">
             <div class="profile-avatar" id="userAvatar">U</div>

@@ -345,49 +345,6 @@
             box-shadow: 0 20px 40px rgba(99, 102, 241, 0.15);
             border-color: var(--primary-light);
         }
-        .shield-container {
-            position: fixed;
-            top: 50%;
-            left: 0;
-            transform: translateY(-50%);
-            z-index: 0;
-            pointer-events: none;
-        }
-
-        .right-shield {
-            left: auto;
-            right: 0;
-        }
-
-        .shield-wrapper {
-            width: 400px;
-            height: 400px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            animation: shieldPulse 3s ease-in-out infinite;
-        }
-
-        .shield-svg {
-            width: 280px;
-            height: 280px;
-            filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
-            transition: transform 0.3s ease;
-        }
-
-        .shield-wrapper:hover .shield-svg {
-            transform: scale(1.25);
-        }
-
-        @keyframes shieldPulse {
-            0%, 100% {
-                transform: scale(1);
-            }
-            50% {
-                transform: scale(1.05);
-            }
-        }
-
     </style>
 </head>
 <body>
@@ -473,16 +430,6 @@
 
         <!-- Hero -->
         <section class="hero">
-            <!-- Декоративные щиты -->
-            <div class="shield-container left-shield">
-                <div class="shield-wrapper">
-                    <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-                </div>
-            </div>
-            <div class="shield-container right-shield">
-                <div class="shield-wrapper">
-                    <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-                </div>
             </div>
             <div class="container">
                 <div class="hero-badge">Админ-панель</div>
