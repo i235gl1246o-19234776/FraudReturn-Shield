@@ -2572,6 +2572,266 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+func apiHandleDecisionAlias(w http.ResponseWriter, r *http.Request) {
+	// Просто перенаправляем на основной хендлер
+	apiHandleDecision(w, r)
+}
+
+// === НОВЫЙ: Получение одной записи истории по ID ===
+func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
+	if r.Method != http.MethodGet {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	path := strings.TrimPrefix(r.URL.Path, "/api/history/")
+	checkID, err := strconv.Atoi(path)
+	if err != nil || checkID <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid check ID"})
+		return
+	}
+
+	if db == nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Database not connected"})
+		return
+	}
+
+	query := `SELECT check_id, order_id, client_id, order_amount, risk_score, 
+                     risk_level, risk_class, recommendation, top_factors, 
+                     decision, checked_at, decided_at
+              FROM check_history WHERE check_id = $1`
+
+	row := db.QueryRow(query, checkID)
+
+	// 🔥 Временные переменные для Scan
+	var scanCheckID, scanOrderID, scanClientID int
+	var orderAmt, riskScore sql.NullFloat64
+	var riskLevel, riskClass, recommendation, decision sql.NullString
+	var factorsStr sql.NullString
+	var checkedAt, decidedAt sql.NullTime
+
+	err = row.Scan(
+		&scanCheckID,
+		&scanOrderID,
+		&scanClientID,
+		&orderAmt,
+		&riskScore,
+		&riskLevel,
+		&riskClass,
+		&recommendation,
+		&factorsStr,
+		&decision,
+		&checkedAt,
+		&decidedAt,
+	)
+
+	if err != nil {
+		if err == sql.ErrNoRows {
+			w.WriteHeader(http.StatusNotFound)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Check not found"})
+		} else {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Database error"})
+		}
+		return
+	}
+
+	// 🔥 Заполняем мапу из временных переменных
+	record := DBRecord{
+		"check_id":  scanCheckID,
+		"order_id":  scanOrderID,
+		"client_id": scanClientID,
+	}
+
+	if orderAmt.Valid {
+		record["order_amount"] = orderAmt.Float64
+	}
+	if riskScore.Valid {
+		record["risk_score"] = riskScore.Float64
+	}
+	if riskLevel.Valid {
+		record["risk_level"] = riskLevel.String
+	}
+	if riskClass.Valid {
+		record["risk_class"] = riskClass.String
+	}
+	if recommendation.Valid {
+		record["recommendation"] = recommendation.String
+	}
+	if decision.Valid {
+		record["decision"] = decision.String
+	}
+	if checkedAt.Valid {
+		record["checked_at"] = checkedAt.Time.Format("2006-01-02 15:04:05")
+	}
+	if decidedAt.Valid {
+		record["decided_at"] = decidedAt.Time.Format("2006-01-02 15:04:05")
+	}
+
+	// Парсим top_factors
+	if factorsStr.Valid && factorsStr.String != "" && factorsStr.String != "{}" {
+		factors := strings.Trim(factorsStr.String, "{}")
+		factorList := strings.Split(factors, ",")
+		for i := range factorList {
+			factorList[i] = strings.Trim(factorList[i], `"`)
+		}
+		record["top_factors"] = factorList
+	}
+
+	json.NewEncoder(w).Encode(record)
+}
+
+func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	var req struct {
+		OrderID     int     `json:"order_id"`
+		ClientID    int     `json:"client_id"`
+		Decision    string  `json:"decision"` // approve, review, reject
+		RiskScore   float64 `json:"risk_score"`
+		OrderAmount float64 `json:"order_amount"`
+		CheckID     int     `json:"check_id,omitempty"`
+	}
+
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid request"})
+		return
+	}
+
+	log.Printf("🎯 Decision received: order_id=%d, decision=%s, risk=%.2f",
+		req.OrderID, req.Decision, req.RiskScore)
+
+	// === 🔥 Сохраняем/обновляем запись в check_history ===
+	if db != nil && req.OrderID > 0 && req.ClientID > 0 {
+		var err error
+
+		if req.CheckID > 0 {
+			// Обновляем существующую запись
+			_, err = db.Exec(`
+                UPDATE check_history 
+                SET decision = $1, decided_at = NOW()
+                WHERE check_id = $2 AND order_id = $3
+            `, req.Decision, req.CheckID, req.OrderID)
+		} else {
+			// Создаём новую запись если check_id не передан
+			_, err = db.Exec(`
+                INSERT INTO check_history 
+                (order_id, client_id, order_amount, risk_score, decision, checked_at)
+                VALUES ($1, $2, $3, $4, $5, NOW())
+            `, req.OrderID, req.ClientID, req.OrderAmount, req.RiskScore, req.Decision)
+		}
+
+		if err != nil {
+			log.Printf("⚠️ Ошибка сохранения решения: %v", err)
+		} else {
+			log.Printf("✅ Решение сохранено в БД")
+		}
+	}
+
+	// Возвращаем успешный ответ с данными для редиректа
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"success":  true,
+		"check_id": req.CheckID,
+		"redirect_params": map[string]string{
+			"order_id":   strconv.Itoa(req.OrderID),
+			"client_id":  strconv.Itoa(req.ClientID),
+			"risk_score": fmt.Sprintf("%.2f", req.RiskScore),
+			"decision":   req.Decision,
+		},
+	})
+}
+
+// === НОВЫЙ: Страница результата с параметрами из URL ===
+func resultPage(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+
+	// Получаем параметры из query string
+	orderID := r.URL.Query().Get("order_id")
+	clientID := r.URL.Query().Get("client_id")
+	riskScore := r.URL.Query().Get("risk_score")
+	decision := r.URL.Query().Get("decision")
+	checkID := r.URL.Query().Get("check_id")
+
+	data := map[string]interface{}{
+		"OrderID":     orderID,
+		"ClientID":    clientID,
+		"RiskScore":   riskScore,
+		"Decision":    decision,
+		"CheckID":     checkID,
+		"DBConnected": db != nil,
+	}
+
+	// Пытаемся загрузить полные данные из БД если есть check_id
+	if checkID != "" && db != nil {
+		if cid, err := strconv.Atoi(checkID); err == nil {
+			query := `SELECT order_id, client_id, order_amount, risk_score, 
+                             risk_level, risk_class, recommendation, top_factors
+                      FROM check_history WHERE check_id = $1`
+			row := db.QueryRow(query, cid)
+
+			var record DBRecord = make(DBRecord)
+			var orderAmt, riskScore sql.NullFloat64
+			var riskLevel, riskClass, recommendation sql.NullString
+			var factorsStr string
+
+			err := row.Scan(
+				&record["order_id"], &record["client_id"], &orderAmt, &riskScore,
+				&riskLevel, &riskClass, &recommendation, &factorsStr,
+			)
+			if err == nil {
+				if orderAmt.Valid {
+					record["order_amount"] = orderAmt.Float64
+				}
+				if riskScore.Valid {
+					record["risk_score"] = riskScore.Float64
+				}
+				if riskLevel.Valid {
+					record["risk_level"] = riskLevel.String
+				}
+				if riskClass.Valid {
+					record["risk_class"] = riskClass.String
+				}
+				if recommendation.Valid {
+					record["recommendation"] = recommendation.String
+				}
+
+				// Парсим top_factors из PostgreSQL array
+				if factorsStr != "" && factorsStr != "{}" {
+					factorsStr = strings.Trim(factorsStr, "{}")
+					factors := strings.Split(factorsStr, ",")
+					for i := range factors {
+						factors[i] = strings.Trim(factors[i], `"`)
+					}
+					record["top_factors"] = factors
+				}
+
+				data["Record"] = record
+			}
+		}
+	}
+
+	tmpl, err := template.ParseFiles("templates/result.html")
+	if err != nil {
+		http.Error(w, "Ошибка шаблона: "+err.Error(), 500)
+		return
+	}
+	tmpl.Execute(w, data)
+}
+
 // ============================================
 // 🚀 MAIN
 // ============================================
@@ -2632,6 +2892,7 @@ func main() {
 
 	// Страницы
 	http.HandleFunc("/login", loginPage)
+	http.HandleFunc("/result", requireAdmin(resultPage))
 	http.HandleFunc("/admin/profile", requireAdmin(adminProfileHandler))
 	http.HandleFunc("/client/orders", authMiddleware(clientOrdersHandler))
 	http.HandleFunc("/admin/chat", requireAdmin(adminChatHandler))
@@ -2684,6 +2945,9 @@ func main() {
 	http.HandleFunc("/api/history", requireAdmin(apiGetHistory))
 	http.HandleFunc("/api/clear-history", requireAdmin(apiClearHistory))
 	http.HandleFunc("/api/predict-fraud-v4", apiPredictFraudV4)
+	http.HandleFunc("/api/decision", requireAdmin(apiHandleDecision))
+	http.HandleFunc("/check/decision", requireAdmin(apiHandleDecisionAlias))
+	http.HandleFunc("/api/history/", requireAdmin(apiGetHistoryItem))
 
 	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)

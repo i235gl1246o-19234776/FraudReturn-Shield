@@ -7,6 +7,7 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
+
         .admin-nav {
             background: white;
             padding: 12px 0;
@@ -91,148 +92,17 @@
             display: inline-flex; align-items: center; gap: 6px;
             color: var(--success); font-size: 0.85rem; margin-left: 10px;
             animation: fadeIn 0.3s ease;
-            cursor: help;
-            transition: opacity 0.2s;
-        }
-        .auto-fill-indicator:hover { opacity: 1 !important; }
-        .auto-fill-indicator::after {
-            content: "✎ Можно изменить";
-            font-size: 0.75rem;
-            margin-left: 8px;
-            color: var(--gray-500);
         }
 
-        /* Подсветка полей при фокусе */
-        .form-group input:focus,
-        .form-group select:focus {
-            border-color: var(--wb-purple);
-            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
-            outline: none;
-        }
-
-        /* Индикатор изменённого поля */
-        .form-group input.edited,
-        .form-group select.edited {
-            border-left: 3px solid var(--warning);
-            background: rgba(255, 193, 7, 0.03);
-        }
-
-        /* Анимация результата */
-        #resultCard {
-            animation: slideUp 0.4s ease-out;
-        }
-        @keyframes slideUp {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Toast уведомления */
-        .toast {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            padding: 14px 20px;
-            background: white;
-            border-left: 4px solid var(--success);
-            border-radius: var(--radius-lg);
-            box-shadow: var(--shadow-lg);
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            font-weight: 500;
-            z-index: 9999;
-            animation: slideIn 0.3s ease-out;
-            max-width: 350px;
-        }
-        .toast.error { border-left-color: var(--danger); }
-        .toast.info { border-left-color: var(--warning); }
-        @keyframes slideIn {
-            from { transform: translateX(120%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-        }
-        @keyframes fadeOut {
-            to { opacity: 0; transform: translateX(20px); }
-        }
-
-        /* Gauge стили */
-        .gauge-circle svg { width: 120px; height: 120px; transform: rotate(-90deg); }
-        .gauge-bg { fill: none; stroke: var(--gray-200); stroke-width: 8; }
-        .gauge-fill {
-            fill: none;
-            stroke: var(--wb-purple);
-            stroke-width: 8;
-            stroke-linecap: round;
-            stroke-dasharray: 283;
-            stroke-dashoffset: 283;
-            transition: stroke-dashoffset 0.8s ease, stroke 0.3s;
-        }
-        .gauge-value {
-            position: absolute;
-            top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 1.5rem;
-            font-weight: 800;
-            color: var(--gray-900);
-        }
-        .risk-gauge {
-            display: flex;
-            align-items: center;
-            gap: 30px;
-            padding: 20px;
-            background: var(--gray-50);
-            border-radius: var(--radius-lg);
-            margin-bottom: 20px;
-        }
-        .risk-badge {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 12px 20px;
-            border-radius: 50px;
-            font-weight: 600;
-            font-size: 1.1rem;
-        }
-        .risk-badge.risk-low { background: #d4edda; color: #155724; }
-        .risk-badge.risk-medium { background: #fff3cd; color: #856404; }
-        .risk-badge.risk-high { background: #f8d7da; color: #721c24; }
-
-        /* Факторы риска */
-        .factor-list {
-            list-style: none;
-            padding: 0;
-            margin: 0;
-        }
-        .factor-item {
-            display: flex;
-            justify-content: space-between;
-            padding: 10px 0;
-            border-bottom: 1px solid var(--gray-100);
-            font-size: 0.95rem;
-        }
-        .factor-item:last-child { border-bottom: none; }
-        .factor-value.positive { color: var(--danger); font-weight: 600; }
-        .factor-value.negative { color: var(--success); font-weight: 600; }
-
-        /* Кнопки действий */
-        .action-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 25px;
-        }
-        .action-buttons .btn {
-            flex: 1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 8px;
-        }
     </style>
 </head>
 <body>
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
-                <img src="/static/svg/щит.svg" alt="Shield">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                </svg>
                 FraudReturn Shield
             </a>
             <ul class="admin-nav-links">
@@ -246,242 +116,238 @@
         </div>
     </nav>
 
-    <!-- Hero -->
-    <section class="hero">
-        <div class="container">
-            <div class="hero-badge">AI-Powered Fraud Detection v3.0</div>
-            <h1>Проверка возврата</h1>
-            <p>Заполните форму для оценки риска мошеннического возврата</p>
-        </div>
-    </section>
+        <!-- Hero -->
+        <section class="hero">
+            </div>
+            <div class="container">
+                <div class="hero-badge">AI-Powered Fraud Detection v3.0</div>
+                <h1>Проверка возврата</h1>
+                <p>Заполните форму для оценки риска мошеннического возврата</p>
+            </div>
+        </section>
 
-    <!-- Основная форма -->
-    <main class="main">
-        <div class="container">
-            <div class="card">
-                <div class="card-header">
-                    <h2>Данные возврата</h2>
-                </div>
-                <div class="card-body">
-                    <!-- 🔧 Убраны action и method — отправка через JS -->
-                    <form class="form" id="fraudForm">
-                        <!-- Секция 1: Идентификаторы -->
-                        <div class="form-section">
-                            <h3>Идентификаторы</h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="clientID">ID клиента *</label>
-                                    <div class="autocomplete-container">
-                                        <input type="number" id="clientID" name="clientID" required placeholder="1" min="1" class="search-input" oninput="searchClients(this.value)">
-                                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="11" cy="11" r="8"/>
-                                            <path d="m21 21-4.35-4.35"/>
-                                        </svg>
-                                        <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+        <!-- Основная форма -->
+        <main class="main">
+            <div class="container">
+                <div class="card">
+                    <div class="card-header">
+                        <h2>Данные возврата</h2>
+                    </div>
+                    <div class="card-body">
+                        <form class="form" action="/check" method="POST" id="fraudForm">
+                            <!-- Секция 1: Идентификаторы -->
+                            <div class="form-section">
+                                <h3>Идентификаторы</h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="clientID">ID клиента *</label>
+                                        <div class="autocomplete-container">
+                                            <input type="number" id="clientID" name="clientID" required placeholder="1" min="1" class="search-input" oninput="searchClients(this.value)">
+                                            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"/>
+                                                <path d="m21 21-4.35-4.35"/>
+                                            </svg>
+                                            <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                        </div>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
                                     </div>
-                                    <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID или выберите из списка заказов клиента</small>
-                                </div>
-                                <div class="form-group">
-                                    <label for="orderID">ID заказа *</label>
-                                    <div class="autocomplete-container">
-                                        <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)" onfocus="if(!this.value) searchOrders('', selectedClientId)">
-                                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="11" cy="11" r="8"/>
-                                            <path d="m21 21-4.35-4.35"/>
-                                        </svg>
-                                        <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                    <div class="form-group">
+                                        <label for="orderID">ID заказа *</label>
+                                        <div class="autocomplete-container">
+                                            <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)">
+                                            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                                <circle cx="11" cy="11" r="8"/>
+                                                <path d="m21 21-4.35-4.35"/>
+                                            </svg>
+                                            <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                        </div>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">ведите ID для автозаполнения</small>
                                     </div>
-                                    <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Секция 2: Данные клиента -->
-                        <div class="form-section">
-                            <h3>Данные клиента
-                                <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="20 6 9 17 4 12"/>
-                                    </svg>
-                                    Заполнено из БД
-                                </span>
-                            </h3>
-                            <div class="form-row">
-                                <div class="form-group">
-                                    <label for="accountAgeDays">Возраст аккаунта (дни) *</label>
-                                    <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0">
-                                </div>
-                                <div class="form-group">
-                                    <label for="totalOrders">Всего заказов *</label>
-                                    <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0">
+                            <!-- Секция 2: Данные клиента -->
+                            <div class="form-section">
+                                <h3>Данные клиента
+                                    <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                        Заполнено из БД
+                                    </span>
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="accountAgeDays">Возраст аккаунта (дни) *</label>
+                                        <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="totalOrders">Всего заказов *</label>
+                                        <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0">
+                                    </div>
                                 </div>
                             </div>
-                        </div>
 
-                        <!-- Секция 3: Параметры заказа -->
-                        <div class="form-section">
-                            <h3>Параметры заказа
-                                <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
-                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                        <polyline points="20 6 9 17 4 12"/>
-                                    </svg>
-                                    Заполнено из БД
-                                </span>
-                            </h3>
-                            <div class="form-row">
+                            <!-- Секция 3: Параметры заказа -->
+                            <div class="form-section">
+                                <h3>Параметры заказа
+                                    <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="20 6 9 17 4 12"/>
+                                        </svg>
+                                        Заполнено из БД
+                                    </span>
+                                </h3>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="category">Категория товара *</label>
+                                        <select id="category" name="category" required>
+                                            <option value="">Выберите категорию</option>
+                                            <option value="electronics">Электроника</option>
+                                            <option value="clothing">Одежда</option>
+                                            <option value="books">Книги</option>
+                                            <option value="toys">Игрушки</option>
+                                            <option value="home">Для дома</option>
+                                        </select>
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="orderAmount">Сумма заказа (₽) *</label>
+                                        <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" step="0.01">
+                                    </div>
+                                    <div class="form-group">
+                                        <label for="daysToReturn">Дней до возврата</label>
+                                        <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0">
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Секция 4: Состояние товара -->
+                            <div class="form-section">
+                                <h3>Состояние товара</h3>
+                                <div class="checkbox-group">
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="hasTag" id="hasTag" checked>
+                                        <span>✓ Бирка на месте</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
+                                        <span>✓ Чек предоставлен</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="hasDamage" id="hasDamage">
+                                        <span>Есть повреждения</span>
+                                    </label>
+                                    <label class="checkbox">
+                                        <input type="checkbox" name="isUsed" id="isUsed">
+                                        <span>Есть следы использования</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Секция 5: Причина возврата -->
+                            <div class="form-section">
+                                <h3>Причина возврата *</h3>
                                 <div class="form-group">
-                                    <label for="category">Категория товара *</label>
-                                    <select id="category" name="category" required>
-                                        <option value="">Выберите категорию</option>
-                                        <option value="electronics">Электроника</option>
-                                        <option value="clothing">Одежда</option>
-                                        <option value="books">Книги</option>
-                                        <option value="toys">Игрушки</option>
-                                        <option value="home">Для дома</option>
+                                    <select id="reason" name="reason" required>
+                                        <option value="">Выберите причину</option>
+                                        <option value="defect">Дефект / Брак</option>
+                                        <option value="size">Не подошел размер</option>
+                                        <option value="color">Не тот цвет</option>
+                                        <option value="quality">Некачественные материалы</option>
+                                        <option value="changed_mind">Передумал</option>
+                                        <option value="other">Другое</option>
                                     </select>
                                 </div>
-                                <div class="form-group">
-                                    <label for="orderAmount">Сумма заказа (₽) *</label>
-                                    <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" step="0.01">
-                                </div>
-                                <div class="form-group">
-                                    <label for="daysToReturn">Дней до возврата</label>
-                                    <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0">
-                                </div>
+                            </div>
+
+                            <!-- Кнопки -->
+                            <div style="display: flex; gap: 15px; margin-top: 25px;">
+                                <button type="submit" class="btn btn-primary" style="flex: 1;">
+                                    Оценить риск
+                                </button>
+                                <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
+                            </div>
+
+                            <!-- 🔧 СКРЫТЫЕ ПОЛЯ для недостающих признаков модели (42 total) -->
+                             <input type="hidden" name="isWeekend" value="0">
+                            <input type="hidden" name="discountPercent" value="0">
+                            <input type="hidden" name="promoCodeUsed" value="0">
+                            <input type="hidden" name="firstOrderDiscountAbuse" value="0">
+                            <input type="hidden" name="paymentMethodRisk" value="0.2">
+                            <input type="hidden" name="chargebackHistory90d" value="0">
+                            <input type="hidden" name="cardBinCountryMismatch" value="0">
+                            <input type="hidden" name="shippingRegionRisk" value="0.2">
+                            <input type="hidden" name="deliveryAddressType" value="0">
+                            <input type="hidden" name="distanceFromRegistrationCity" value="50">
+                            <input type="hidden" name="orderHour" value="12">
+                            <input type="hidden" name="orderTimeNight" value="0">
+                            <input type="hidden" name="ipVelocity24h" value="2">
+                            <input type="hidden" name="ipVelocity7d" value="5">
+                            <input type="hidden" name="accountsPerIp" value="1">
+                            <input type="hidden" name="accountsPerPhone" value="1">
+                            <input type="hidden" name="accountsPerDevice" value="1">
+                            <input type="hidden" name="deviceIsEmulator" value="0">
+                            <input type="hidden" name="deviceTrustScore" value="0.75">
+                            <input type="hidden" name="ipTrustScore" value="0.75">
+                            <input type="hidden" name="avgOrderAmount" value="0">
+                            <input type="hidden" name="returnRate30d" value="0">
+                            <input type="hidden" name="refundVelocity7d" value="0">
+                            <input type="hidden" name="refundVelocity30d" value="1">
+                            <input type="hidden" name="supportTicketCount30d" value="1">
+                            <input type="hidden" name="reviewCount30d" value="2">
+                            <input type="hidden" name="negativeReviewCluster" value="0">
+                            <input type="hidden" name="threatLanguageDetected" value="0">
+                            <input type="hidden" name="legalClaimThreat" value="0">
+                            <input type="hidden" name="itemsInOrder" value="1">
+                            <input type="hidden" name="isElectronics" value="0">
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Результат -->
+                <div id="resultCard" class="card result-card" style="display: none;">
+                    <div class="card-header">
+                        <h2>Результат анализа</h2>
+                    </div>
+                    <div class="card-body">
+                        <div class="risk-gauge">
+                            <div class="gauge-circle">
+                                <svg viewBox="0 0 100 100">
+                                    <circle class="gauge-bg" cx="50" cy="50" r="45"/>
+                                    <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="45"/>
+                                </svg>
+                                <div class="gauge-value" id="riskScore">0%</div>
+                            </div>
+                            <div class="risk-badge" id="riskBadge">
+                                <img src="/static/svg/зеленый.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;" id="riskIcon">
+                                <span id="riskText">Низкий риск</span>
                             </div>
                         </div>
-
-                        <!-- Секция 4: Состояние товара -->
-                        <div class="form-section">
-                            <h3>Состояние товара</h3>
-                            <div class="checkbox-group">
-                                <label class="checkbox">
-                                    <input type="checkbox" name="hasTag" id="hasTag" checked>
-                                    <span>✓ Бирка на месте</span>
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
-                                    <span>✓ Чек предоставлен</span>
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="hasDamage" id="hasDamage">
-                                    <span>Есть повреждения</span>
-                                </label>
-                                <label class="checkbox">
-                                    <input type="checkbox" name="isUsed" id="isUsed">
-                                    <span>Есть следы использования</span>
-                                </label>
-                            </div>
+                        <div class="recommendation">
+                            <strong>Рекомендация</strong>
+                            <p id="recommendationText"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;"> Автоматическое одобрение возврата</p>
                         </div>
-
-                        <!-- Секция 5: Причина возврата -->
-                        <div class="form-section">
-                            <h3>Причина возврата *</h3>
-                            <div class="form-group">
-                                <select id="reason" name="reason" required>
-                                    <option value="">Выберите причину</option>
-                                    <option value="defect">Дефект / Брак</option>
-                                    <option value="size">Не подошел размер</option>
-                                    <option value="color">Не тот цвет</option>
-                                    <option value="quality">Некачественные материалы</option>
-                                    <option value="changed_mind">Передумал</option>
-                                    <option value="other">Другое</option>
-                                </select>
-                            </div>
+                        <div class="factors">
+                            <h3>Факторы риска</h3>
+                            <ul class="factor-list" id="shapList"></ul>
                         </div>
-
-                        <!-- Кнопки -->
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
-                            <button type="submit" class="btn btn-primary" style="flex: 1;">
-                                Оценить риск
-                            </button>
-                            <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
+                            <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> Одобрить</button>
+                            <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;"><img src="/static/svg/знак внимания.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> На проверку</button>
+                            <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;"><img src="/static/svg/крест.svg" alt="" style="width: 18px; height: 40px; vertical-align: middle; margin-right: 8px;"> Отклонить</button>
                         </div>
-
-                        <!-- 🔧 СКРЫТЫЕ ПОЛЯ для недостающих признаков модели (42 total) -->
-                        <input type="hidden" name="isWeekend" value="0">
-                        <input type="hidden" name="discountPercent" value="0">
-                        <input type="hidden" name="promoCodeUsed" value="0">
-                        <input type="hidden" name="firstOrderDiscountAbuse" value="0">
-                        <input type="hidden" name="paymentMethodRisk" value="0.2">
-                        <input type="hidden" name="chargebackHistory90d" value="0">
-                        <input type="hidden" name="cardBinCountryMismatch" value="0">
-                        <input type="hidden" name="shippingRegionRisk" value="0.2">
-                        <input type="hidden" name="deliveryAddressType" value="0">
-                        <input type="hidden" name="distanceFromRegistrationCity" value="50">
-                        <input type="hidden" name="orderHour" value="12">
-                        <input type="hidden" name="orderTimeNight" value="0">
-                        <input type="hidden" name="ipVelocity24h" value="2">
-                        <input type="hidden" name="ipVelocity7d" value="5">
-                        <input type="hidden" name="accountsPerIp" value="1">
-                        <input type="hidden" name="accountsPerPhone" value="1">
-                        <input type="hidden" name="accountsPerDevice" value="1">
-                        <input type="hidden" name="deviceIsEmulator" value="0">
-                        <input type="hidden" name="deviceTrustScore" value="0.75">
-                        <input type="hidden" name="ipTrustScore" value="0.75">
-                        <input type="hidden" name="avgOrderAmount" value="0">
-                        <input type="hidden" name="returnRate30d" value="0">
-                        <input type="hidden" name="refundVelocity7d" value="0">
-                        <input type="hidden" name="refundVelocity30d" value="1">
-                        <input type="hidden" name="supportTicketCount30d" value="1">
-                        <input type="hidden" name="reviewCount30d" value="2">
-                        <input type="hidden" name="negativeReviewCluster" value="0">
-                        <input type="hidden" name="threatLanguageDetected" value="0">
-                        <input type="hidden" name="legalClaimThreat" value="0">
-                        <input type="hidden" name="itemsInOrder" value="1">
-                        <input type="hidden" name="isElectronics" value="0">
-                        <input type="hidden" name="totalReturns" value="0">
-                        <input type="hidden" name="addressChangeFrequency" value="0">
-                        <input type="hidden" name="categoryReturnsCount" value="0">
-                        <input type="hidden" name="amountDeviation" value="0">
-                        <input type="hidden" name="ordersLast30d" value="0">
-                    </form>
-                </div>
-            </div>
-
-            <!-- Результат -->
-            <div id="resultCard" class="card result-card" style="display: none;">
-                <div class="card-header">
-                    <h2>Результат анализа</h2>
-                </div>
-                <div class="card-body">
-                    <div class="risk-gauge">
-                        <div class="gauge-circle">
-                            <svg viewBox="0 0 100 100">
-                                <circle class="gauge-bg" cx="50" cy="50" r="45"/>
-                                <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="45"/>
-                            </svg>
-                            <div class="gauge-value" id="riskScore">0%</div>
-                        </div>
-                        <div class="risk-badge" id="riskBadge">
-                            <img src="/static/svg/зеленый.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;" id="riskIcon">
-                            <span id="riskText">Низкий риск</span>
-                        </div>
-                    </div>
-                    <div class="recommendation">
-                        <strong>Рекомендация</strong>
-                        <p id="recommendationText"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;"> Автоматическое одобрение возврата</p>
-                    </div>
-                    <div class="factors">
-                        <h3>Факторы риска</h3>
-                        <ul class="factor-list" id="shapList"></ul>
-                    </div>
-                    <div class="action-buttons">
-                        <button class="btn btn-secondary" onclick="approveReturn()"><img src="/static/svg/галочка.svg" alt="" style="width: 20px; height: 20px; vertical-align: middle;"> Одобрить</button>
-                        <button class="btn btn-secondary" onclick="manualReview()"><img src="/static/svg/знак внимания.svg" alt="" style="width: 20px; height: 20px; vertical-align: middle;"> На проверку</button>
-                        <button class="btn btn-secondary" onclick="rejectReturn()"><img src="/static/svg/крест.svg" alt="" style="width: 18px; height: 18px; vertical-align: middle;"> Отклонить</button>
                     </div>
                 </div>
             </div>
-        </div>
-    </main>
+        </main>
 
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <p>© 2026 FraudReturn Shield. Учебный проект</p>
-        </div>
-    </footer>
+        <!-- Footer -->
+        <footer class="footer">
+            <div class="container">
+                <p>© 2026 FraudReturn Shield. Учебный проект</p>
+            </div>
+        </footer>
+    </div>
 
     <script>
     let selectedClientId = null;
@@ -514,6 +380,7 @@
         }
     }
 
+    // Выбор клиента
     async function selectClient(clientId) {
         selectedClientId = clientId;
         document.getElementById('clientID').value = clientId;
@@ -521,10 +388,12 @@
         document.getElementById('clientFillIndicator').style.display = 'inline-flex';
         
         await loadClientData(clientId);
+        
         await searchOrders('', clientId);
         
         showToast('Данные клиента загружены', 'success');
     }
+
 
     async function searchOrders(query, clientId = null) {
         const dropdown = document.getElementById('orderDropdown');
@@ -533,25 +402,19 @@
             clientId = selectedClientId;
         }
         
-        if (!dropdown) {
+        if (dropdown === null) {
             console.error('orderDropdown не найден');
             return;
         }
         
-        if (!query || query.trim() === '') {
-            query = '';
-        }
-
         try {
             const url = clientId 
                 ? `/api/orders?client_id=${clientId}&q=${encodeURIComponent(query)}`
                 : `/api/orders?q=${encodeURIComponent(query)}`;
             
-            console.log('Fetching orders from:', url);
             const res = await fetch(url);
             if (res.ok) {
                 const data = await res.json();
-                console.log('Received orders:', data.orders?.length || 0);
                 
                 if (data.orders && data.orders.length > 0) {
                     dropdown.innerHTML = data.orders.map(order => `
@@ -566,7 +429,6 @@
                     dropdown.style.display = 'block';
                 }
             } else {
-                console.error('API error:', res.status);
                 dropdown.style.display = 'none';
             }
         } catch (err) {
@@ -586,173 +448,210 @@
         showToast('Данные заказа загружены', 'success');
     }
 
+
+    async function loadClientData(clientId) {
+    try {
+        const res = await fetch(`/api/client/${clientId}`);
+        if (res.ok) {
+            const client = await res.json();
+            
+            // === Видимые поля ===
+            if (client.account_age_days) {
+                document.getElementById('accountAgeDays').value = client.account_age_days;
+            }
+            if (client.total_orders) {
+                document.getElementById('totalOrders').value = client.total_orders;
+            }
+            
+            // === СКРЫТЫЕ ПОЛЯ — заполняем из БД ===
+            setHiddenField('avgOrderAmount', client.avg_order_amount);
+            setHiddenField('totalReturns', client.total_returns);
+            setHiddenField('addressChangeFrequency', client.address_change_frequency);
+            setHiddenField('categoryReturnsCount', client.category_returns_count);
+            
+            // 🎯 Вычисляем производные признаки (как в Go EnrichFromDB)
+            const totalOrders = parseInt(client.total_orders) || 0;
+            const totalReturns = parseInt(client.total_returns) || 0;
+            
+            // ReturnRate30d (упрощённо: общий % возвратов)
+            if (totalOrders > 0) {
+                const returnRate30d = (totalReturns / totalOrders) * 100;
+                setHiddenField('returnRate30d', returnRate30d.toFixed(2));
+            }
+            
+            // Trust scores (базовая эвристика)
+            const trustScore = totalOrders > 0 ? Math.max(0.3, 1 - (totalReturns / totalOrders) * 0.5) : 0.75;
+            setHiddenField('deviceTrustScore', trustScore.toFixed(2));
+            setHiddenField('ipTrustScore', trustScore.toFixed(2));
+            
+            // Accounts per IP/Device (если есть address_change_frequency)
+            if (client.address_change_frequency) {
+                const freq = parseFloat(client.address_change_frequency);
+                setHiddenField('accountsPerIP', Math.min(10, Math.floor(freq) + 1));
+                setHiddenField('distanceFromRegistrationCity', (freq * 100).toFixed(0));
+            }
+            
+            console.log('✅ Клиент загружен:', client);
+            showToast('Данные клиента обновлены', 'success');
+        }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки клиента:', err);
+    }
+}
+
+// 🔧 ЗАМЕНИТЕ функцию loadOrderData на эту версию:
+
+function safeSetChecked(id, value) {
+    const el = document.getElementById(id);
+    if (el && el.type === 'checkbox') {
+        el.checked = Boolean(value);
+    }
+}
+
+function safeSetValue(id, value) {
+    const el = document.getElementById(id);
+    if (el) {
+        el.value = value;
+    }
+}
+async function loadOrderData(orderId) {
+    try {
+        const res = await fetch(`/api/order/${orderId}`);
+        if (res.ok) {
+            const order = await res.json();
+            
+            // === Видимые поля ===
+            if (order.order_amount) {
+                safeSetValue('orderAmount', order.order_amount);
+            }
+            if (order.items_count) {
+                setHiddenField('itemsInOrder', order.items_count);
+            }
+
+            if (order.product_category) {
+                const categorySelect = document.getElementById('category');
+                const catMap = {
+                    'electronics': 'electronics',
+                    'clothing': 'clothing',
+                    'books': 'books',
+                    'sports': 'sports',
+                    'home': 'home',
+                    'toys': 'toys'
+                };
+                const mappedCat = catMap[order.product_category.toLowerCase()] || '';
+                if (mappedCat && categorySelect) {
+                    categorySelect.value = mappedCat;
+                }
+            }
+
+            if (order.days_to_return !== undefined && order.days_to_return !== null) {
+                safeSetValue('daysToReturn', order.days_to_return);
+            }
+
+            if (order.reason) {
+                const reasonSelect = document.getElementById('reason');
+                const reasonMap = {
+                    'defect': 'defect',
+                    'defective': 'defect',
+                    'брак': 'defect',
+                    'defect': 'defect',
+                    'wrong size': 'size',
+                    'размер': 'size',
+                    'size': 'size',
+                    'not as described': 'other',
+                    'changed mind': 'changed_mind',
+                    'передумал': 'changed_mind',
+                    'changed_mind': 'changed_mind',
+                    'other': 'other'
+                };
+                const mappedReason = reasonMap[order.reason.toLowerCase()] || 'other';
+                if (reasonSelect) {
+                    reasonSelect.value = mappedReason;
+                }
+            }
+
+            if (order.return_channel) {
+                const channel = order.return_channel.toLowerCase();
+                // Если возврат через курьера/магазин - обычно товар в хорошем состоянии
+                if (channel.includes('courier')) {
+                    safeSetChecked('hasTag', true);
+                    safeSetChecked('hasReceipt', true);
+                    safeSetChecked('hasDamage', false);
+                    safeSetChecked('isUsed', false);
+                }
+                // Если возврат почтой
+                if (channel.includes('post')) {
+                    safeSetChecked('hasTag', false);
+                    safeSetChecked('hasReceipt', true);
+                    safeSetChecked('hasDamage', false);
+                    safeSetChecked('isUsed', false);
+                }
+                // Если возврат через пункт выдачи (dropoff)
+                if (channel.includes('dropoff')) {
+                    safeSetChecked('hasTag', true);
+                    safeSetChecked('hasReceipt', true);
+                    safeSetChecked('hasDamage', false);
+                    safeSetChecked('isUsed', false);
+                }
+            }
+            
+            // === СКРЫТЫЕ ПОЛЯ из заказа ===
+            setHiddenField('paymentMethodRisk', getPaymentRisk(order.payment_method));
+            setHiddenField('amountDeviation', order.amount_deviation);
+            setHiddenField('ordersLast30d', order.orders_last_30d);
+            
+            // === Время заказа → признаки ===
+            if (order.order_timestamp) {
+                const date = new Date(order.order_timestamp);
+                const hour = date.getHours();
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                const isNight = hour >= 0 && hour <= 5;
+                
+                safeSetChecked('isWeekend', isWeekend);
+                setHiddenField('orderHour', hour);
+                setHiddenField('orderTimeNight', isNight ? 1 : 0);
+            }
+            
+            // === Электроника? ===
+            const category = document.getElementById('category')?.value;
+            setHiddenField('isElectronics', category === 'electronics' ? 1 : 0);
+            
+            // === Velocity признаки (упрощённо) ===
+            const orders30d = parseInt(order.orders_last_30d) || 0;
+            setHiddenField('ipVelocity24h', Math.min(orders30d, 20));
+            setHiddenField('ipVelocity7d', Math.min(orders30d * 2, 50));
+            setHiddenField('refundVelocity30d', orders30d);
+            
+            // === Promo / Discount ===
+            const orderAmount = parseFloat(order.order_amount) || 0;
+            const discount = parseFloat(order.discount_amount) || 0;
+            if (orderAmount > 0 && discount > 0) {
+                const discountPercent = (discount / orderAmount) * 100;
+                setHiddenField('discountPercent', discountPercent.toFixed(2));
+                setHiddenField('promoCodeUsed', discountPercent > 10 ? 1 : 0);
+                setHiddenField('firstOrderDiscountAbuse', 
+                    (orders30d === 1 && discountPercent > 20) ? 1 : 0);
+            }
+            
+            console.log('✅ Заказ загружен:', order);
+            showToast('Данные заказа обновлены', 'success');
+        }
+    } catch (err) {
+        console.error('❌ Ошибка загрузки заказа:', err);
+    }
+}
+
+    // 🆕 Вспомогательная функция для скрытых полей
     function setHiddenField(name, value) {
         const field = document.querySelector(`input[name="${name}"]`);
         if (field && value !== undefined && value !== null) {
             field.value = value;
+            // 🔍 Отладка: раскомментируйте, чтобы видеть в консоли
+            // console.log(`[HIDDEN] ${name} = ${value}`);
         }
     }
 
-    function safeSetChecked(id, value) {
-        const el = document.getElementById(id);
-        if (el && el.type === 'checkbox') {
-            el.checked = Boolean(value);
-        }
-    }
-
-    function safeSetValue(id, value) {
-        const el = document.getElementById(id);
-        if (el) {
-            el.value = value;
-        }
-    }
-
-    async function loadClientData(clientId) {
-        try {
-            const res = await fetch(`/api/client/${clientId}`);
-            if (res.ok) {
-                const client = await res.json();
-                
-                if (client.account_age_days) {
-                    document.getElementById('accountAgeDays').value = client.account_age_days;
-                }
-                if (client.total_orders) {
-                    document.getElementById('totalOrders').value = client.total_orders;
-                }
-                
-                setHiddenField('avgOrderAmount', client.avg_order_amount);
-                setHiddenField('totalReturns', client.total_returns);
-                setHiddenField('addressChangeFrequency', client.address_change_frequency);
-                setHiddenField('categoryReturnsCount', client.category_returns_count);
-                
-                const totalOrders = parseInt(client.total_orders) || 0;
-                const totalReturns = parseInt(client.total_returns) || 0;
-                
-                if (totalOrders > 0) {
-                    const returnRate30d = (totalReturns / totalOrders) * 100;
-                    setHiddenField('returnRate30d', returnRate30d.toFixed(2));
-                }
-                
-                const trustScore = totalOrders > 0 ? Math.max(0.3, 1 - (totalReturns / totalOrders) * 0.5) : 0.75;
-                setHiddenField('deviceTrustScore', trustScore.toFixed(2));
-                setHiddenField('ipTrustScore', trustScore.toFixed(2));
-                
-                if (client.address_change_frequency) {
-                    const freq = parseFloat(client.address_change_frequency);
-                    setHiddenField('accountsPerIp', Math.min(10, Math.floor(freq) + 1));
-                    setHiddenField('distanceFromRegistrationCity', (freq * 100).toFixed(0));
-                }
-                
-                console.log('✅ Клиент загружен:', client);
-            }
-        } catch (err) {
-            console.error('❌ Ошибка загрузки клиента:', err);
-        }
-    }
-
-    async function loadOrderData(orderId) {
-        try {
-            const res = await fetch(`/api/order/${orderId}`);
-            if (res.ok) {
-                const order = await res.json();
-                
-                if (order.order_amount) {
-                    safeSetValue('orderAmount', order.order_amount);
-                }
-                if (order.items_count) {
-                    setHiddenField('itemsInOrder', order.items_count);
-                }
-
-                if (order.product_category) {
-                    const categorySelect = document.getElementById('category');
-                    const catMap = {
-                        'electronics': 'electronics',
-                        'clothing': 'clothing',
-                        'books': 'books',
-                        'sports': 'sports',
-                        'home': 'home',
-                        'toys': 'toys'
-                    };
-                    const mappedCat = catMap[order.product_category.toLowerCase()] || '';
-                    if (mappedCat && categorySelect) {
-                        categorySelect.value = mappedCat;
-                    }
-                }
-
-                if (order.days_to_return !== undefined && order.days_to_return !== null) {
-                    safeSetValue('daysToReturn', order.days_to_return);
-                }
-
-                if (order.reason) {
-                    const reasonSelect = document.getElementById('reason');
-                    const reasonMap = {
-                        'defect': 'defect', 'defective': 'defect', 'брак': 'defect',
-                        'wrong size': 'size', 'размер': 'size', 'size': 'size',
-                        'not as described': 'other',
-                        'changed mind': 'changed_mind', 'передумал': 'changed_mind', 'changed_mind': 'changed_mind',
-                        'other': 'other'
-                    };
-                    const mappedReason = reasonMap[order.reason.toLowerCase()] || 'other';
-                    if (reasonSelect) {
-                        reasonSelect.value = mappedReason;
-                    }
-                }
-
-                if (order.return_channel) {
-                    const channel = order.return_channel.toLowerCase();
-                    if (channel.includes('courier') || channel.includes('dropoff')) {
-                        safeSetChecked('hasTag', true);
-                        safeSetChecked('hasReceipt', true);
-                        safeSetChecked('hasDamage', false);
-                        safeSetChecked('isUsed', false);
-                    }
-                    if (channel.includes('post')) {
-                        safeSetChecked('hasTag', false);
-                        safeSetChecked('hasReceipt', true);
-                        safeSetChecked('hasDamage', false);
-                        safeSetChecked('isUsed', false);
-                    }
-                }
-                
-                setHiddenField('paymentMethodRisk', getPaymentRisk(order.payment_method));
-                setHiddenField('amountDeviation', order.amount_deviation);
-                setHiddenField('ordersLast30d', order.orders_last_30d);
-                
-                if (order.order_timestamp) {
-                    const date = new Date(order.order_timestamp);
-                    const hour = date.getHours();
-                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                    const isNight = hour >= 0 && hour <= 5;
-                    
-                    setHiddenField('isWeekend', isWeekend ? 1 : 0);
-                    setHiddenField('orderHour', hour);
-                    setHiddenField('orderTimeNight', isNight ? 1 : 0);
-                }
-                
-                const category = document.getElementById('category')?.value;
-                setHiddenField('isElectronics', category === 'electronics' ? 1 : 0);
-                
-                const orders30d = parseInt(order.orders_last_30d) || 0;
-                setHiddenField('ipVelocity24h', Math.min(orders30d, 20));
-                setHiddenField('ipVelocity7d', Math.min(orders30d * 2, 50));
-                setHiddenField('refundVelocity30d', orders30d);
-                
-                const orderAmount = parseFloat(order.order_amount) || 0;
-                const discount = parseFloat(order.discount_amount) || 0;
-                if (orderAmount > 0 && discount > 0) {
-                    const discountPercent = (discount / orderAmount) * 100;
-                    setHiddenField('discountPercent', discountPercent.toFixed(2));
-                    setHiddenField('promoCodeUsed', discountPercent > 10 ? 1 : 0);
-                    setHiddenField('firstOrderDiscountAbuse', (orders30d === 1 && discountPercent > 20) ? 1 : 0);
-                }
-                
-                console.log('✅ Заказ загружен:', order);
-            }
-        } catch (err) {
-            console.error('❌ Ошибка загрузки заказа:', err);
-        }
-    }
-
+    // 🆕 Helper: риск платёжного метода
     function getPaymentRisk(method) {
         if (!method) return 0.2;
         const m = method.toLowerCase();
@@ -761,200 +660,78 @@
         return 0.2;
     }
 
+
     function clearForm() {
-        if (confirm('Очистить все поля формы?')) {
-            document.getElementById('fraudForm').reset();
-            const resultCard = document.getElementById('resultCard');
-            if (resultCard) resultCard.style.display = 'none';
-            document.getElementById('clientFillIndicator').style.display = 'none';
-            document.getElementById('orderFillIndicator').style.display = 'none';
-            selectedClientId = null;
-            selectedOrderId = null;
-            showToast('Форма очищена', 'success');
+    if (confirm('Очистить все поля формы?')) {
+        document.getElementById('fraudForm').reset();
+
+        const resultCard = document.getElementById('resultCard');
+        if (resultCard) {
+            resultCard.style.display = 'none';
         }
+        
+        document.getElementById('clientFillIndicator').style.display = 'none';
+        document.getElementById('orderFillIndicator').style.display = 'none';
+        selectedClientId = null;
+        selectedOrderId = null;
+        showToast('Форма очищена', 'success');
     }
+}
 
     function showToast(message, type = 'success') {
-        // Удаляем старые тосты
-        document.querySelectorAll('.toast').forEach(t => t.remove());
-        
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
         const iconSrc = type === 'success' ? '/static/svg/галочка.svg' : type === 'error' ? '/static/svg/крест.svg' : '/static/svg/знак внимания.svg';
-        toast.innerHTML = `<img src="${iconSrc}" alt="" style="width: 20px; height: 20px; vertical-align: middle;"><span>${message}</span>`;
+        toast.innerHTML = `
+            <img src="${iconSrc}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;">
+            <span>${message}</span>
+        `;
         document.body.appendChild(toast);
-        
         setTimeout(() => {
             toast.style.animation = 'fadeOut 0.5s ease-out forwards';
             setTimeout(() => toast.remove(), 500);
         }, 3000);
     }
 
-    // === 🔥 ГЛАВНОЕ: Сбор данных ТОЛЬКО при отправке формы ===
-    function collectFormData() {
-        const data = {};
-        
-        // Видимые поля
-        const visibleFields = ['clientID', 'orderID', 'accountAgeDays', 'totalOrders', 'category', 'orderAmount', 'daysToReturn', 'reason'];
-        visibleFields.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) data[id] = el.value;
-        });
-        
-        // Чекбоксы
-        ['hasTag', 'hasReceipt', 'hasDamage', 'isUsed'].forEach(id => {
-            const el = document.getElementById(id);
-            if (el) data[id] = el.checked ? 1 : 0;
-        });
-        
-        // Скрытые поля — читаем ТЕКУЩИЕ значения из DOM
-        const hiddenFields = document.querySelectorAll('#fraudForm input[type="hidden"]');
-        hiddenFields.forEach(field => {
-            if (field.name) data[field.name] = field.value;
-        });
-        
-        console.log('📦 Отправляемые данные:', data);
-        return data;
-    }
-
-    // === Обработчик отправки формы ===
-    document.getElementById('fraudForm').addEventListener('submit', async function(e) {
-        e.preventDefault();
-        
-        // 🔥 Данные собираются ЗДЕСЬ и СЕЙЧАС
-        const formData = collectFormData();
-        
-        // Валидация
-        const required = ['clientID', 'orderID', 'accountAgeDays', 'totalOrders', 'category', 'orderAmount', 'reason'];
-        for (const field of required) {
-            if (!formData[field] || formData[field] === '') {
-                showToast(`Заполните поле: ${field}`, 'error');
-                document.getElementById(field)?.focus();
-                return;
-            }
-        }
-        
-        // Блокировка кнопки
-        const submitBtn = this.querySelector('button[type="submit"]');
-        const originalText = submitBtn.innerHTML;
-        submitBtn.disabled = true;
-        submitBtn.innerHTML = '⏳ Оценка...';
-        
-        try {
-            const response = await fetch('/check', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData)
-            });
-            
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.error || 'Ошибка сервера');
-            }
-            
-            const result = await response.json();
-            showResult(result);
-            
-        } catch (err) {
-            console.error('❌ Ошибка отправки:', err);
-            showToast('Не удалось оценить риск: ' + err.message, 'error');
-        } finally {
-            submitBtn.disabled = false;
-            submitBtn.innerHTML = originalText;
-        }
-    });
-
-    // === Отображение результата ===
-    function showResult(data) {
-        const resultCard = document.getElementById('resultCard');
-        if (!resultCard) return;
-        
-        const score = Math.round(data.risk_score || 0);
-        document.getElementById('riskScore').textContent = score + '%';
-        
-        // Gauge animation
-        const gaugeFill = document.getElementById('gaugeFill');
-        const offset = 283 - (283 * score / 100);
-        gaugeFill.style.strokeDashoffset = offset;
-        
-        // Цветовая схема
-        const badge = document.getElementById('riskBadge');
-        const text = document.getElementById('riskText');
-        const icon = document.getElementById('riskIcon');
-        const recText = document.getElementById('recommendationText');
-        
-        if (score < 30) {
-            badge.className = 'risk-badge risk-low';
-            text.textContent = 'Низкий риск';
-            icon.src = '/static/svg/зеленый.svg';
-            recText.innerHTML = '<img src="/static/svg/галочка.svg" alt="" style="width:20px;height:20px;vertical-align:middle;"> Автоматическое одобрение';
-            gaugeFill.style.stroke = '#28a745';
-        } else if (score < 70) {
-            badge.className = 'risk-badge risk-medium';
-            text.textContent = 'Средний риск';
-            icon.src = '/static/svg/знак внимания.svg';
-            recText.innerHTML = '<img src="/static/svg/знак внимания.svg" alt="" style="width:20px;height:20px;vertical-align:middle;"> Ручная проверка';
-            gaugeFill.style.stroke = '#ffc107';
-        } else {
-            badge.className = 'risk-badge risk-high';
-            text.textContent = 'Высокий риск';
-            icon.src = '/static/svg/крест.svg';
-            recText.innerHTML = '<img src="/static/svg/крест.svg" alt="" style="width:18px;height:18px;vertical-align:middle;"> Отклонить возврат';
-            gaugeFill.style.stroke = '#dc3545';
-        }
-        
-        // Факторы SHAP
-        const shapList = document.getElementById('shapList');
-        shapList.innerHTML = '';
-        if (data.shap_factors && Array.isArray(data.shap_factors)) {
-            data.shap_factors.slice(0, 5).forEach(factor => {
-                const li = document.createElement('li');
-                li.className = 'factor-item';
-                const sign = factor.value > 0 ? '+' : '';
-                li.innerHTML = `<span>${factor.feature}</span><span class="factor-value ${factor.value > 0 ? 'positive' : 'negative'}">${sign}${factor.value.toFixed(2)}</span>`;
-                shapList.appendChild(li);
-            });
-        }
-        
-        resultCard.style.display = 'block';
-        resultCard.scrollIntoView({ behavior: 'smooth' });
-        showToast('Анализ завершён', 'success');
-    }
-
-    // === Кнопки действий ===
-    function approveReturn() { showToast('✅ Возврат одобрен', 'success'); }
-    function manualReview() { showToast('🔍 Отправлено на ручную проверку', 'info'); }
-    function rejectReturn() { showToast('❌ Возврат отклонён', 'error'); }
-
-    // === Инициализация ===
     document.addEventListener('DOMContentLoaded', () => {
-        // Автозаполнение: клиент
         const clientInput = document.getElementById('clientID');
         const clientDropdown = document.getElementById('clientDropdown');
         
         if (clientInput) {
+            clientInput.addEventListener('input', (e) => {
+                searchClients(e.target.value);
+            });
+            
             clientInput.addEventListener('focus', (e) => {
                 document.getElementById('clientFillIndicator').style.display = 'none';
                 document.getElementById('orderFillIndicator').style.display = 'none';
                 selectedClientId = null;
                 selectedOrderId = null;
-                if (e.target.value) searchClients(e.target.value);
+
+                if (e.target.value) {
+                    searchClients(e.target.value);
+                }
             });
         }
         
-        // Автозаполнение: заказ
         const orderInput = document.getElementById('orderID');
         const orderDropdown = document.getElementById('orderDropdown');
         
         if (orderInput) {
+            orderInput.addEventListener('input', (e) => {
+                searchOrders(e.target.value);
+            });
+            
             orderInput.addEventListener('focus', (e) => {
                 document.getElementById('orderFillIndicator').style.display = 'none';
                 selectedOrderId = null;
-                if (e.target.value) searchOrders(e.target.value);
+
+                if (e.target.value) {
+                    searchOrders(e.target.value);
+                }
             });
         }
         
-        // Закрытие dropdown при клике вне
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.autocomplete-container')) {
                 if (clientDropdown) clientDropdown.style.display = 'none';
@@ -962,33 +739,42 @@
             }
         });
         
-        // Подсветка изменённых полей
-        const editableFields = ['accountAgeDays', 'totalOrders', 'orderAmount', 'daysToReturn', 'category', 'reason'];
-        editableFields.forEach(id => {
-            const el = document.getElementById(id);
-            if (el) {
-                el.dataset.original = el.value;
-                el.addEventListener('input', function() {
-                    if (this.value !== this.dataset.original) {
-                        this.classList.add('edited');
-                        // Скрываем индикатор автозаполнения
-                        document.getElementById('clientFillIndicator')?.style.setProperty('opacity', '0.6');
-                        document.getElementById('orderFillIndicator')?.style.setProperty('opacity', '0.6');
-                    } else {
-                        this.classList.remove('edited');
+        const userModal = document.getElementById('userModal');
+        if (userModal) {
+            userModal.addEventListener('click', (e) => {
+                if (e.target.id === 'userModal') {
+                    userModal.classList.remove('active');
+                }
+            });
+        }
+        
+        const userSearch = document.getElementById('userSearch');
+        if (userSearch) {
+            userSearch.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    const searchUsers = window.searchUsers;
+                    if (typeof searchUsers === 'function') {
+                        searchUsers();
                     }
-                });
-            }
-        });
+                }
+            });
+        }
     });
+</script>
 
+<script>
     function logout() {
         sessionStorage.removeItem('user');
         fetch('/api/logout', { method: 'POST' })
-            .then(() => { window.location.href = '/login'; })
-            .catch(() => { window.location.href = '/login'; });
+            .then(() => {
+                window.location.href = '/login';
+            })
+            .catch(() => {
+                window.location.href = '/login';
+            });
     }
-    </script>
-    <script src="/static/js/shield-fix.js"></script>
+</script>
+
+<script src="/static/js/shield-fix.js"></script>
 </body>
 </html>
