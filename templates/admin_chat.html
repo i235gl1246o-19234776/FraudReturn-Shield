@@ -313,11 +313,21 @@
             align-items: center;
             justify-content: center;
             animation: shieldPulse 3s ease-in-out infinite;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
+            transform-style: preserve-3d;
+            will-change: transform;
         }
 
         .shield-svg {
             width: 200px;
             height: 200px;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            shape-rendering: geometricPrecision;
+            text-rendering: geometricPrecision;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             transition: transform 0.3s ease;
         }
@@ -328,10 +338,10 @@
 
         @keyframes shieldPulse {
             0%, 100% {
-                transform: scale(1);
+                transform: scale(1) translateZ(0);
             }
             50% {
-                transform: scale(1.05);
+                transform: scale(1.05) translateZ(0);
             }
         }
     </style>

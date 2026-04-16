@@ -112,13 +112,19 @@
         .shield-svg {
             width: 100%;
             height: 100%;
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+            shape-rendering: geometricPrecision;
+            text-rendering: geometricPrecision;
+            backface-visibility: hidden;
+            -webkit-backface-visibility: hidden;
             filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
             animation: shieldPulse 3s ease-in-out infinite;
         }
 
         @keyframes shieldPulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            0%, 100% { transform: scale(1) translateZ(0); }
+            50% { transform: scale(1.05) translateZ(0); }
         }
 
         .admin-avatar {
@@ -413,5 +419,7 @@
                 });
         }
     </script>
+
+<script src="/static/js/shield-fix.js"></script>
 </body>
 </html>

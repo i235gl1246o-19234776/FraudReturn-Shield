@@ -139,6 +139,38 @@
     </div>
 
 <script>
+    (function saveToHistory() {
+        const resultData = {
+            orderID: {{.OrderID}},
+            clientID: {{.ClientID}},
+            orderAmount: {{.OrderAmount}},
+            riskScore: {{.RiskScore}},
+            riskLevel: "{{.RiskLevel}}",
+            riskClass: "{{.RiskClass}}",
+            recommendation: "{{.Recommendation}}"
+        };
+
+        const historyItem = {
+            timestamp: new Date().toISOString(),
+            data: resultData
+        };
+
+        // Получаем существующую историю
+        let fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+
+        // Добавляем новую запись в начало
+        fraudHistory.unshift(historyItem);
+
+        // Храним только последние 100 записей
+        if (fraudHistory.length > 100) {
+            fraudHistory = fraudHistory.slice(0, 100);
+        }
+
+        // Сохраняем обратно
+        localStorage.setItem('fraudHistory', JSON.stringify(fraudHistory));
+        console.log('✅ Проверка сохранена в историю');
+    })();
+
     function logout() {
         sessionStorage.removeItem('user');
         fetch('/api/logout', { method: 'POST' })

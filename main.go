@@ -1135,6 +1135,47 @@ func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, `{"error":"User not found"}`, http.StatusNotFound)
 }
 
+func apiGetHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodGet {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	limit := 50
+	if l := r.URL.Query().Get("limit"); l != "" {
+		limit, _ = strconv.Atoi(l)
+	}
+
+	checks, err := GetAllCheckHistory(limit)
+	if err != nil {
+		http.Error(w, `{"error":"Failed to fetch history"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"checks": checks,
+	})
+}
+
+// apiClearHistory — POST /api/clear-history
+func apiClearHistory(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, `{"error":"Method not allowed"}`, http.StatusMethodNotAllowed)
+		return
+	}
+
+	if err := ClearCheckHistory(); err != nil {
+		http.Error(w, `{"error":"Failed to clear history"}`, http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(map[string]interface{}{
+		"status": "ok",
+	})
+}
+
 // ============================================
 // 📄 ОБРАБОТЧИКИ СТРАНИЦ
 // ============================================
@@ -2816,6 +2857,8 @@ func main() {
 	http.HandleFunc("/api/users/", apiGetUserDetail)
 	http.HandleFunc("/api/search/users", apiSearchUsers)
 	http.HandleFunc("/api/chat", handleChat)
+	http.HandleFunc("/api/history", requireAdmin(apiGetHistory))
+	http.HandleFunc("/api/clear-history", requireAdmin(apiClearHistory))
 
 	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)

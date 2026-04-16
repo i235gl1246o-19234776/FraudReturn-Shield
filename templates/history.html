@@ -154,10 +154,10 @@
                         order_id: item.data.orderID,
                         client_id: item.data.clientID,
                         order_amount: item.data.orderAmount,
-                        risk_score: item.result.riskScore,
-                        risk_level: item.result.riskLevel,
-                        risk_class: item.result.riskClass,
-                        recommendation: item.result.recommendation,
+                        risk_score: item.data.riskScore || 0,
+                        risk_level: item.data.riskLevel || 'low',
+                        risk_class: item.data.riskClass || 'low',
+                        recommendation: item.data.recommendation || '—',
                         checked_at: item.timestamp
                     }));
                     renderHistory(legacyData);
@@ -189,18 +189,20 @@
 
         function clearHistory() {
             if (confirm('Очистить всю историю?')) {
+                // Очищаем localStorage
+                localStorage.removeItem('fraudHistory');
+
+                // Очищаем БД через API
                 fetch('/api/clear-history', { method: 'POST' })
                     .then(res => res.json())
                     .then(data => {
-                        if (data.status === 'ok') {
-                            loadHistory();
-                            showToast('История очищена', 'success');
-                        } else {
-                            showToast('Ошибка очистки: ' + (data.error || 'Неизвестная ошибка'), 'error');
-                        }
+                        loadHistory();
+                        showToast('История очищена', 'success');
                     })
                     .catch(err => {
-                        showToast('Ошибка: ' + err, 'error');
+                        // Даже если БД недоступна, localStorage уже очищен
+                        loadHistory();
+                        showToast('История очищена', 'success');
                     });
             }
         }

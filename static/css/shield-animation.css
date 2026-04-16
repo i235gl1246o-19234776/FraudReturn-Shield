@@ -4,16 +4,14 @@
 
 .shield-container {
     position: fixed;
-    top: 12vh; /* Подняли выше: 12% от высоты экрана - посередине цветной плашки */
-    transform: translateY(-50%);
+    top: 50%;
     left: 0;
     z-index: 100;
     pointer-events: auto;
-    width: 700px; /* Ещё увеличили контейнер */
-    height: 700px;
     display: flex;
     align-items: center;
     justify-content: center;
+    /* Размеры будут установлены через JS */
 }
 
 .shield-container.right {
@@ -23,23 +21,36 @@
 
 .shield-wrapper {
     position: relative;
-    width: 580px; /* Ещё увеличили щит */
-    height: 580px;
+    /* Размеры будут установлены через JS */
     animation: shieldPulse 2s ease-in-out infinite;
     transition: transform 0.3s ease;
     cursor: pointer;
+    /* Предотвращаем размытие при трансформации */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    transform-style: preserve-3d;
 }
 
 .shield-svg {
     width: 100%;
     height: 100%;
+    /* Критически важные свойства для предотвращения размытия */
+    image-rendering: -webkit-optimize-contrast;
+    image-rendering: crisp-edges;
+    image-rendering: pixelated;
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+    /* Предотвращаем размытие при масштабировании */
+    backface-visibility: hidden;
+    -webkit-backface-visibility: hidden;
+    /* Принудительное аппаратное ускорение */
+    transform: translate3d(0, 0, 0);
     filter: drop-shadow(0 0 15px rgba(230, 74, 127, 0.4))
             drop-shadow(0 0 25px rgba(127, 48, 227, 0.3));
 }
 
 /* Увеличение при наведении */
-.shield-wrapper:hover {
-    transform: scale(1.25);
+.shield-wrapper:hover .shield-svg {
     filter: drop-shadow(0 0 30px rgba(230, 74, 127, 0.7))
             drop-shadow(0 0 50px rgba(127, 48, 227, 0.5));
 }
@@ -47,10 +58,10 @@
 /* Постоянная пульсация */
 @keyframes shieldPulse {
     0%, 100% {
-        transform: scale(1);
+        transform: scale(1) translate3d(0, 0, 0);
     }
     50% {
-        transform: scale(1.05);
+        transform: scale(1.05) translate3d(0, 0, 0);
     }
 }
 
@@ -58,14 +69,7 @@
 @media (max-width: 1024px) {
     .shield-container {
         top: 80px;
-        width: 250px;
-        height: 250px;
         opacity: 0.6;
-    }
-
-    .shield-wrapper {
-        width: 180px;
-        height: 180px;
     }
 }
 
