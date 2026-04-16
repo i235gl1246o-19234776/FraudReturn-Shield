@@ -1,4 +1,3 @@
-
 <!-- client_profile.html - Страница профиля клиента -->
 <!DOCTYPE html>
 <html lang="ru">
@@ -9,6 +8,53 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
+        :root {
+            --wb-purple: #7F30E3;
+            --gray-50: #f8f9fa;
+            --gray-100: #f1f3f5;
+            --gray-200: #e9ecef;
+            --gray-400: #adb5bd;
+            --gray-500: #868e96;
+            --gray-600: #495057;
+            --gray-800: #212529;
+            --success: #28a745;
+            --success-bg: #d4edda;
+            --warning: #fd7e14;
+            --warning-bg: #fff3cd;
+            --danger: #dc3545;
+            --danger-bg: #f8d7da;
+            --shadow: 0 2px 10px rgba(0,0,0,0.08);
+            --shadow-md: 0 4px 20px rgba(0,0,0,0.1);
+            --shadow-lg: 0 8px 40px rgba(0,0,0,0.15);
+            --radius: 12px;
+            --radius-lg: 16px;
+            --radius-xl: 24px;
+            --transition: all 0.3s ease;
+            --transition-fast: all 0.15s ease;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-800);
+            line-height: 1.5;
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* === Навигация === */
         .client-nav {
             background: white;
             padding: 12px 0;
@@ -23,6 +69,21 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
+        }
+
+        .nav-logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            text-decoration: none;
+            color: var(--wb-purple);
+            font-weight: 800;
+            font-size: 1.2rem;
+        }
+
+        .nav-logo svg {
+            width: 24px;
+            height: 24px;
         }
 
         .client-nav-links {
@@ -51,11 +112,30 @@
             color: white;
         }
 
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: var(--wb-purple);
+            border: 2px solid var(--wb-purple);
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
+
+        .logout-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+        }
+
+        /* === Профиль header === */
         .profile-header {
             background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 60px 0;
             text-align: center;
             color: white;
+            position: relative;
+            overflow: hidden;
         }
 
         .profile-avatar {
@@ -84,17 +164,110 @@
             font-size: 1rem;
         }
 
+        /* === Маркиз текст в хедере === */
+        .header-marquee {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+            pointer-events: none;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+        }
+
+        .marquee-text {
+            font-size: 3rem;
+            font-weight: 800;
+            opacity: 0;
+            white-space: nowrap;
+            transition: opacity 1.5s ease-in-out;
+        }
+
+        .marquee-left { text-align: left; }
+        .marquee-right { text-align: right; }
+        .marquee-text.visible { opacity: 0.9; }
+
+        /* === Щиты по бокам — ФИКСИРОВАННЫЕ, НЕ МАСШТАБИРУЕМЫЕ === */
+        .side-shields-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            pointer-events: none;
+            z-index: 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 10px;
+            overflow: hidden;
+        }
+
+        /* Обёртка для анимации */
+        .side-shield-wrapper {
+            animation: float-shield 6s ease-in-out infinite;
+            will-change: transform;
+        }
+
+        .side-shield-wrapper.left { animation-delay: 0s; }
+        .side-shield-wrapper.right { animation-delay: 3s; }
+
+        /* Сам щит — размер и прозрачность */
+        .side-shield {
+            width: 180px;
+            height: 180px;
+            opacity: 0.12;
+            transition: opacity 0.3s ease;
+        }
+
+        .side-shield:hover {
+            opacity: 0.2;
+        }
+
+        .side-shield img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: drop-shadow(0 0 25px rgba(127, 48, 227, 0.4));
+            image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
+        }
+
+        @keyframes float-shield {
+            0%, 100% {
+                transform: translateY(0) rotate(-4deg);
+            }
+            50% {
+                transform: translateY(-15px) rotate(4deg);
+            }
+        }
+
+        /* Адаптив — скрываем на мобильных */
+        @media (max-width: 768px) {
+            .side-shields-container { display: none; }
+            .header-marquee { display: none; }
+            .tabs-large { grid-template-columns: 1fr; }
+        }
+
+        /* === Вкладки карточки === */
         .tabs-large {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
             gap: 40px;
-            margin: 60px 0;
+            margin: 60px auto;
+            max-width: 1100px;
+            position: relative;
+            z-index: 10;
         }
 
         .tab-card {
             background: white;
             border-radius: var(--radius-xl);
-            padding: 70px 50px;
+            padding: 40px 30px;
             text-align: center;
             text-decoration: none;
             color: inherit;
@@ -109,32 +282,14 @@
             box-shadow: var(--shadow-lg);
         }
 
-        .tab-orders {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
+        .tab-orders { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
+        .tab-orders:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
 
-        .tab-orders:hover {
-            background: linear-gradient(135deg, #764ba2 0%, #667eea 100%);
-        }
+        .tab-returns { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
+        .tab-returns:hover { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
 
-        .tab-returns {
-            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-            color: white;
-        }
-
-        .tab-returns:hover {
-            background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%);
-        }
-
-        .tab-chat {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-        }
-
-        .tab-chat:hover {
-            background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%);
-        }
+        .tab-chat { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
+        .tab-chat:hover { background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%); }
 
         .tab-card-icon {
             font-size: 3.5rem;
@@ -149,44 +304,22 @@
             height: 140px;
             object-fit: contain;
             transition: transform 0.3s ease, filter 0.3s ease;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform: translate3d(0, 0, 0);
         }
 
         .tab-orders:hover .tab-card-icon img {
-            transform: scale(1.3) translate3d(0, 0, 0);
+            transform: scale(1.3);
             filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.7));
         }
 
         .tab-returns:hover .tab-card-icon img {
-            transform: scale(1.3) translate3d(0, 0, 0);
+            transform: scale(1.3);
             filter: drop-shadow(0 0 20px rgba(0, 191, 255, 0.7));
         }
 
         .tab-chat:hover .tab-card-icon img {
-            transform: scale(1.3) translate3d(0, 0, 0);
+            transform: scale(1.3);
             filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
         }
-
-        .tab-shield {
-            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-            color: white;
-        }
-
-        .tab-shield:hover {
-            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
-        }
-
-        .tab-shield:hover .tab-card-icon img {
-            transform: scale(2) translate3d(0, 0, 0);
-            filter: drop-shadow(0 0 20px rgba(17, 153, 142, 0.7));
-        }
-
 
         .tab-card-title {
             font-size: 2rem;
@@ -199,89 +332,7 @@
             opacity: 0.9;
         }
 
-      /* Боковые щиты - большие */
-        .side-shields-wrapper {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            gap: 40px;
-            margin: 60px 0;
-            padding: 0 20px;
-        }
-
-        .side-shield-card {
-            background: white;
-            border-radius: var(--radius-xl);
-            padding: 100px 80px;
-            text-align: center;
-            box-shadow: var(--shadow-md);
-            transition: var(--transition);
-            border: 2px solid transparent;
-            cursor: pointer;
-            flex: 0 0 auto;
-            min-width: 300px;
-            animation: pulse-shield 2s ease-in-out infinite;
-        }
-
-        .side-shield-card:hover {
-            transform: translateY(-8px);
-            box-shadow: 0 0 30px rgba(17, 153, 142, 0.6), 0 0 60px rgba(56, 239, 125, 0.4);
-            border-color: rgba(17, 153, 142, 0.3);
-        }
-
-        .side-shield-icon {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .side-shield-icon img {
-            width: 400px;
-            height: 400px;
-            object-fit: contain;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform: translate3d(0, 0, 0);
-        }
-
-        .side-shield-title {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--gray-800);
-            margin-bottom: 15px;
-        }
-
-        .side-shield-desc {
-            font-size: 1.3rem;
-            color: var(--gray-600);
-        }
-
-        @keyframes pulse-shield {
-            0%, 100% {
-                transform: scale(1);
-                box-shadow: var(--shadow-md);
-            }
-            50% {
-                transform: scale(1.05);
-                box-shadow: 0 6px 30px rgba(17, 153, 142, 0.3), 0 0 40px rgba(56, 239, 125, 0.2);
-            }
-        }
-
-        .side-shield-left {
-            margin-right: auto;
-            animation-delay: 0s;
-        }
-
-        .side-shield-right {
-            margin-left: auto;
-            animation-delay: 1s;
-        }
-
+        /* === Карточки заказов === */
         .order-card {
             background: white;
             border-radius: var(--radius-xl);
@@ -319,25 +370,10 @@
             font-weight: 600;
         }
 
-        .order-status.completed {
-            background: var(--success-bg);
-            color: var(--success);
-        }
-
-        .order-status.pending {
-            background: var(--warning-bg);
-            color: var(--warning);
-        }
-
-        .order-status.returned {
-            background: var(--danger-bg);
-            color: var(--danger);
-        }
-
-        .order-status.processing {
-            background: #e0e7ff;
-            color: var(--wb-purple);
-        }
+        .order-status.completed { background: var(--success-bg); color: var(--success); }
+        .order-status.pending { background: var(--warning-bg); color: var(--warning); }
+        .order-status.returned { background: var(--danger-bg); color: var(--danger); }
+        .order-status.processing { background: #e0e7ff; color: var(--wb-purple); }
 
         .order-details {
             display: grid;
@@ -362,100 +398,56 @@
             color: var(--gray-800);
         }
 
-        .logout-btn {
-            padding: 10px 20px;
-            background: white;
-            color: var(--wb-purple);
-            border: 2px solid var(--wb-purple);
-            border-radius: var(--radius-lg);
-            font-weight: 600;
-            cursor: pointer;
-            transition: var(--transition-fast);
-        }
-
-        .header-marquee {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            transform: translateY(-50%);
-            pointer-events: none;
-            z-index: 1;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0 40px;
-        }
-
-        .marquee-text {
-            font-size: 5rem; /* Увеличенный размер */
-            font-weight: 800;
-            opacity: 0;
-            white-space: nowrap;
-            transition: opacity 1.5s ease-in-out; /* Быстрое исчезновение за 1.5 сек */
-        }
-
-        .marquee-left {
-            text-align: left;
-        }
-
-        .marquee-right {
-            text-align: right;
-        }
-
-        .marquee-text.visible {
-            opacity: 0.9;
-        }
-
-
-        .logout-btn:hover {
+        /* === Кнопка чата === */
+        .chat-toggle {
+            position: fixed;
+            bottom: 30px;
+            right: 30px;
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
             background: var(--wb-purple);
             color: white;
-        }
-
-        .profile-header {
-            background: linear-gradient(135deg, #7F30E3, #F90479);
-            padding: 60px 0;
-            text-align: center;
-            color: white;
-            position: relative;
-            overflow: hidden;
-        }
-
-        .header-marquee {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            transform: translateY(-50%);
-            pointer-events: none;
-            z-index: 1;
+            border: none;
+            cursor: pointer;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            padding: 0 40px;
+            justify-content: center;
+            box-shadow: var(--shadow-lg);
+            transition: var(--transition);
+            z-index: 1000;
         }
 
-        .marquee-text {
-            font-size: 3rem; /* Увеличенный размер */
-            font-weight: 800;
-            opacity: 0;
-            white-space: nowrap;
-            transition: opacity 1.5s ease-in-out; /* Быстрое исчезновение за 1.5 сек */
+        .chat-toggle:hover {
+            transform: scale(1.1);
+            box-shadow: 0 10px 40px rgba(127, 48, 227, 0.5);
         }
 
-        .marquee-left {
-            text-align: left;
+        .chat-toggle svg {
+            width: 28px;
+            height: 28px;
         }
 
-        .marquee-right {
-            text-align: right;
+        /* === Toast уведомления === */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid var(--success);
         }
-
-        .marquee-text.visible {
-            opacity: 0.9;
-        }
-
+        .toast.error { border-left-color: #dc3545; }
+        .toast.warning { border-left-color: #fd7e14; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
     </style>
 </head>
 <body>
@@ -491,9 +483,22 @@
         </div>
     </section>
 
+    <!-- 🛡️ Декоративные щиты по бокам (НЕ МАСШТАБИРУЮТСЯ) -->
+    <div class="side-shields-container" id="sideShields">
+        <div class="side-shield-wrapper left">
+            <div class="side-shield">
+                <img src="/static/svg/щит.svg" alt="Защита">
+            </div>
+        </div>
+        <div class="side-shield-wrapper right">
+            <div class="side-shield">
+                <img src="/static/svg/щит.svg" alt="Защита">
+            </div>
+        </div>
+    </div>
+
     <!-- Основной контент -->
     <div class="container">
-        <!-- Вкладки - большие карточки -->
         <div class="tabs-large">
             <a href="/client/orders" class="tab-card tab-orders">
                 <div class="tab-card-icon">
@@ -519,32 +524,65 @@
         </div>
     </div>
 
-    <div class="container">
-        <div class="side-shields-wrapper">
-            <div class="side-shield-card" onclick="toggleChat()">
-                <div class="side-shield-icon">
-                    <img src="/static/svg/щит.svg" alt="Защита">
-                </div>
-            </div>
-            <div class="side-shield-card" onclick="toggleChat()">
-                <div class="side-shield-icon">
-                    <img src="/static/svg/щит.svg" alt="Защита">
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Кнопка чата -->
-    <button class="chat-toggle" onclick="toggleChat()">
+    <button class="chat-toggle" onclick="toggleChat()" title="Открыть чат">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
     </button>
 
+    <!-- 🛡️ СКРИПТ: фиксация размера щитов при зуме -->
+    <script>
+        // === Фиксация размера щитов при браузерном зуме ===
+        (function fixShieldZoom() {
+            const shieldsContainer = document.getElementById('sideShields');
+            if (!shieldsContainer) return;
+
+            // Создаём эталонный элемент для детекции зума
+            const ref = document.createElement('div');
+            ref.style.cssText = 'position:fixed;left:0;top:0;width:100px;height:100px;visibility:hidden;pointer-events:none;z-index:-9999;';
+            document.body.appendChild(ref);
+
+            function getBrowserZoom() {
+                // Сравниваем визуальную ширину эталона с его логической шириной
+                const logicalWidth = 100;
+                const visualWidth = ref.getBoundingClientRect().width;
+                return visualWidth / logicalWidth;
+            }
+
+            function updateShieldScale() {
+                const zoom = getBrowserZoom();
+                const inverseScale = 1 / zoom;
+                
+                // Применяем компенсацию только к внутреннему .side-shield
+                const shields = document.querySelectorAll('.side-shield');
+                shields.forEach(shield => {
+                    shield.style.transform = `scale(${inverseScale})`;
+                    shield.style.transformOrigin = 'center center';
+                });
+            }
+
+            // Обновление при ресайзе (включая зум)
+            let resizeTimer;
+            window.addEventListener('resize', () => {
+                clearTimeout(resizeTimer);
+                resizeTimer = setTimeout(updateShieldScale, 100);
+            });
+
+            // Инициализация
+            document.addEventListener('DOMContentLoaded', () => {
+                setTimeout(updateShieldScale, 200); // Небольшая задержка для стабильности
+            });
+
+            // Периодическая проверка (на всякий случай)
+            setInterval(updateShieldScale, 1000);
+        })();
+    </script>
+
+    <!-- Основной скрипт страницы -->
     <script>
         let currentUser = null;
 
-        // Загрузка данных пользователя при инициализации
         document.addEventListener('DOMContentLoaded', function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
@@ -563,144 +601,64 @@
             }
         }
 
-        function loadOrders() {
-            fetch(`/api/client/orders?client_id=${currentUser.id}`)
-                .then(response => response.json())
-                .then(data => {
-                    const ordersList = document.getElementById('orders-list');
-
-                    if (data.orders && data.orders.length > 0) {
-                        // Преобразуем данные с сервера в формат для отображения
-                        const orders = data.orders.map(order => ({
-                            id: order.order_id,
-                            date: order.order_timestamp,
-                            amount: parseFloat(order.order_amount) || 0,
-                            //status: order.order_status || 'completed',
-                            items: order.items_count || 1,
-                            //payment_method: order.payment_method || '-',
-                            product_category: order.product_category || '-',
-                            delivery_date: order.delivery_date || '-',
-                            //discount_amount: parseFloat(order.discount_amount) || 0,
-                            //amount_deviation: parseFloat(order.amount_deviation) || 0,
-                            //client_id: order.client_id || currentUser.id
-                        }));
-
-                        ordersList.innerHTML = orders.map(order => `
-                            <div class="order-card">
-                                <div class="order-header">
-                                    <span class="order-id">Заказ #${order.id}</span>
-                                </div>
-                                <div class="order-details">
-                                    <div class="order-detail-item">
-                                        <div class="order-detail-label">Дата заказа</div>
-                                        <div class="order-detail-value">${order.date}</div>
-                                    </div>
-                                    <div class="order-detail-item">
-                                        <div class="order-detail-label">Сумма</div>
-                                        <div class="order-detail-value">${order.amount.toLocaleString()} ₽</div>
-                                    </div>
-                                    <div class="order-detail-item">
-                                        <div class="order-detail-label">Товаров</div>
-                                        <div class="order-detail-value">${order.items} шт.</div>
-                                    </div>
-                                    <div class="order-detail-item">
-                                        <div class="order-detail-label">Категория</div>
-                                        <div class="order-detail-value">${order.product_category}</div>
-                                    </div>
-                                </div>
-                                <div class="order-actions" style="margin-top: 15px; padding-top: 15px; border-top: 1px solid var(--gray-100); display: flex; gap: 10px;">
-                                    <button class="btn btn-primary" onclick="viewOrderDetails(${order.id})">Подробнее</button>
-                                    ${order.status === 'completed' ? `<button class="btn btn-secondary" onclick="initiateReturn(${order.id})">Оформить возврат</button>` : ''}
-                                </div>
-                            </div>
-                        `).join('');
-                    } else {
-                        ordersList.innerHTML = '<p style="text-align: center; color: var(--gray-600); padding: 40px;">У вас пока нет заказов</p>';
-                    }
-                })
-                .catch(error => {
-                    console.error('Ошибка загрузки заказов:', error);
-                    const ordersList = document.getElementById('orders-list');
-                    ordersList.innerHTML = '<p style="text-align: center; color: var(--danger); padding: 40px;">Ошибка загрузки заказов</p>';
-                });
-        }
-
         function logout() {
             sessionStorage.removeItem('user');
             fetch('/api/logout', { method: 'POST' })
-                .then(() => {
-                    window.location.href = '/login';
-                })
-                .catch(() => {
-                    window.location.href = '/login';
-                });
+                .then(() => { window.location.href = '/login'; })
+                .catch(() => { window.location.href = '/login'; });
         }
 
-         const leftTexts = [
-            'Добро пожаловать!',
-            'Рады видеть вас \nснова!',
-            'Защита ваших \nпокупок',
-            'Удобный возврат',
-            'Быстро и просто'
-        ];
+        function toggleChat() {
+            window.location.href = '/client/chat';
+        }
 
-        const rightTexts = [
-            'Быстрые возвраты',
-            'AI помощник 24/7',
-            'Безопасные сделки',
-            'Поддержка всегда \nрядом',
-            'Удобные покупки'
-        ];
+        // === Анимация текста в хедере ===
+        const leftTexts = ['Добро пожаловать!', 'Рады видеть вас снова!', 'Защита ваших покупок', 'Удобный возврат', 'Быстро и просто'];
+        const rightTexts = ['Быстрые возвраты', 'AI помощник 24/7', 'Безопасные сделки', 'Поддержка всегда рядом', 'Удобные покупки'];
 
-        let leftIndex = 0;
-        let rightIndex = 0;
-        let isLeftVisible = true;
-        let isRightVisible = false;
+        let leftIndex = 0, rightIndex = 0;
+        let isLeftVisible = true, isRightVisible = false;
 
-        // Функция для плавного переключения текста
         function cycleMarqueeText() {
-            const leftElement = document.getElementById('marqueeLeft');
-            const rightElement = document.getElementById('marqueeRight');
+            const leftEl = document.getElementById('marqueeLeft');
+            const rightEl = document.getElementById('marqueeRight');
 
             if (isLeftVisible) {
-                // Скрываем левый текст
-                leftElement.classList.remove('visible');
-
+                leftEl.classList.remove('visible');
                 setTimeout(() => {
-                    // Меняем текст пока он скрыт
                     leftIndex = (leftIndex + 1) % leftTexts.length;
-                    leftElement.textContent = leftTexts[leftIndex];
-
-                    // Показываем правый текст
-                    rightElement.textContent = rightTexts[rightIndex];
-                    rightElement.classList.add('visible');
-                    isRightVisible = true;
-                    isLeftVisible = false;
-                }, 1500); // Ждём пока исчезнет (1.5 секунды)
+                    leftEl.textContent = leftTexts[leftIndex];
+                    rightEl.textContent = rightTexts[rightIndex];
+                    rightEl.classList.add('visible');
+                    isRightVisible = true; isLeftVisible = false;
+                }, 1500);
             } else if (isRightVisible) {
-                // Скрываем правый текст
-                rightElement.classList.remove('visible');
-
+                rightEl.classList.remove('visible');
                 setTimeout(() => {
-                    // Меняем текст пока он скрыт
                     rightIndex = (rightIndex + 1) % rightTexts.length;
-                    rightElement.textContent = rightTexts[rightIndex];
-
-                    // Показываем левый текст
-                    leftElement.textContent = leftTexts[leftIndex];
-                    leftElement.classList.add('visible');
-                    isLeftVisible = true;
-                    isRightVisible = false;
-                }, 1500); // Ждём пока исчезнет (1.5 секунды)
+                    rightEl.textContent = rightTexts[rightIndex];
+                    leftEl.textContent = leftTexts[leftIndex];
+                    leftEl.classList.add('visible');
+                    isLeftVisible = true; isRightVisible = false;
+                }, 1500);
             }
         }
 
-        // Инициализация - показываем первый левый текст
         document.getElementById('marqueeLeft').textContent = leftTexts[0];
         document.getElementById('marqueeLeft').classList.add('visible');
-
-        // Запускаем цикл переключения каждые 6 секунд (1.5 сек появление + 3 сек видимость + 1.5 сек исчезновение)
         setInterval(cycleMarqueeText, 6000);
+
+        // === Toast уведомления ===
+        function showToast(message, type = 'success') {
+            const toast = document.createElement('div');
+            toast.className = `toast ${type}`;
+            toast.innerHTML = `<span>${type === 'success' ? '✅' : type === 'error' ? '❌' : '⚠️'}</span><span>${message}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.5s ease-out forwards';
+                setTimeout(() => toast.remove(), 500);
+            }, 3000);
+        }
     </script>
 </body>
 </html>

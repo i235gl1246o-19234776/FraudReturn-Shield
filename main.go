@@ -2680,9 +2680,9 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 
 	// Парсим тело запроса
 	var req struct {
-		OrderID int    `json:"order_id"`
-		Reason  string `json:"reason"`
-		Comment string `json:"comment"`
+		OrderID       int    `json:"order_id"`
+		ClaimedReason string `json:"claimed_reason"`
+		Comment       string `json:"comment"`
 	}
 
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
@@ -2691,7 +2691,7 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if req.OrderID <= 0 || req.Reason == "" {
+	if req.OrderID <= 0 || req.ClaimedReason == "" {
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Order ID и причина обязательны"})
 		return
@@ -2714,7 +2714,7 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
                 RETURNING return_id`
 
 	var returnID int
-	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.Reason).Scan(&returnID)
+	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.ClaimedReason).Scan(&returnID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Ошибка создания возврата: " + err.Error()})

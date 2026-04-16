@@ -496,6 +496,8 @@
             const reason = document.getElementById('returnReason').value;
             const comment = document.getElementById('returnComment').value.trim();
 
+            console.log('Отправка возврата:', { order_id: parseInt(orderId), reason: reason, comment: comment });
+
             if (!orderId || !reason) {
                 showAlert('Пожалуйста, заполните обязательные поля', 'error');
                 return;
@@ -509,7 +511,7 @@
                 },
                 body: JSON.stringify({
                     order_id: parseInt(orderId),
-                    reason: reason,
+                    claimed_reason: reason,
                     comment: comment
                 })
             })
