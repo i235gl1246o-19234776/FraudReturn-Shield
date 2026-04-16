@@ -115,7 +115,21 @@ CREATE TABLE IF NOT EXISTS clients (
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     );
 
-    -- 8. Пользователи
+    -- 8. История проверок
+    CREATE TABLE IF NOT EXISTS check_history (
+        check_id SERIAL PRIMARY KEY,
+        order_id INTEGER NOT NULL,
+        client_id INTEGER NOT NULL,
+        order_amount DECIMAL(10,2) NOT NULL,
+        risk_score DECIMAL(5,2) NOT NULL,
+        risk_level VARCHAR(20) NOT NULL,
+        risk_class VARCHAR(20) NOT NULL,
+        recommendation TEXT,
+        top_factors TEXT[],
+        checked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    );
+
+    -- 9. Пользователи
     CREATE TABLE IF NOT EXISTS user_accounts (
     client_id INTEGER PRIMARY KEY REFERENCES clients(client_id) ON DELETE CASCADE,
     login VARCHAR(100) UNIQUE NOT NULL,

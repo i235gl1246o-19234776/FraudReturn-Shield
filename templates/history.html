@@ -130,26 +130,78 @@
 
     <script>
         function loadHistory() {
-            const fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
             const tbody = document.getElementById('historyTableBody');
-            if (fraudHistory.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">Нет данных в истории</td></tr>';
-                return;
-            }
-            tbody.innerHTML = fraudHistory.map(item => {
-                const date = new Date(item.timestamp).toLocaleDateString('ru-RU');
-                const riskClass = item.result.riskClass;
+
+            // Загружаем из БД через API (если доступно)
+            fetch('/api/history')
+                .then(res => res.json())
+                .then(data => {
+                    if (data.checks && data.checks.length > 0) {
+                        renderHistory(data.checks);
+                    } else {
+                        showNoData();
+                    }
+                })
+                .catch(() => {
+                    // Fallback на localStorage
+                    const fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
+                    if (fraudHistory.length === 0) {
+                        showNoData();
+                        return;
+                    }
+                    const legacyData = fraudHistory.map(item => ({
+                        check_id: item.data.orderID,
+                        order_id: item.data.orderID,
+                        client_id: item.data.clientID,
+                        order_amount: item.data.orderAmount,
+                        risk_score: item.result.riskScore,
+                        risk_level: item.result.riskLevel,
+                        risk_class: item.result.riskClass,
+                        recommendation: item.result.recommendation,
+                        checked_at: item.timestamp
+                    }));
+                    renderHistory(legacyData);
+                });
+        }
+
+        function renderHistory(checks) {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = checks.map(item => {
+                const date = new Date(item.checked_at).toLocaleDateString('ru-RU');
+                const riskClass = item.risk_class || 'low';
                 const riskBadge = riskClass === 'low' ? '🟢 Низкий' : riskClass === 'medium' ? '🟡 Средний' : '🔴 Высокий';
-                const decision = item.decision ? (item.decision === 'approved' ? '✅ Одобрено' : item.decision === 'rejected' ? '❌ Отклонено' : '⚠️ Проверка') : '—';
-                return `<tr><td>${date}</td><td>#${item.data.orderID}</td><td>#${item.data.clientID}</td><td>${item.data.orderAmount.toLocaleString()} ₽</td><td><span class="user-badge ${riskClass}">${riskBadge}</span></td><td>${decision}</td></tr>`;
+                const amount = (item.order_amount || 0).toLocaleString();
+                return `<tr>
+                    <td>${date}</td>
+                    <td>#${item.order_id}</td>
+                    <td>#${item.client_id}</td>
+                    <td>${amount} ₽</td>
+                    <td><span class="user-badge ${riskClass}">${riskBadge}</span></td>
+                    <td>${item.recommendation || '—'}</td>
+                </tr>`;
             }).join('');
+        }
+
+        function showNoData() {
+            const tbody = document.getElementById('historyTableBody');
+            tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">Нет данных в истории</td></tr>';
         }
 
         function clearHistory() {
             if (confirm('Очистить всю историю?')) {
-                localStorage.setItem('fraudHistory', JSON.stringify([]));
-                loadHistory();
-                showToast('История очищена', 'success');
+                fetch('/api/clear-history', { method: 'POST' })
+                    .then(res => res.json())
+                    .then(data => {
+                        if (data.status === 'ok') {
+                            loadHistory();
+                            showToast('История очищена', 'success');
+                        } else {
+                            showToast('Ошибка очистки: ' + (data.error || 'Неизвестная ошибка'), 'error');
+                        }
+                    })
+                    .catch(err => {
+                        showToast('Ошибка: ' + err, 'error');
+                    });
             }
         }
 

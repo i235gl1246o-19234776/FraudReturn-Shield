@@ -406,6 +406,110 @@ func SaveReturnToDB(form FormData) error {
 	return err
 }
 
+func SaveCheckHistory(result ResultData) error {
+	if db == nil {
+		return fmt.Errorf("база данных не подключена")
+	}
+
+	if result.OrderID <= 0 || result.ClientID <= 0 {
+		return nil
+	}
+
+	// Преобразуем top_factors в массив PostgreSQL
+	factorsJSON := "ARRAY[]"
+	if len(result.TopFactors) > 0 {
+		factorsArr := make([]string, len(result.TopFactors))
+		for i, f := range result.TopFactors {
+			factorsArr[i] = fmt.Sprintf("%q", f)
+		}
+		factorsJSON = "ARRAY[" + strings.Join(factorsArr, ",") + "]"
+	}
+
+	query := fmt.Sprintf(`INSERT INTO check_history
+                (order_id, client_id, order_amount, risk_score, risk_level, risk_class, recommendation, top_factors, checked_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, %s, NOW())`, factorsJSON)
+
+	_, err := db.Exec(query,
+		result.OrderID,
+		result.ClientID,
+		result.FormData.OrderAmount,
+		result.RiskScore,
+		result.RiskLevel,
+		result.RiskClass,
+		result.Recommendation,
+	)
+
+	return err
+}
+
+// GetAllCheckHistory получает всю историю проверок
+func GetAllCheckHistory(limit int) ([]DBRecord, error) {
+	if db == nil {
+		return nil, fmt.Errorf("база данных не подключена")
+	}
+
+	query := `SELECT check_id, order_id, client_id, order_amount, risk_score, risk_level, risk_class, recommendation, checked_at
+                FROM check_history ORDER BY checked_at DESC LIMIT $1`
+
+	rows, err := db.Query(query, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []DBRecord
+	for rows.Next() {
+		var record DBRecord = make(DBRecord)
+		var checkedAt time.Time
+		var checkID, orderID, clientID int
+		var orderAmt, riskScore sql.NullFloat64
+		var riskLevel, riskClass sql.NullString
+		var recommendation sql.NullString
+
+		err := rows.Scan(
+			&checkID, &orderID, &clientID, &orderAmt, &riskScore,
+			&riskLevel, &riskClass, &recommendation, &checkedAt,
+		)
+		if err != nil {
+			return nil, err
+		}
+
+		record["check_id"] = checkID
+		record["order_id"] = orderID
+		record["client_id"] = clientID
+		if orderAmt.Valid {
+			record["order_amount"] = orderAmt.Float64
+		}
+		if riskScore.Valid {
+			record["risk_score"] = riskScore.Float64
+		}
+		if riskLevel.Valid {
+			record["risk_level"] = riskLevel.String
+		}
+		if riskClass.Valid {
+			record["risk_class"] = riskClass.String
+		}
+		if recommendation.Valid {
+			record["recommendation"] = recommendation.String
+		}
+		record["checked_at"] = checkedAt.Format("2006-01-02 15:04:05")
+
+		results = append(results, record)
+	}
+
+	return results, nil
+}
+
+// ClearCheckHistory очищает историю проверок
+func ClearCheckHistory() error {
+	if db == nil {
+		return fmt.Errorf("база данных не подключена")
+	}
+
+	_, err := db.Exec("TRUNCATE TABLE check_history RESTART IDENTITY")
+	return err
+}
+
 func CloseDB() {
 	if db != nil {
 		db.Close()
@@ -647,6 +751,35 @@ func GetUsersList(page, limit int) ([]UserCard, int, error) {
 	}
 
 	return users, total, nil
+}
+
+func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error) {
+	if db == nil {
+		return 0, 0, 0, fmt.Errorf("база данных не подключена")
+	}
+
+	// Сначала проверим сырые данные для отладки
+	var totalClients, nullRateCount, zeroRateCount int
+	db.QueryRow("SELECT COUNT(*) FROM clients").Scan(&totalClients)
+	db.QueryRow("SELECT COUNT(*) FROM clients WHERE global_return_rate IS NULL").Scan(&nullRateCount)
+	db.QueryRow("SELECT COUNT(*) FROM clients WHERE global_return_rate = 0").Scan(&zeroRateCount)
+	log.Printf("DEBUG Stats: Total=%d, NULL rate=%d, Zero rate=%d", totalClients, nullRateCount, zeroRateCount)
+
+	query := `
+                SELECT
+                        COUNT(CASE WHEN global_return_rate IS NOT NULL AND global_return_rate <= 0.2 THEN 1 END) as active,
+                        COUNT(CASE WHEN global_return_rate IS NOT NULL AND global_return_rate > 0.2 AND global_return_rate <= 0.5 THEN 1 END) as warning,
+                        COUNT(CASE WHEN global_return_rate IS NOT NULL AND global_return_rate > 0.5 THEN 1 END) as high
+                FROM clients
+        `
+
+	err = db.QueryRow(query).Scan(&activeCount, &warningCount, &highRiskCount)
+	if err != nil {
+		return 0, 0, 0, err
+	}
+
+	log.Printf("DEBUG Stats Result: active=%d, warning=%d, high=%d", activeCount, warningCount, highRiskCount)
+	return activeCount, warningCount, highRiskCount, nil
 }
 
 // GetUserOrders — заказы конкретного пользователя
@@ -1204,7 +1337,14 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 		// 5. Считаем риск
 		result := calculateRisk(form)
 
-		// 6. Рендерим
+		//6. Сохраняем результат в историю
+		if result.OrderID > 0 && result.ClientID > 0 {
+			if err := SaveCheckHistory(result); err != nil {
+				log.Printf("⚠️ History Save error: %v", err)
+			}
+		}
+
+		// 7. Рендерим
 		tmpl, err := template.ParseFiles("templates/result.html")
 		if err != nil {
 			http.Error(w, "Template error: "+err.Error(), 500)
@@ -1432,15 +1572,15 @@ func EnrichFromDB(f *FormData) error {
 }
 
 func historyPage(w http.ResponseWriter, r *http.Request) {
-	returns, err := GetAllReturns(50)
+	checks, err := GetAllCheckHistory(50)
 	if err != nil {
-		returns = []DBRecord{}
+		checks = []DBRecord{}
 		log.Printf("⚠️ Не удалось загрузить историю из БД: %v", err)
 	}
 
 	data := map[string]interface{}{
-		"Returns":     returns,
-		"UseDatabase": db != nil && len(returns) > 0,
+		"Checks":      checks,
+		"UseDatabase": db != nil && len(checks) > 0,
 		"DBConnected": db != nil,
 	}
 
@@ -1473,27 +1613,21 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 		log.Printf("⚠️ Не удалось загрузить пользователей: %v", err)
 	}
 
-	// Подсчитываем статистику по уровням риска
-	activeCount := 0
-	warningCount := 0
-	highRiskCount := 0
-	for _, u := range users {
-		switch u.RiskLevel {
-		case "active":
-			activeCount++
-		case "warning":
-			warningCount++
-		case "high":
-			highRiskCount++
-		}
+	activeCount, warningCount, highRiskCount, err := GetUserRiskStats()
+	if err != nil {
+		log.Printf("⚠️ Не удалось загрузить статистику рисков: %v", err)
+		activeCount, warningCount, highRiskCount = 0, 0, 0
 	}
 
 	data := map[string]interface{}{
-		"Users":      users,
-		"Total":      total,
-		"Page":       page,
-		"Limit":      limit,
-		"TotalPages": (total + limit - 1) / limit, // Вычисляем общее количество страниц
+		"Users":         users,
+		"Total":         total,
+		"ActiveCount":   activeCount,
+		"WarningCount":  warningCount,
+		"HighRiskCount": highRiskCount,
+		"Page":          page,
+		"Limit":         limit,
+		"TotalPages":    (total + limit - 1) / limit, // Вычисляем общее количество страниц
 	}
 
 	funcMap := template.FuncMap{
