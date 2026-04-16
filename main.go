@@ -389,9 +389,9 @@ func SaveReturnToDB(form FormData) error {
 	}
 
 	query := `INSERT INTO returns (order_id, client_id, days_since_purchase,
-		has_receipt, tags_removed, missing_components,
-		return_channel, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`
+                has_receipt, tags_removed, missing_components,
+                return_channel, claimed_reason, created_at)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`
 
 	_, err := db.Exec(query,
 		form.OrderID,
@@ -401,6 +401,7 @@ func SaveReturnToDB(form FormData) error {
 		form.TagsRemoved,
 		form.MissingComponents,
 		form.ReturnChannel,
+		form.Reason,
 	)
 
 	return err

@@ -288,86 +288,6 @@
             max-width: 400px;
         }
 
-        /* Щиты - фиксированные по середине цветной плашки (hero секции) */
-        .shield-container {
-            position: fixed;
-            top: 50%;
-            transform: translateY(-50%);
-            z-index: 0;
-            pointer-events: none;
-            width: auto;
-        }
-
-        .left-shield {
-            left: 0;
-        }
-
-        .right-shield {
-            right: 0;
-        }
-
-        .shield-wrapper {
-            width: 400px;
-            height: 400px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            animation: shieldPulse 3s ease-in-out infinite;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            transform-style: preserve-3d;
-            will-change: transform;
-        }
-
-        .shield-svg {
-            width: 200px;
-            height: 200px;
-            image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-            backface-visibility: hidden;
-            -webkit-backface-visibility: hidden;
-            filter: drop-shadow(0 0 25px rgba(102, 126, 234, 0.5));
-            transition: transform 0.3s ease;
-            transform-origin: center center;
-        }
-
-        @media (min-width: 0) {
-            .shield-svg {
-                width: 200px !important;
-                height: 200px !important;
-                min-width: 200px !important;
-                min-height: 200px !important;
-                max-width: 200px !important;
-                max-height: 200px !important;
-            }
-            .shield-wrapper {
-                width: 200px !important;
-                height: 200px !important;
-                min-width: 200px !important;
-                min-height: 200px !important;
-                max-width: 200px !important;
-                max-height: 200px !important;
-            }
-            .shield-container {
-                width: auto !important;
-                height: auto !important;
-            }
-        }
-
-        .shield-wrapper:hover .shield-svg {
-            transform: scale(1.25);
-        }
-
-        @keyframes shieldPulse {
-            0%, 100% {
-                transform: scale(1) translateZ(0);
-            }
-            50% {
-                transform: scale(1.05) translateZ(0);
-            }
-        }
     </style>
 </head>
 <body>
@@ -393,16 +313,6 @@
 
     <!-- Заголовок страницы -->
     <section class="page-header">
-        <!-- Декоративные щиты -->
-        <div class="shield-container left-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
-        </div>
-        <div class="shield-container right-shield">
-            <div class="shield-wrapper">
-                <img src="/static/svg/щит.svg" alt="Shield" class="shield-svg">
-            </div>
         </div>
         <div class="container">
             <h1 class="page-title">💬 Чат с AI помощником</h1>
