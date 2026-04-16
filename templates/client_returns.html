@@ -493,12 +493,12 @@
             e.preventDefault();
 
             const orderId = document.getElementById('returnOrderId').value.trim();
-            const reason = document.getElementById('returnReason').value;
+            const claimed_reason = document.getElementById('returnReason').value;
             const comment = document.getElementById('returnComment').value.trim();
 
-            console.log('Отправка возврата:', { order_id: parseInt(orderId), reason: reason, comment: comment });
+            console.log('Отправка возврата:', { order_id: parseInt(orderId), claimed_reason: claimed_reason, comment: comment });
 
-            if (!orderId || !reason) {
+            if (!orderId || !claimed_reason) {
                 showAlert('Пожалуйста, заполните обязательные поля', 'error');
                 return;
             }
@@ -511,7 +511,7 @@
                 },
                 body: JSON.stringify({
                     order_id: parseInt(orderId),
-                    claimed_reason: reason,
+                    claimed_reason: claimed_reason,
                     comment: comment
                 })
             })

@@ -1,4 +1,3 @@
-<!-- client_profile.html - ФИНАЛЬНАЯ РАБОЧАЯ ВЕРСИЯ -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -25,147 +24,138 @@
         }
 
         * { margin: 0; padding: 0; box-sizing: border-box; }
-
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
-            background: var(--gray-50);
-            color: var(--gray-800);
-            line-height: 1.5;
-            min-height: 100vh;
-            overflow-x: hidden;
+            background: var(--gray-50); color: var(--gray-800);
+            line-height: 1.5; min-height: 100vh; overflow-x: hidden;
         }
-
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 
-        /* === Навигация === */
+        /* === 🔥 1. ЖЁСТКИЙ СЛОЙ ЩИТОВ (НЕ СКРОЛЛИТСЯ) === */
+        #shield-layer {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100vw; height: 100vh;
+            z-index: 0;
+            pointer-events: none; /* Пропускает клики */
+            overflow: hidden;
+        }
+
+        /* Обертка для каждой картинки */
+        .shield-wrapper {
+            position: absolute;
+            top: 50%;
+            width: 200px; height: 200px;
+            /* Transform будет управляться JS, здесь только базовые стили */
+        }
+        .shield-wrapper.left { left: 40px; }
+        .shield-wrapper.right { right: 40px; }
+
+        /* Блок для анимации (чтобы не ломать масштабирование JS) */
+        .shield-anim-box {
+            width: 100%; height: 100%;
+            animation: float-shield 6s ease-in-out infinite;
+        }
+
+        .shield-anim-box img {
+            width: 100%; height: 100%; object-fit: contain;
+            opacity: 0.15;
+            filter: drop-shadow(0 0 20px rgba(127, 48, 227, 0.3));
+            transition: opacity 0.3s ease;
+        }
+        
+        .shield-wrapper:hover .shield-anim-box img { opacity: 0.3; }
+
+        @keyframes float-shield {
+            0%, 100% { transform: translateY(0) rotate(-3deg); }
+            50% { transform: translateY(-15px) rotate(3deg); }
+        }
+
+        @media (max-width: 900px) { #shield-layer { display: none; } }
+
+        /* === ОСТАЛЬНОЙ UI === */
         .client-nav {
             background: white; padding: 12px 0;
             border-bottom: 1px solid var(--gray-200);
-            position: sticky; top: 0; z-index: 1000;
-            box-shadow: var(--shadow);
+            position: sticky; top: 0; z-index: 1000; box-shadow: var(--shadow);
         }
         .client-nav .container { display: flex; justify-content: space-between; align-items: center; }
-        .nav-logo {
-            display: flex; align-items: center; gap: 10px;
-            text-decoration: none; color: var(--wb-purple);
-            font-weight: 800; font-size: 1.2rem;
-        }
+        .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--wb-purple); font-weight: 800; font-size: 1.2rem; }
         .nav-logo svg { width: 24px; height: 24px; }
         .client-nav-links { display: flex; list-style: none; gap: 8px; }
-        .client-nav-links a {
-            text-decoration: none; color: var(--gray-600); font-weight: 600;
-            padding: 10px 20px; border-radius: var(--radius-lg);
-            transition: var(--transition-fast);
-        }
-        .client-nav-links a:hover, .client-nav-links a.active {
-            color: var(--wb-purple); background: var(--gray-100);
-        }
+        .client-nav-links a { text-decoration: none; color: var(--gray-600); font-weight: 600; padding: 10px 20px; border-radius: var(--radius-lg); transition: var(--transition-fast); }
+        .client-nav-links a:hover, .client-nav-links a.active { color: var(--wb-purple); background: var(--gray-100); }
         .client-nav-links a.active { background: var(--wb-purple); color: white; }
-        .logout-btn {
-            padding: 10px 20px; background: white; color: var(--wb-purple);
-            border: 2px solid var(--wb-purple); border-radius: var(--radius-lg);
-            font-weight: 600; cursor: pointer; transition: var(--transition-fast);
-        }
+        .logout-btn { padding: 10px 20px; background: white; color: var(--wb-purple); border: 2px solid var(--wb-purple); border-radius: var(--radius-lg); font-weight: 600; cursor: pointer; transition: var(--transition-fast); }
         .logout-btn:hover { background: var(--wb-purple); color: white; }
 
-        /* === Профиль header === */
         .profile-header {
             background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 60px 0; text-align: center; color: white;
-            position: relative; overflow: hidden;
+            position: relative; z-index: 10; overflow: hidden;
         }
         .profile-avatar {
-            width: 100px; height: 100px; background: white;
-            border-radius: 50%; display: flex; align-items: center;
-            justify-content: center; margin: 0 auto 20px;
-            font-size: 2.5rem; font-weight: 800; color: var(--wb-purple);
-            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            width: 100px; height: 100px; background: white; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; margin: 0 auto 20px;
+            font-size: 2.5rem; font-weight: 800; color: var(--wb-purple); box-shadow: 0 10px 30px rgba(0,0,0,0.2);
         }
         .profile-name { font-size: 2rem; font-weight: 800; margin-bottom: 10px; }
         .profile-id { opacity: 0.9; font-size: 1rem; }
 
-        /* === Маркиз текст === */
         .header-marquee {
             position: absolute; top: 50%; left: 0; right: 0;
             transform: translateY(-50%); pointer-events: none; z-index: 1;
             display: flex; justify-content: space-between; align-items: center; padding: 0 40px;
         }
-        .marquee-text {
-            font-size: 3rem; font-weight: 800; opacity: 0;
-            white-space: nowrap; transition: opacity 1.5s ease-in-out;
-        }
-        .marquee-left { text-align: left; }
-        .marquee-right { text-align: right; }
+        .marquee-text { font-size: 3rem; font-weight: 800; opacity: 0; white-space: nowrap; transition: opacity 1.5s ease-in-out; }
+        .marquee-left { text-align: left; } .marquee-right { text-align: right; }
         .marquee-text.visible { opacity: 0.9; }
 
-        /* === 🔥 ЩИТЫ (ФОН + JS КОМПЕНСАЦИЯ ЗУМА) === */
-        .side-shields-bg {
-            /* Увеличенные границы, чтобы при уменьшении не появлялись белые края */
-            position: fixed;
-            top: -100px; left: -100px; right: -100px; bottom: -100px;
-            pointer-events: none; z-index: 0;
-            background-image: url('/static/svg/щит.svg'), url('/static/svg/щит.svg');
-            background-repeat: no-repeat;
-            /* Компенсация смещения контейнера: 130px - 100px отступа = 30px от края экрана */
-            background-position: left 130px center, right 130px center;
-            background-size: 180px 180px;
-            opacity: 0.12;
-            transform-origin: center center;
-            will-change: transform;
-            /* Анимация убрана, т.к. она конфликтует с transform: scale() */
-        }
-
-        @media (max-width: 768px) {
-            .side-shields-bg { display: none; }
-            .header-marquee { display: none; }
-            .tabs-large { grid-template-columns: 1fr; }
-        }
-
-        /* === Вкладки === */
-        .tabs-large {
-            display: grid; grid-template-columns: repeat(3, 1fr);
-            gap: 40px; margin: 60px auto; max-width: 1100px;
-            position: relative; z-index: 10;
-        }
+        .main-content { position: relative; z-index: 10; margin-top: 60px; }
+        .tabs-large { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-bottom: 60px; }
         .tab-card {
-            background: white; border-radius: var(--radius-xl);
-            padding: 40px 30px; text-align: center; text-decoration: none;
-            color: inherit; box-shadow: var(--shadow-md);
+            background: white; border-radius: var(--radius-xl); padding: 40px 30px;
+            text-align: center; text-decoration: none; color: inherit; box-shadow: var(--shadow-md);
             transition: var(--transition); border: 2px solid transparent; display: block;
         }
         .tab-card:hover { transform: translateY(-8px); box-shadow: var(--shadow-lg); }
         .tab-orders { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; }
-        .tab-orders:hover { background: linear-gradient(135deg, #764ba2 0%, #667eea 100%); }
         .tab-returns { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white; }
-        .tab-returns:hover { background: linear-gradient(135deg, #f5576c 0%, #f093fb 100%); }
         .tab-chat { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white; }
-        .tab-chat:hover { background: linear-gradient(135deg, #00f2fe 0%, #4facfe 100%); }
         .tab-card-icon { font-size: 3.5rem; margin-bottom: 15px; display: flex; align-items: center; justify-content: center; }
-        .tab-card-icon img {
-            width: 140px; height: 140px; object-fit: contain;
-            transition: transform 0.3s ease, filter 0.3s ease;
-        }
-        .tab-orders:hover .tab-card-icon img { transform: scale(1.3); filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.7)); }
-        .tab-returns:hover .tab-card-icon img { transform: scale(1.3); filter: drop-shadow(0 0 20px rgba(0, 191, 255, 0.7)); }
-        .tab-chat:hover .tab-card-icon img { transform: scale(1.3); filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9)); }
+        .tab-card-icon img { width: 140px; height: 140px; object-fit: contain; transition: transform 0.3s ease, filter 0.3s ease; }
         .tab-card-title { font-size: 2rem; font-weight: 800; margin-bottom: 15px; }
         .tab-card-desc { font-size: 1.3rem; opacity: 0.9; }
 
-        /* === Кнопка чата === */
         .chat-toggle {
-            position: fixed; bottom: 30px; right: 30px;
-            width: 60px; height: 60px; border-radius: 50%;
-            background: var(--wb-purple); color: white; border: none;
-            cursor: pointer; display: flex; align-items: center;
-            justify-content: center; box-shadow: var(--shadow-lg);
-            transition: var(--transition); z-index: 1000;
+            position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
+            border-radius: 50%; background: var(--wb-purple); color: white; border: none;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            box-shadow: var(--shadow-lg); transition: var(--transition); z-index: 1000;
         }
         .chat-toggle:hover { transform: scale(1.1); box-shadow: 0 10px 40px rgba(127, 48, 227, 0.5); }
         .chat-toggle svg { width: 28px; height: 28px; }
     </style>
 </head>
 <body>
-    <!-- Навигация -->
+
+    <!-- 🔥 СЛОЙ ЩИТОВ (ВНЕ КОНТЕНТА, ЧТОБЫ НЕ СКРОЛЛИТЬСЯ) -->
+    <div id="shield-layer">
+        <!-- Левый -->
+        <div class="shield-wrapper left" id="shieldL">
+            <div class="shield-anim-box">
+                <img src="/static/svg/щит.svg" alt="Shield">
+            </div>
+        </div>
+        <!-- Правый -->
+        <div class="shield-wrapper right" id="shieldR">
+            <div class="shield-anim-box">
+                <img src="/static/svg/щит.svg" alt="Shield">
+            </div>
+        </div>
+    </div>
+
+    <!-- НАВИГАЦИЯ -->
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -184,7 +174,7 @@
         </div>
     </nav>
 
-    <!-- Заголовок -->
+    <!-- ЗАГОЛОВОК -->
     <section class="profile-header">
         <div class="header-marquee">
             <span class="marquee-text marquee-left" id="marqueeLeft">Добро пожаловать!</span>
@@ -197,84 +187,88 @@
         </div>
     </section>
 
-    <!-- 🔥 Щиты (Фон) -->
-    <div class="side-shields-bg"></div>
-
-    <!-- Контент -->
-    <div class="container">
-        <div class="tabs-large">
-            <a href="/client/orders" class="tab-card tab-orders">
-                <div class="tab-card-icon"><img src="/static/svg/коробка.svg" alt="Заказы"></div>
-                <div class="tab-card-title">Мои заказы</div>
-                <div class="tab-card-desc">Просмотр всех заказов</div>
-            </a>
-            <a href="/client/returns" class="tab-card tab-returns">
-                <div class="tab-card-icon"><img src="/static/svg/стрелка назад.svg" alt="Возвраты"></div>
-                <div class="tab-card-title">Возвраты</div>
-                <div class="tab-card-desc">Оформить возврат</div>
-            </a>
-            <a href="/client/chat" class="tab-card tab-chat">
-                <div class="tab-card-icon"><img src="/static/svg/робот.svg" alt="AI Нейросеть"></div>
-                <div class="tab-card-title">AI Нейросеть</div>
-                <div class="tab-card-desc">Помощник и проверки</div>
-            </a>
+    <!-- КОНТЕНТ -->
+    <div class="main-content">
+        <div class="container">
+            <div class="tabs-large">
+                <a href="/client/orders" class="tab-card tab-orders">
+                    <div class="tab-card-icon"><img src="/static/svg/коробка.svg" alt="Заказы"></div>
+                    <div class="tab-card-title">Мои заказы</div>
+                    <div class="tab-card-desc">Просмотр всех заказов</div>
+                </a>
+                <a href="/client/returns" class="tab-card tab-returns">
+                    <div class="tab-card-icon"><img src="/static/svg/стрелка назад.svg" alt="Возвраты"></div>
+                    <div class="tab-card-title">Возвраты</div>
+                    <div class="tab-card-desc">Оформить возврат</div>
+                </a>
+                <a href="/client/chat" class="tab-card tab-chat">
+                    <div class="tab-card-icon"><img src="/static/svg/робот.svg" alt="AI Нейросеть"></div>
+                    <div class="tab-card-title">AI Нейросеть</div>
+                    <div class="tab-card-desc">Помощник и проверки</div>
+                </a>
+            </div>
         </div>
     </div>
 
-    <!-- Кнопка чата -->
+    <!-- КНОПКА ЧАТА -->
     <button class="chat-toggle" onclick="toggleChat()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
         </svg>
     </button>
 
-    <!-- 🔧 Скрипт компенсации зума -->
+    <!-- 🔧 СКРИПТ: КОМПЕНСАЦИЯ ЗУМА + ФИКСАЦИЯ -->
     <script>
-        (function() {
-            const shield = document.querySelector('.side-shields-bg');
-            if (!shield) return;
+        document.addEventListener("DOMContentLoaded", () => {
+            const shieldL = document.getElementById('shieldL');
+            const shieldR = document.getElementById('shieldR');
 
-            // Скрытый эталонный элемент для точного измерения зума
-            const ref = document.createElement('div');
-            ref.style.cssText = 'position:absolute;width:100px;height:100px;visibility:hidden;pointer-events:none;z-index:-9999;';
-            document.body.appendChild(ref);
+            // Создаем скрытый эталонный элемент (100px)
+            const ruler = document.createElement('div');
+            ruler.style.width = '100px';
+            ruler.style.height = '100px';
+            ruler.style.position = 'absolute';
+            ruler.style.top = '0'; ruler.style.left = '0';
+            ruler.style.visibility = 'hidden';
+            ruler.style.pointerEvents = 'none';
+            document.body.appendChild(ruler);
 
-            function updateScale() {
-                // Браузер увеличивает getBoundingClientRect при зуме
-                const actualWidth = ref.getBoundingClientRect().width;
-                const zoomFactor = actualWidth / 100;
-                const inverseScale = 1 / zoomFactor;
+            function fixZoom() {
+                // Измеряем реальную ширину эталона в пикселях экрана
+                const rect = ruler.getBoundingClientRect();
+                const zoomLevel = rect.width / 100;
                 
-                // Применяем обратный масштаб
-                shield.style.transform = `scale(${inverseScale})`;
+                // Если зум изменился, пересчитываем масштаб
+                // translateY(-50%) нужен чтобы центрировать по вертикали
+                // scale(1/zoom) компенсирует увеличение браузера
+                const transform = `translateY(-50%) scale(${1 / zoomLevel})`;
+                
+                shieldL.style.transform = transform;
+                shieldR.style.transform = transform;
             }
 
-            // ResizeObserver ловит изменение размера эталона (в т.ч. при зуме)
-            const observer = new ResizeObserver(updateScale);
-            observer.observe(ref);
+            // Запускаем при загрузке
+            fixZoom();
 
-            // Fallback для Safari/старых браузеров
-            setInterval(updateScale, 300);
-
-            // Первичная инициализация
-            setTimeout(updateScale, 100);
-        })();
+            // Слушаем изменение размера окна и зума
+            window.addEventListener('resize', fixZoom);
+            
+            // Используем ResizeObserver для эталона (реагирует мгновенно на любой зум)
+            const observer = new ResizeObserver(fixZoom);
+            observer.observe(ruler);
+        });
     </script>
 
     <!-- Основной скрипт страницы -->
     <script>
         let currentUser = null;
-
         document.addEventListener('DOMContentLoaded', function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
                 currentUser = JSON.parse(storedUser);
                 loadUserProfile();
-            } else {
-                window.location.href = '/login';
-            }
+            } else { window.location.href = '/login'; }
         });
-
         function loadUserProfile() {
             if (currentUser) {
                 document.getElementById('userName').textContent = currentUser.login || 'Пользователь';
@@ -282,23 +276,15 @@
                 document.getElementById('userAvatar').textContent = (currentUser.login || 'U')[0].toUpperCase();
             }
         }
-
         function logout() {
             sessionStorage.removeItem('user');
-            fetch('/api/logout', { method: 'POST' })
-                .then(() => { window.location.href = '/login'; })
-                .catch(() => { window.location.href = '/login'; });
+            fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = '/login').catch(() => window.location.href = '/login');
         }
-
-        function toggleChat() {
-            window.location.href = '/client/chat';
-        }
-
-        // Анимация текста
-        const leftTexts = ['Добро пожаловать!', 'Рады видеть вас снова!', 'Защита ваших покупок', 'Удобный возврат', 'Быстро и просто'];
-        const rightTexts = ['Быстрые возвраты', 'AI помощник 24/7', 'Безопасные сделки', 'Поддержка всегда рядом', 'Удобные покупки'];
+        function toggleChat() { window.location.href = '/client/chat'; }
+        
+        const leftTexts = ['Добро пожаловать!', 'Рады видеть вас снова!', 'Защита ваших покупок'];
+        const rightTexts = ['Быстрые возвраты', 'AI помощник 24/7', 'Безопасные сделки'];
         let leftIndex = 0, rightIndex = 0, isLeftVisible = true, isRightVisible = false;
-
         function cycleMarqueeText() {
             const leftEl = document.getElementById('marqueeLeft');
             const rightEl = document.getElementById('marqueeRight');
@@ -322,7 +308,6 @@
                 }, 1500);
             }
         }
-
         document.getElementById('marqueeLeft').textContent = leftTexts[0];
         document.getElementById('marqueeLeft').classList.add('visible');
         setInterval(cycleMarqueeText, 6000);

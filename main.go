@@ -47,7 +47,7 @@ type FormData struct {
 	HasReceipt        bool    `json:"hasReceipt"`
 	HasDamage         bool    `json:"hasDamage"`
 	IsUsed            bool    `json:"isUsed"`
-	Reason            string  `json:"reason"`
+	ClaimedReason     string  `json:"claimed_reason"`
 	DaysSincePurchase int     `json:"daysSincePurchase"`
 	ReturnChannel     string  `json:"returnChannel"`
 	TagsRemoved       bool    `json:"tagsRemoved"`
@@ -401,7 +401,7 @@ func SaveReturnToDB(form FormData) error {
 		form.TagsRemoved,
 		form.MissingComponents,
 		form.ReturnChannel,
-		form.Reason,
+		form.ClaimedReason,
 	)
 
 	return err
@@ -1373,7 +1373,7 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 			ClientID:          parseInt(r.FormValue("clientID")),
 			OrderID:           parseInt(r.FormValue("orderID")),
 			Category:          r.FormValue("category"),
-			Reason:            r.FormValue("reason"),
+			ClaimedReason:     r.FormValue("reason"),
 			AddressMatch:      r.FormValue("addressMatch") == "on",
 			DeviceNew:         r.FormValue("deviceNew") == "on",
 			IsWeekend:         r.FormValue("isWeekend") == "on",
@@ -1845,7 +1845,7 @@ func prepareFeatures(f FormData) []float32 {
 		"defect": 2, "size": 0, "color": 1,
 		"quality": 2, "changed_mind": 1, "other": 14,
 	}
-	features[11] = reasonMap[f.Reason]
+	features[11] = reasonMap[f.ClaimedReason]
 
 	// 12-16: Заказ
 	features[12] = float32(f.DiscountPercent) / 50.0
@@ -1934,7 +1934,7 @@ func calculateRiskFallback(f FormData) float32 {
 	}
 
 	// Поведенческие признаки
-	if f.Reason == "changed_mind" {
+	if f.ClaimedReason == "changed_mind" {
 		score += 0.15
 	}
 	if f.DaysToReturn <= 3 {
@@ -1993,7 +1993,7 @@ func getRiskFactors(f FormData) []string {
 	if f.IsUsed {
 		factors = append(factors, "Товар имеет следы использования")
 	}
-	if f.Reason == "changed_mind" {
+	if f.ClaimedReason == "changed_mind" {
 		factors = append(factors, "Возврат без объективной причины")
 	}
 	if f.DaysToReturn <= 3 {
@@ -2229,7 +2229,7 @@ func predictRisk(f FormData) (float32, error) {
 		HasReceipt:          f.HasReceipt,
 		TagsRemoved:         f.TagsRemoved,
 		MissingComponents:   f.MissingComponents,
-		ClaimedReason:       f.Reason,
+		ClaimedReason:       f.ClaimedReason,
 	}
 
 	var resp FastAPIFraudPredictionResponse
