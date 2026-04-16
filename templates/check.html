@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-
         .admin-nav {
             background: white;
             padding: 12px 0;
@@ -93,7 +92,7 @@
             color: var(--success); font-size: 0.85rem; margin-left: 10px;
             animation: fadeIn 0.3s ease;
         }
-/* Щиты - фиксированные на экране, посередине цветной плашки */
+        /* Щиты - фиксированные на экране, посередине цветной плашки */
         .shield-container {
             position: fixed;
             top: 50%;
@@ -138,6 +137,114 @@
             }
         }
 
+        /* Toast notification styles */
+        .toast {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: white;
+            padding: 12px 20px;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 2000;
+            animation: slideIn 0.3s ease-out;
+            border-left: 4px solid var(--success);
+        }
+        .toast.error { border-left-color: #dc3545; }
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes fadeOut { from { opacity: 1; } to { opacity: 0; } }
+        
+        /* Result Card Styles */
+        .result-card {
+            border: 2px solid var(--wb-purple);
+            background: #f8f9ff;
+        }
+        .risk-gauge {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            margin: 20px 0;
+        }
+        .gauge-circle {
+            position: relative;
+            width: 120px;
+            height: 120px;
+        }
+        .gauge-circle svg {
+            transform: rotate(-90deg);
+            width: 100%;
+            height: 100%;
+        }
+        .gauge-bg {
+            fill: none;
+            stroke: #e9ecef;
+            stroke-width: 8;
+        }
+        .gauge-fill {
+            fill: none;
+            stroke: var(--wb-purple);
+            stroke-width: 8;
+            stroke-dasharray: 283;
+            stroke-dashoffset: 283;
+            transition: stroke-dashoffset 1s ease-in-out;
+        }
+        .gauge-value {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: var(--gray-800);
+        }
+        .risk-badge {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px 25px;
+            background: white;
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow);
+            min-width: 150px;
+        }
+        .risk-badge span:first-child { font-size: 2rem; margin-bottom: 5px; }
+        .risk-badge span:last-child { font-weight: 700; font-size: 1.1rem; }
+        .factors {
+            margin-top: 20px;
+            background: white;
+            padding: 15px;
+            border-radius: var(--radius);
+        }
+        .factor-list {
+            list-style: none;
+            padding: 0;
+            margin: 10px 0 0 0;
+        }
+        .factor-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid var(--gray-100);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .factor-list li:last-child { border-bottom: none; }
+        .factor-bar {
+            height: 6px;
+            background: var(--gray-200);
+            border-radius: 3px;
+            flex-grow: 1;
+            overflow: hidden;
+        }
+        .factor-bar-fill {
+            height: 100%;
+            background: var(--wb-purple);
+            border-radius: 3px;
+        }
     </style>
 </head>
 <body>
@@ -190,7 +297,7 @@
                         <button type="button" class="btn btn-secondary btn-sm" onclick="loadRandomData()">🎲 Случайные данные</button>
                     </div>
                     <div class="card-body">
-                        <form class="form" action="/check" method="POST" id="fraudForm">
+                        <form class="form" id="fraudForm">
                             <!-- Секция 1: Идентификаторы -->
                             <div class="form-section">
                                 <h3>Идентификаторы</h3>
@@ -217,7 +324,7 @@
                                             </svg>
                                             <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
                                         </div>
-                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">ведите ID для автозаполнения</small>
+                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
                                     </div>
                                 </div>
                             </div>
@@ -326,6 +433,7 @@
                             </div>
 
                             <!-- 🔧 СКРЫТЫЕ ПОЛЯ для недостающих признаков модели (42 total) -->
+                             <input type="hidden" name="isWeekend" value="0">
                             <input type="hidden" name="discountPercent" value="0">
                             <input type="hidden" name="promoCodeUsed" value="0">
                             <input type="hidden" name="firstOrderDiscountAbuse" value="0">
@@ -356,6 +464,11 @@
                             <input type="hidden" name="legalClaimThreat" value="0">
                             <input type="hidden" name="itemsInOrder" value="1">
                             <input type="hidden" name="isElectronics" value="0">
+                            <input type="hidden" name="totalReturns" value="0">
+                            <input type="hidden" name="addressChangeFrequency" value="0">
+                            <input type="hidden" name="categoryReturnsCount" value="0">
+                            <input type="hidden" name="amountDeviation" value="0">
+                            <input type="hidden" name="ordersLast30d" value="0">
                         </form>
                     </div>
                 </div>
@@ -388,9 +501,9 @@
                             <ul class="factor-list" id="shapList"></ul>
                         </div>
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
-                            <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;">✅ Одобрить</button>
-                            <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;">⚠️ На проверку</button>
-                            <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;">❌ Отклонить</button>
+                            <button class="btn btn-success" onclick="approveReturn()" style="flex: 1;">✅ Одобрить</button>
+                            <button class="btn btn-warning" onclick="manualReview()" style="flex: 1;">⚠️ На проверку</button>
+                            <button class="btn btn-danger" onclick="rejectReturn()" style="flex: 1;">❌ Отклонить</button>
                         </div>
                     </div>
                 </div>
@@ -406,7 +519,6 @@
     </div>
 
     <script>
-
     let selectedClientId = null;
     let selectedOrderId = null;
 
@@ -505,185 +617,192 @@
         showToast('Данные заказа загружены', 'success');
     }
 
-    // 🔧 ЗАМЕНИТЕ функцию loadClientData на эту версию:
-async function loadClientData(clientId) {
-    try {
-        const res = await fetch(`/api/client/${clientId}`);
-        if (res.ok) {
-            const client = await res.json();
-            
-            // === Видимые поля ===
-            if (client.account_age_days) {
-                document.getElementById('accountAgeDays').value = client.account_age_days;
-            }
-            if (client.total_orders) {
-                document.getElementById('totalOrders').value = client.total_orders;
-            }
-            
-            // === СКРЫТЫЕ ПОЛЯ — заполняем из БД ===
-            setHiddenField('avgOrderAmount', client.avg_order_amount);
-            setHiddenField('totalReturns', client.total_returns);
-            setHiddenField('addressChangeFrequency', client.address_change_frequency);
-            setHiddenField('categoryReturnsCount', client.category_returns_count);
-            
-            // 🎯 Вычисляем производные признаки (как в Go EnrichFromDB)
-            const totalOrders = parseInt(client.total_orders) || 0;
-            const totalReturns = parseInt(client.total_returns) || 0;
-            
-            // ReturnRate30d (упрощённо: общий % возвратов)
-            if (totalOrders > 0) {
-                const returnRate30d = (totalReturns / totalOrders) * 100;
-                setHiddenField('returnRate30d', returnRate30d.toFixed(2));
-            }
-            
-            // Trust scores (базовая эвристика)
-            const trustScore = totalOrders > 0 ? Math.max(0.3, 1 - (totalReturns / totalOrders) * 0.5) : 0.75;
-            setHiddenField('deviceTrustScore', trustScore.toFixed(2));
-            setHiddenField('ipTrustScore', trustScore.toFixed(2));
-            
-            // Accounts per IP/Device (если есть address_change_frequency)
-            if (client.address_change_frequency) {
-                const freq = parseFloat(client.address_change_frequency);
-                setHiddenField('accountsPerIP', Math.min(10, Math.floor(freq) + 1));
-                setHiddenField('distanceFromRegistrationCity', (freq * 100).toFixed(0));
-            }
-            
-            console.log('✅ Клиент загружен:', client);
-            showToast('Данные клиента обновлены', 'success');
-        }
-    } catch (err) {
-        console.error('❌ Ошибка загрузки клиента:', err);
-    }
-}
-
-// 🔧 ЗАМЕНИТЕ функцию loadOrderData на эту версию:
-async function loadOrderData(orderId) {
-    try {
-        const res = await fetch(`/api/order/${orderId}`);
-        if (res.ok) {
-            const order = await res.json();
-            
-            // === Видимые поля ===
-            if (order.order_amount) {
-                document.getElementById('orderAmount').value = order.order_amount;
-            }
-            if (order.items_count) {
-                setHiddenField('itemsInOrder', order.items_count);
-            }
-
-            if (order.product_category) {
-                const categorySelect = document.getElementById('category');
-                const catMap = {
-                    'electronics': 'electronics',
-                    'clothing': 'clothing',
-                    'cosmetics': 'cosmetics',
-                    'books': 'books',
-                    'sports': 'sports',
-                    'home': 'home'
-                };
-                const mappedCat = catMap[order.product_category.toLowerCase()] || '';
-                if (mappedCat && categorySelect) {
-                    categorySelect.value = mappedCat;
-                }
-            }
-
-            if (order.days_to_return !== undefined && order.days_to_return !== null) {
-                const daysInput = document.getElementById('daysToReturn');
-                if (daysInput) {
-                    daysInput.value = order.days_to_return;
-                }
-            }
-
-            if (order.reason) {
-                const reasonSelect = document.getElementById('reason');
-                const reasonMap = {
-                    'defect': 'defect',
-                    'брак': 'defect',
-                    'size': 'size',
-                    'размер': 'size',
-                    'color': 'color',
-                    'цвет': 'color',
-                    'quality': 'quality',
-                    'качество': 'quality',
-                    'changed_mind': 'changed_mind',
-                    'передумал': 'changed_mind',
-                    'other': 'other'
-                };
-                const mappedReason = reasonMap[order.reason.toLowerCase()] || 'other';
-                if (reasonSelect) {
-                    reasonSelect.value = mappedReason;
-                }
-            }
-
-            if (order.return_channel) {
-                const channel = order.return_channel.toLowerCase();
-                // Если возврат через курьера/магазин - обычно товар в хорошем состоянии
-                if (channel.includes('courier') || channel.includes('shop')) {
-                    document.getElementById('hasTag').checked = true;
-                    document.getElementById('hasReceipt').checked = true;
-                    document.getElementById('hasDamage').checked = false;
-                    document.getElementById('isUsed').checked = false;
-                }
-                // Если возврат почтой или с повреждением
-                if (channel.includes('post') || channel.includes('damage')) {
-                    document.getElementById('hasTag').checked = false;
-                    document.getElementById('hasDamage').checked = true;
-                }
-            }
-            
-            // === СКРЫТЫЕ ПОЛЯ из заказа ===
-            setHiddenField('paymentMethodRisk', getPaymentRisk(order.payment_method));
-            setHiddenField('amountDeviation', order.amount_deviation);
-            setHiddenField('ordersLast30d', order.orders_last_30d);
-            
-            // === Время заказа → признаки ===
-            if (order.order_timestamp) {
-                const date = new Date(order.order_timestamp);
-                const hour = date.getHours();
-                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
-                const isNight = hour >= 0 && hour <= 5;
+    async function loadClientData(clientId) {
+        try {
+            const res = await fetch(`/api/client/${clientId}`);
+            if (res.ok) {
+                const client = await res.json();
                 
-                document.getElementById('isWeekend').checked = isWeekend;
-                setHiddenField('orderHour', hour);
-                setHiddenField('orderTimeNight', isNight ? 1 : 0);
+                // === Видимые поля ===
+                if (client.account_age_days) {
+                    safeSetValue('accountAgeDays', client.account_age_days);
+                }
+                if (client.total_orders) {
+                    safeSetValue('totalOrders', client.total_orders);
+                }
+                
+                // === СКРЫТЫЕ ПОЛЯ — заполняем из БД ===
+                setHiddenField('avgOrderAmount', client.avg_order_amount);
+                setHiddenField('totalReturns', client.total_returns);
+                setHiddenField('addressChangeFrequency', client.address_change_frequency);
+                setHiddenField('categoryReturnsCount', client.category_returns_count);
+                
+                // 🎯 Вычисляем производные признаки (как в Go EnrichFromDB)
+                const totalOrders = parseInt(client.total_orders) || 0;
+                const totalReturns = parseInt(client.total_returns) || 0;
+                
+                // ReturnRate30d (упрощённо: общий % возвратов)
+                if (totalOrders > 0) {
+                    const returnRate30d = (totalReturns / totalOrders) * 100;
+                    setHiddenField('returnRate30d', returnRate30d.toFixed(2));
+                }
+                
+                // Trust scores (базовая эвристика)
+                const trustScore = totalOrders > 0 ? Math.max(0.3, 1 - (totalReturns / totalOrders) * 0.5) : 0.75;
+                setHiddenField('deviceTrustScore', trustScore.toFixed(2));
+                setHiddenField('ipTrustScore', trustScore.toFixed(2));
+                
+                // Accounts per IP/Device (если есть address_change_frequency)
+                if (client.address_change_frequency) {
+                    const freq = parseFloat(client.address_change_frequency);
+                    setHiddenField('accountsPerIP', Math.min(10, Math.floor(freq) + 1));
+                    setHiddenField('distanceFromRegistrationCity', (freq * 100).toFixed(0));
+                }
+                
+                console.log('✅ Клиент загружен:', client);
+                showToast('Данные клиента обновлены', 'success');
             }
-            
-            // === Электроника? ===
-            const category = document.getElementById('category')?.value;
-            setHiddenField('isElectronics', category === 'electronics' ? 1 : 0);
-            
-            // === Velocity признаки (упрощённо) ===
-            const orders30d = parseInt(order.orders_last_30d) || 0;
-            setHiddenField('ipVelocity24h', Math.min(orders30d, 20));
-            setHiddenField('ipVelocity7d', Math.min(orders30d * 2, 50));
-            setHiddenField('refundVelocity30d', orders30d);
-            
-            // === Promo / Discount ===
-            const orderAmount = parseFloat(order.order_amount) || 0;
-            const discount = parseFloat(order.discount_amount) || 0;
-            if (orderAmount > 0 && discount > 0) {
-                const discountPercent = (discount / orderAmount) * 100;
-                setHiddenField('discountPercent', discountPercent.toFixed(2));
-                setHiddenField('promoCodeUsed', discountPercent > 10 ? 1 : 0);
-                setHiddenField('firstOrderDiscountAbuse', 
-                    (orders30d === 1 && discountPercent > 20) ? 1 : 0);
-            }
-            
-            console.log('✅ Заказ загружен:', order);
-            showToast('Данные заказа обновлены', 'success');
+        } catch (err) {
+            console.error('❌ Ошибка загрузки клиента:', err);
         }
-    } catch (err) {
-        console.error('❌ Ошибка загрузки заказа:', err);
     }
-}
+
+    function safeSetChecked(id, value) {
+        const el = document.getElementById(id);
+        if (el && el.type === 'checkbox') {
+            el.checked = Boolean(value);
+        }
+    }
+
+    function safeSetValue(id, value) {
+        const el = document.getElementById(id);
+        if (el) {
+            el.value = value;
+        }
+    }
+
+    async function loadOrderData(orderId) {
+        try {
+            const res = await fetch(`/api/order/${orderId}`);
+            if (res.ok) {
+                const order = await res.json();
+                
+                // === Видимые поля ===
+                if (order.order_amount) {
+                    safeSetValue('orderAmount', order.order_amount);
+                }
+                if (order.items_count) {
+                    setHiddenField('itemsInOrder', order.items_count);
+                }
+
+                if (order.product_category) {
+                    const categorySelect = document.getElementById('category');
+                    const catMap = {
+                        'electronics': 'electronics',
+                        'clothing': 'clothing',
+                        'cosmetics': 'cosmetics',
+                        'books': 'books',
+                        'sports': 'sports',
+                        'home': 'home'
+                    };
+                    const mappedCat = catMap[order.product_category.toLowerCase()] || '';
+                    if (mappedCat && categorySelect) {
+                        categorySelect.value = mappedCat;
+                    }
+                }
+
+                if (order.days_to_return !== undefined && order.days_to_return !== null) {
+                    safeSetValue('daysToReturn', order.days_to_return);
+                }
+
+                if (order.reason) {
+                    const reasonSelect = document.getElementById('reason');
+                    const reasonMap = {
+                        'defect': 'defect',
+                        'брак': 'defect',
+                        'size': 'size',
+                        'размер': 'size',
+                        'color': 'color',
+                        'цвет': 'color',
+                        'quality': 'quality',
+                        'качество': 'quality',
+                        'changed_mind': 'changed_mind',
+                        'передумал': 'changed_mind',
+                        'other': 'other'
+                    };
+                    const mappedReason = reasonMap[order.reason.toLowerCase()] || 'other';
+                    if (reasonSelect) {
+                        reasonSelect.value = mappedReason;
+                    }
+                }
+
+                if (order.return_channel) {
+                    const channel = order.return_channel.toLowerCase();
+                    // Если возврат через курьера/магазин - обычно товар в хорошем состоянии
+                    if (channel.includes('courier') || channel.includes('shop')) {
+                        safeSetChecked('hasTag', true);
+                        safeSetChecked('hasReceipt', true);
+                        safeSetChecked('hasDamage', false);
+                        safeSetChecked('isUsed', false);
+                    }
+                    // Если возврат почтой или с повреждением
+                    if (channel.includes('post') || channel.includes('damage')) {
+                        safeSetChecked('hasTag', false);
+                        safeSetChecked('hasDamage', true);
+                    }
+                }
+                
+                // === СКРЫТЫЕ ПОЛЯ из заказа ===
+                setHiddenField('paymentMethodRisk', getPaymentRisk(order.payment_method));
+                setHiddenField('amountDeviation', order.amount_deviation);
+                setHiddenField('ordersLast30d', order.orders_last_30d);
+                
+                // === Время заказа → признаки ===
+                if (order.order_timestamp) {
+                    const date = new Date(order.order_timestamp);
+                    const hour = date.getHours();
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                    const isNight = hour >= 0 && hour <= 5;
+                    
+                    setHiddenField('isWeekend', isWeekend ? 1 : 0);
+                    setHiddenField('orderHour', hour);
+                    setHiddenField('orderTimeNight', isNight ? 1 : 0);
+                }
+                
+                // === Электроника? ===
+                const category = document.getElementById('category')?.value;
+                setHiddenField('isElectronics', category === 'electronics' ? 1 : 0);
+                
+                // === Velocity признаки (упрощённо) ===
+                const orders30d = parseInt(order.orders_last_30d) || 0;
+                setHiddenField('ipVelocity24h', Math.min(orders30d, 20));
+                setHiddenField('ipVelocity7d', Math.min(orders30d * 2, 50));
+                setHiddenField('refundVelocity30d', orders30d);
+                
+                // === Promo / Discount ===
+                const orderAmount = parseFloat(order.order_amount) || 0;
+                const discount = parseFloat(order.discount_amount) || 0;
+                if (orderAmount > 0 && discount > 0) {
+                    const discountPercent = (discount / orderAmount) * 100;
+                    setHiddenField('discountPercent', discountPercent.toFixed(2));
+                    setHiddenField('promoCodeUsed', discountPercent > 10 ? 1 : 0);
+                    setHiddenField('firstOrderDiscountAbuse', 
+                        (orders30d === 1 && discountPercent > 20) ? 1 : 0);
+                }
+                
+                console.log('✅ Заказ загружен:', order);
+                showToast('Данные заказа обновлены', 'success');
+            }
+        } catch (err) {
+            console.error('❌ Ошибка загрузки заказа:', err);
+        }
+    }
 
     // 🆕 Вспомогательная функция для скрытых полей
     function setHiddenField(name, value) {
         const field = document.querySelector(`input[name="${name}"]`);
         if (field && value !== undefined && value !== null) {
             field.value = value;
-            // 🔍 Отладка: раскомментируйте, чтобы видеть в консоли
-            // console.log(`[HIDDEN] ${name} = ${value}`);
         }
     }
 
@@ -697,30 +816,50 @@ async function loadOrderData(orderId) {
     }
 
     function loadRandomData() {
-        document.getElementById('accountAgeDays').value = Math.floor(Math.random() * 365) + 1;
-        document.getElementById('totalOrders').value = Math.floor(Math.random() * 50) + 1;
-        document.getElementById('returnRate').value = (Math.random() * 30).toFixed(1);
-        document.getElementById('orderAmount').value = Math.floor(Math.random() * 50000) + 1000;
-        document.getElementById('category').value = ['electronics', 'clothing', 'cosmetics', 'books', 'sports', 'home'][Math.floor(Math.random() * 6)];
+        // Генерируем только существующие поля
+        safeSetValue('accountAgeDays', Math.floor(Math.random() * 365) + 1);
+        safeSetValue('totalOrders', Math.floor(Math.random() * 50) + 1);
+        safeSetValue('orderAmount', Math.floor(Math.random() * 50000) + 1000);
+        
+        const categories = ['electronics', 'clothing', 'cosmetics', 'books', 'sports', 'home'];
+        const randomCat = categories[Math.floor(Math.random() * categories.length)];
+        safeSetValue('category', randomCat);
+        
+        safeSetValue('daysToReturn', Math.floor(Math.random() * 30));
+        
+        const reasons = ['defect', 'size', 'color', 'quality', 'changed_mind', 'other'];
+        safeSetValue('reason', reasons[Math.floor(Math.random() * reasons.length)]);
+        
+        // Случайные чекбоксы
+        safeSetChecked('hasTag', Math.random() > 0.3);
+        safeSetChecked('hasReceipt', Math.random() > 0.2);
+        safeSetChecked('hasDamage', Math.random() > 0.8);
+        safeSetChecked('isUsed', Math.random() > 0.8);
+
+        // Скрытые поля тоже рандомим для реалистичности
+        setHiddenField('isWeekend', Math.random() > 0.7 ? 1 : 0);
+        setHiddenField('orderHour', Math.floor(Math.random() * 24));
+        setHiddenField('discountPercent', (Math.random() * 20).toFixed(2));
+        
         showToast('Случайные данные загружены', 'success');
     }
 
     function clearForm() {
-    if (confirm('Очистить все поля формы?')) {
-        document.getElementById('fraudForm').reset();
+        if (confirm('Очистить все поля формы?')) {
+            document.getElementById('fraudForm').reset();
 
-        const resultCard = document.getElementById('resultCard');
-        if (resultCard) {
-            resultCard.style.display = 'none';
+            const resultCard = document.getElementById('resultCard');
+            if (resultCard) {
+                resultCard.style.display = 'none';
+            }
+            
+            document.getElementById('clientFillIndicator').style.display = 'none';
+            document.getElementById('orderFillIndicator').style.display = 'none';
+            selectedClientId = null;
+            selectedOrderId = null;
+            showToast('Форма очищена', 'success');
         }
-        
-        document.getElementById('clientFillIndicator').style.display = 'none';
-        document.getElementById('orderFillIndicator').style.display = 'none';
-        selectedClientId = null;
-        selectedOrderId = null;
-        showToast('Форма очищена', 'success');
     }
-}
 
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
@@ -734,6 +873,190 @@ async function loadOrderData(orderId) {
             toast.style.animation = 'fadeOut 0.5s ease-out forwards';
             setTimeout(() => toast.remove(), 500);
         }, 3000);
+    }
+
+    // Обработчик отправки формы
+    document.getElementById('fraudForm').addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const submitBtn = e.target.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerText;
+        submitBtn.disabled = true;
+        submitBtn.innerText = 'Анализ...';
+
+        // Сбор данных формы
+        const formData = new FormData(this);
+        const data = {};
+        
+        // Преобразование FormData в объект с правильной обработкой чекбоксов
+        for (let [key, value] of formData.entries()) {
+            // Если это чекбокс, то значение должно быть 1 или 0
+            const checkbox = this.querySelector(`input[name="${key}"][type="checkbox"]`);
+            if (checkbox) {
+                data[key] = checkbox.checked ? 1 : 0;
+            } else {
+                data[key] = value;
+            }
+        }
+
+        // Преобразование числовых строк в числа
+        const numericFields = ['clientID', 'orderID', 'accountAgeDays', 'totalOrders', 'orderAmount', 
+                               'daysToReturn', 'isWeekend', 'promoCodeUsed', 'firstOrderDiscountAbuse',
+                               'chargebackHistory90d', 'cardBinCountryMismatch', 'deliveryAddressType',
+                               'orderHour', 'orderTimeNight', 'ipVelocity24h', 'ipVelocity7d', 
+                               'accountsPerIp', 'accountsPerPhone', 'accountsPerDevice', 'deviceIsEmulator',
+                               'negativeReviewCluster', 'threatLanguageDetected', 'legalClaimThreat',
+                               'itemsInOrder', 'isElectronics', 'totalReturns', 'categoryReturnsCount',
+                               'ordersLast30d', 'refundVelocity30d', 'supportTicketCount30d', 'reviewCount30d'];
+        
+        numericFields.forEach(field => {
+            if (data[field] !== undefined) {
+                data[field] = parseFloat(data[field]);
+            }
+        });
+
+        try {
+            // 1. Отправляем на предсказание
+            const response = await fetch('/api/predict-fraud-payload', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            });
+
+            if (!response.ok) throw new Error('Ошибка при расчете риска');
+            
+            const result = await response.json();
+            
+            // 2. Отображаем результат
+            displayResult(result);
+
+            // 3. Сохраняем в историю
+            await saveToHistory(data, result);
+
+        } catch (error) {
+            console.error('Error:', error);
+            showToast('Ошибка: ' + error.message, 'error');
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = originalText;
+        }
+    });
+
+    function displayResult(result) {
+        const resultCard = document.getElementById('resultCard');
+        const riskScoreEl = document.getElementById('riskScore');
+        const gaugeFill = document.getElementById('gaugeFill');
+        const riskTextEl = document.getElementById('riskText');
+        const riskBadge = document.getElementById('riskBadge');
+        const recommendationText = document.getElementById('recommendationText');
+        const shapList = document.getElementById('shapList');
+
+        // Получаем данные из ответа (адаптируйте под формат вашего API)
+        // Ожидаем: { score: 0.45, level: "Средний", recommendation: "...", factors: [...] }
+        const score = result.score || result.final_score || 0;
+        const percentage = Math.round(score * 100);
+        const level = result.level || result.risk_level || 'Неизвестно';
+        const recommendation = result.recommendation || result.decision || '';
+        const factors = result.factors || result.top_factors || [];
+
+        // Обновляем GUI
+        resultCard.style.display = 'block';
+        riskScoreEl.innerText = `${percentage}%`;
+        
+        // Анимация круга
+        const circumference = 2 * Math.PI * 45; // 283
+        const offset = circumference - (score * circumference);
+        gaugeFill.style.strokeDashoffset = offset;
+        
+        // Цвет и текст бейджа
+        let badgeIcon = '🟢';
+        let badgeColor = '#28a745';
+        if (score > 0.3 && score <= 0.6) {
+            badgeIcon = '🟡';
+            badgeColor = '#fd7e14';
+        } else if (score > 0.6) {
+            badgeIcon = '🔴';
+            badgeColor = '#dc3545';
+        }
+        
+        riskBadge.querySelector('span:first-child').innerText = badgeIcon;
+        riskTextEl.innerText = level;
+        riskBadge.style.borderLeft = `4px solid ${badgeColor}`;
+        
+        recommendationText.innerText = recommendation;
+
+        // Факторы
+        shapList.innerHTML = '';
+        if (Array.isArray(factors) && factors.length > 0) {
+            factors.slice(0, 5).forEach(factor => {
+                // Парсим строку фактора "Factor: value" или просто строку
+                let name = factor;
+                let val = 50; // дефолтная длина полоски
+                
+                if (typeof factor === 'string' && factor.includes(':')) {
+                    const parts = factor.split(':');
+                    name = parts[0].trim();
+                    val = Math.abs(parseFloat(parts[1]) || 50);
+                }
+                
+                const li = document.createElement('li');
+                li.innerHTML = `
+                    <span style="min-width: 150px; font-size: 0.9rem;">${name}</span>
+                    <div class="factor-bar">
+                        <div class="factor-bar-fill" style="width: ${Math.min(val * 2, 100)}%"></div>
+                    </div>
+                `;
+                shapList.appendChild(li);
+            });
+        } else {
+            shapList.innerHTML = '<li>Нет значимых факторов</li>';
+        }
+        
+        // Прокрутка к результату
+        resultCard.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    async function saveToHistory(formData, result) {
+        try {
+            const payload = {
+                order_id: formData.orderID,
+                client_id: formData.clientID,
+                order_amount: formData.orderAmount,
+                risk_score: result.score || result.final_score || 0,
+                risk_level: result.level || result.risk_level || 'unknown',
+                risk_class: result.class || 'C', // Можно добавить логику определения класса
+                recommendation: result.recommendation || result.decision || '',
+                top_factors: result.factors || result.top_factors || []
+            };
+
+            const res = await fetch('/api/save-check', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                console.log('✅ Проверка сохранена в историю');
+                showToast('Результат сохранен в историю', 'success');
+            } else {
+                console.warn('⚠️ Не удалось сохранить в историю');
+            }
+        } catch (err) {
+            console.error('❌ Ошибка сохранения в историю:', err);
+        }
+    }
+
+    function approveReturn() {
+        showToast('Возврат одобрен', 'success');
+        // Здесь можно добавить логику изменения статуса в БД
+    }
+
+    function manualReview() {
+        showToast('Отправлено на ручную проверку', 'warning');
+    }
+
+    function rejectReturn() {
+        showToast('Возврат отклонен', 'error');
     }
 
     document.addEventListener('DOMContentLoaded', () => {
@@ -773,31 +1096,8 @@ async function loadOrderData(orderId) {
                 if (orderDropdown) orderDropdown.style.display = 'none';
             }
         });
-        
-        const userModal = document.getElementById('userModal');
-        if (userModal) {
-            userModal.addEventListener('click', (e) => {
-                if (e.target.id === 'userModal') {
-                    userModal.classList.remove('active');
-                }
-            });
-        }
-        
-        const userSearch = document.getElementById('userSearch');
-        if (userSearch) {
-            userSearch.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    const searchUsers = window.searchUsers;
-                    if (typeof searchUsers === 'function') {
-                        searchUsers();
-                    }
-                }
-            });
-        }
     });
-</script>
 
-<script>
     function logout() {
         sessionStorage.removeItem('user');
         fetch('/api/logout', { method: 'POST' })
@@ -808,7 +1108,6 @@ async function loadOrderData(orderId) {
                 window.location.href = '/login';
             });
     }
-</script>
-
+    </script>
 </body>
 </html>

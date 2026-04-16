@@ -416,18 +416,26 @@ func SaveCheckHistory(result ResultData) error {
 	}
 
 	// Преобразуем top_factors в массив PostgreSQL
-	factorsJSON := "ARRAY[]"
-	if len(result.TopFactors) > 0 {
-		factorsArr := make([]string, len(result.TopFactors))
+	var factorsStr string
+	if len(result.TopFactors) == 0 {
+		factorsStr = "{}"
+	} else {
+		factorsStr = "{"
 		for i, f := range result.TopFactors {
-			factorsArr[i] = fmt.Sprintf("%q", f)
+			// Экранируем двойные кавычки и обратные слеши в строках
+			escaped := strings.ReplaceAll(f, `"`, `\"`)
+			escaped = strings.ReplaceAll(escaped, `\`, `\\`)
+			if i > 0 {
+				factorsStr += ","
+			}
+			factorsStr += `"` + escaped + `"`
 		}
-		factorsJSON = "ARRAY[" + strings.Join(factorsArr, ",") + "]"
+		factorsStr += "}"
 	}
 
-	query := fmt.Sprintf(`INSERT INTO check_history
+	query := `INSERT INTO check_history
                 (order_id, client_id, order_amount, risk_score, risk_level, risk_class, recommendation, top_factors, checked_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, %s, NOW())`, factorsJSON)
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`
 
 	_, err := db.Exec(query,
 		result.OrderID,
@@ -437,6 +445,7 @@ func SaveCheckHistory(result ResultData) error {
 		result.RiskLevel,
 		result.RiskClass,
 		result.Recommendation,
+		factorsStr,
 	)
 
 	return err
@@ -1913,32 +1922,32 @@ func getRiskFactors(f FormData) []string {
 	factors := []string{}
 
 	if !f.HasTag {
-		factors = append(factors, "🔴 Бирка отсутствует")
+		factors = append(factors, "Бирка отсутствует")
 	}
 	if !f.HasReceipt {
-		factors = append(factors, "🔴 Чек не предоставлен")
+		factors = append(factors, "Чек не предоставлен")
 	}
 	if f.HasDamage {
-		factors = append(factors, "⚠️ Есть повреждения товара")
+		factors = append(factors, "Есть повреждения товара")
 	}
 	if f.IsUsed {
-		factors = append(factors, "⚠️ Товар имеет следы использования")
+		factors = append(factors, "Товар имеет следы использования")
 	}
 	if f.Reason == "changed_mind" {
-		factors = append(factors, "⚠️ Возврат без объективной причины")
+		factors = append(factors, "Возврат без объективной причины")
 	}
 	if f.DaysToReturn <= 3 {
-		factors = append(factors, "⚡ Очень быстрый возврат")
+		factors = append(factors, "Очень быстрый возврат")
 	}
 	if f.AccountAgeDays < 30 {
 		factors = append(factors, "🆕 Новый аккаунт")
 	}
 	if f.ReturnRate > 30 {
-		factors = append(factors, "📈 Высокий % возвратов у клиента")
+		factors = append(factors, "Высокий % возвратов у клиента")
 	}
 
 	if len(factors) == 0 {
-		factors = append(factors, "✅ Все параметры в норме")
+		factors = append(factors, "Все параметры в норме")
 	}
 
 	return factors
