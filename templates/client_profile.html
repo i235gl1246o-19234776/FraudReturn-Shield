@@ -81,7 +81,7 @@
         }
         .client-nav .container { display: flex; justify-content: space-between; align-items: center; }
         .nav-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--wb-purple); font-weight: 800; font-size: 1.2rem; }
-        .nav-logo svg { width: 24px; height: 24px; }
+        .nav-logo img { width: 32px; height: 32px; object-fit: contain; }
         .client-nav-links { display: flex; list-style: none; gap: 8px; }
         .client-nav-links a { text-decoration: none; color: var(--gray-600); font-weight: 600; padding: 10px 20px; border-radius: var(--radius-lg); transition: var(--transition-fast); }
         .client-nav-links a:hover, .client-nav-links a.active { color: var(--wb-purple); background: var(--gray-100); }
@@ -159,9 +159,7 @@
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
+                <img src="/static/svg/щит.svg" alt="Shield">
                 FraudReturn Shield
             </a>
             <ul class="client-nav-links">

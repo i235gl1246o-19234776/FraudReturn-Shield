@@ -115,13 +115,10 @@ body {
 
 .nav-logo:hover { transform: translateY(-2px); }
 
-.nav-logo svg {
+.nav-logo img {
     width: 40px;
     height: 40px;
-    background: var(--gradient-main);
-    padding: 8px;
-    border-radius: var(--radius-lg);
-    -webkit-text-fill-color: white;
+    object-fit: contain;
 }
 
 .nav-links { display: flex; list-style: none; gap: 8px; }

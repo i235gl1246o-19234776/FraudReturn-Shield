@@ -3,6 +3,16 @@ import numpy as np
 from datetime import datetime, timedelta
 import random
 import uuid
+import psycopg2
+from psycopg2.extras import execute_values
+
+conn_params = {
+    'host': 'localhost',
+    'port': 5432,
+    'database': 'fraud_return_db',
+    'user': 'postgres',
+    'password': 'OmegaBloody13'
+}
 
 # Defined lists as per your input
 categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Toys']
@@ -77,8 +87,6 @@ class FraudDataGenerator:
             'empty_box_claim_count': 0,
             'ip_velocity_24h': 0,
             'review_count_30d': 0,
-            'distance_from_registration_city': 0,
-            'same_item_burst': False,
             'package_density_score': 1.0,
             'category_mismatch': 0
         }
@@ -258,7 +266,6 @@ class FraudDataGenerator:
                 'device_is_emulator': 1,
                 'package_density_score': round(self.rng.uniform(0.3, 0.6), 2),
                 'missing_components': self.rng.choice([True, False], p=[0.7, 0.3]),
-                'device_new': 1,
                 'account_age_days': self.rng.integers(1, 10)
             })
         elif pattern == 'freezing_competitors':
@@ -268,8 +275,6 @@ class FraudDataGenerator:
                 'fraud_pattern': 'freezing_competitors',
                 'cross_channel_return': 1,
                 'refund_velocity_7d': self.rng.integers(2, 4),
-                'distance_from_registration_city': self.rng.integers(500, 2000),
-                'same_item_burst': True,
                 'negative_review_cluster': 1
             })
         elif pattern == 'mass_try_on':
@@ -379,8 +384,7 @@ class FraudDataGenerator:
                 'fraud_pattern': 'serial_refund',
                 'duplicate_refund_30d': self.rng.integers(2, 4),
                 'rma_reuse_count': self.rng.integers(2, 3),
-                'refund_velocity_7d': self.rng.integers(3, 6),
-                'same_item_burst': True
+                'refund_velocity_7d': self.rng.integers(3, 6)
             })
         else:
             # Fallback for unknown patterns
@@ -421,14 +425,155 @@ if __name__ == "__main__":
     # Generate 5 records per pattern (total ~130 records)
     df = generator.generate_dataset(records_per_pattern=5)
 
-    # Save to CSV
-    output_file = 'fraud_patterns_dataset.csv'
-    df.to_csv(output_file, index=False, encoding='utf-8-sig')
 
     print(f"✅ Successfully created {len(df)} records.")
-    print(f"📁 File saved as: {output_file}")
     print("\n📊 Pattern distribution:")
     print(df['fraud_pattern'].value_counts())
+
+    # Connect to PostgreSQL and insert data
+    conn = None
+    try:
+        conn = psycopg2.connect(**conn_params)
+        cur = conn.cursor()
+
+        # Insert clients, orders, returns, sessions based on generated data
+        client_inserts = []
+        order_inserts = []
+        return_inserts = []
+        session_inserts = []
+
+        for _, row in df.iterrows():
+            # Insert client
+            client_id = len(client_inserts) + 1
+            client_inserts.append((
+                row['account_age_days'],
+                row['total_orders'],
+                0,  # total_returns
+                0.0,  # global_return_rate
+                row['order_amount'],  # avg_order_amount
+                0.0,  # address_change_frequency
+                0,  # category_returns_count
+                row['registration_city'],
+                None,  # client_lat
+                None,  # client_lng
+                str(uuid.uuid4())[:64]  # phone_hash
+            ))
+
+            # Insert order
+            order_timestamp = datetime.now() - timedelta(days=random.randint(0, 30), hours=row['order_hour'])
+            order_inserts.append((
+                client_id,
+                row['order_amount'],
+                row['items_in_order'],
+                0.0,  # discount_amount
+                'card',  # payment_method
+                order_timestamp,
+                0.0,  # amount_deviation
+                0,  # orders_last_30d
+                row['category'],
+                bool(row['category'] == 'Electronics'),
+                random.choice(regions),
+                0.0,  # region_risk_score
+                row['registration_city'],
+                None,  # delivery_lat
+                None,  # delivery_lng
+                None,  # payment_card_bin
+                None,  # card_issuing_country
+                False,  # card_country_mismatch
+                random.choice(address_types),
+                0.0,  # address_match_score
+                True,  # is_address_match
+                'completed'
+            ))
+
+            # Insert return
+            return_inserts.append((
+                len(order_inserts),  # order_id
+                client_id,
+                0,  # returns_last_30d
+                0.0,  # return_rate_last_30d
+                0,  # days_since_last_return
+                row['days_to_return'],
+                'online',  # return_channel
+                bool(row['receipt_provided']),
+                bool(row['tag_removed']),
+                bool(row['missing_components']),
+                row['claimed_reason']
+            ))
+
+            # Insert session
+            session_inserts.append((
+                client_id,
+                row['ip_address'],
+                row['device_id'],
+                None,  # device_fingerprint
+                bool(row['device_is_emulator']),
+                None,  # user_agent
+                order_timestamp,
+                False,  # is_new_device
+                order_timestamp,
+                order_timestamp
+            ))
+
+        # Insert clients
+        if client_inserts:
+            execute_values(cur, """
+                INSERT INTO clients (
+                    account_age_days, total_orders, total_returns, global_return_rate,
+                    avg_order_amount, address_change_frequency, category_returns_count,
+                    registration_city, client_lat, client_lng, phone_hash
+                ) VALUES %s
+            """, client_inserts)
+
+        # Insert orders
+        if order_inserts:
+            execute_values(cur, """
+                INSERT INTO orders (
+                    client_id, order_amount, items_count, discount_amount, payment_method,
+                    order_timestamp, amount_deviation, orders_last_30d, product_category,
+                    is_electronics, shipping_region, region_risk_score, delivery_city,
+                    delivery_lat, delivery_lng,
+                    payment_card_bin, card_issuing_country, card_country_mismatch,
+                    delivery_address_type, address_match_score, is_address_match, order_status
+                ) VALUES %s
+            """, order_inserts)
+
+        # Insert returns
+        if return_inserts:
+            execute_values(cur, """
+                INSERT INTO returns (
+                    order_id, client_id, returns_last_30d, return_rate_last_30d,
+                    days_since_last_return, days_since_purchase, return_channel,
+                    has_receipt, tags_removed, missing_components, claimed_reason
+                ) VALUES %s
+            """, return_inserts)
+
+        # Insert sessions
+        if session_inserts:
+            execute_values(cur, """
+                INSERT INTO client_sessions (
+                    client_id, ip_address, device_id, device_fingerprint,
+                    is_emulator, user_agent, login_timestamp, is_new_device,
+                    device_first_seen_at, created_at
+                ) VALUES %s
+            """, session_inserts)
+
+        conn.commit()
+        print(f"\n✅ Successfully inserted {len(df)} records into PostgreSQL database!")
+        print(f"   - Clients: {len(client_inserts)}")
+        print(f"   - Orders: {len(order_inserts)}")
+        print(f"   - Returns: {len(return_inserts)}")
+        print(f"   - Sessions: {len(session_inserts)}")
+
+        cur.close()
+
+    except Exception as e:
+        print(f"❌ Error: {e}")
+        if conn:
+            conn.rollback()
+    finally:
+        if conn:
+            conn.close()
 
     # Show sample data
     print("\n🔍 Sample of first 3 records (transposed for readability):")

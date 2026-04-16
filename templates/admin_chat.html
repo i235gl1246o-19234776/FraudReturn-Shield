@@ -288,6 +288,35 @@
             max-width: 400px;
         }
 
+        .quick-questions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 10px 20px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        .quick-question-btn {
+            padding: 8px 16px;
+            background: white;
+            border: 1px solid var(--gray-300);
+            border-radius: var(--radius-lg);
+            font-size: 0.85rem;
+            color: var(--gray-700);
+            cursor: pointer;
+            transition: var(--transition-fast);
+            font-weight: 500;
+        }
+
+        .quick-question-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+            border-color: var(--wb-purple);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
+        }
+
     </style>
 </head>
 <body>
@@ -295,9 +324,7 @@
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
+                <img src="/static/svg/щит.svg" alt="Shield">
                 FraudReturn Shield
             </a>
             <ul class="admin-nav-links">
@@ -315,7 +342,7 @@
     <section class="page-header">
         </div>
         <div class="container">
-            <h1 class="page-title">💬 Чат с AI помощником</h1>
+            <h1 class="page-title">Чат с AI помощником</h1>
             <p class="page-subtitle">Задавайте вопросы о возвратах, заказах и аналитике</p>
         </div>
     </section>
@@ -336,6 +363,17 @@
 
             <!-- Ввод сообщения -->
             <div class="chat-input-area">
+                <!-- Быстрые вопросы -->
+                <div class="quick-questions" id="quickQuestions">
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какой штраф уплачивает Продавец, если Товар не соответствует требованиям к упаковке и маркировке?')">Штраф за упаковку</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как Компания осуществляет приемку товара по количеству мест на складе?')">Приемка товара</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('В течение какого срока Компания проводит приемку товара по количеству единиц и ассортименту?')">Срок приемки</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Что происходит с товаром, не соответствующим требованиям маркировки?')">Товар без маркировки</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как рассчитывается компенсация за утраченный товар?')">Компенсация за утрату</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как рассчитать Коэффициент проблемного товара (Кпт)?')">Коэффициент Кпт</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Возвращаются ли крупногабаритные товары через пункт выдачи заказов?')">Крупногабаритный товар</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какой штраф выплачивает Компания при необоснованном отказе в приемке?')">Штраф Компании</button>
+                </div>
                 <form class="chat-input-form" id="chatForm">
                     <input type="text" id="messageInput" placeholder="Введите ваш вопрос..." autocomplete="off">
                     <button type="submit" id="sendBtn" disabled>

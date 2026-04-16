@@ -256,38 +256,38 @@
         }
 
         .quick-questions {
-            padding: 15px 20px;
-            background: var(--gray-50);
-            border-bottom: 1px solid var(--gray-200);
-        }
-
-        .quick-questions h4 {
-            font-size: 0.9rem;
-            color: var(--gray-600);
-            margin-bottom: 10px;
-        }
-
-        .quick-questions-buttons {
             display: flex;
             flex-wrap: wrap;
             gap: 8px;
+            padding: 10px 20px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
         }
 
         .quick-question-btn {
             padding: 8px 16px;
             background: white;
             border: 1px solid var(--gray-300);
-            border-radius: 20px;
+            border-radius: var(--radius-lg);
             font-size: 0.85rem;
             color: var(--gray-700);
             cursor: pointer;
             transition: var(--transition-fast);
+            font-weight: 500;
         }
 
         .quick-question-btn:hover {
             background: var(--wb-purple);
             border-color: var(--wb-purple);
             color: white;
+        }
+
+        .quick-question-btn:hover {
+            background: var(--wb-purple);
+            color: white;
+            border-color: var(--wb-purple);
+            transform: translateY(-1px);
+            box-shadow: var(--shadow-sm);
         }
 
         .logout-btn {
@@ -360,9 +360,7 @@
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
-                </svg>
+                <img src="/static/svg/щит.svg" alt="Shield">
                 FraudReturn Shield
             </a>
             <ul class="client-nav-links">
@@ -392,12 +390,16 @@
         <div class="chat-container">
             <!-- Быстрые вопросы -->
             <div class="quick-questions">
-                <h4>⚡ Быстрые вопросы:</h4>
+                <h4>Быстрые вопросы:</h4>
                 <div class="quick-questions-buttons">
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('В течение какого срока Компания проводит приемку товара по количеству единиц и ассортименту?')">Срок приемки товара</button>
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какой штраф выплачивает Компания при необоснованном отказе в приемке товара?')">Штраф за отказ в приемке</button>
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как подтверждается приемка товара при передаче в ПВЗ (DBS)?')">Приемка в ПВЗ</button>
-                    <button class="quick-question-btn" onclick="sendQuickQuestion('По какой формуле рассчитывается компенсация за утраченный товар?')">Компенсация за утрату</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какой штраф уплачивает Продавец, если Товар не соответствует требованиям к упаковке и маркировке?')">Штраф за упаковку</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как Компания осуществляет приемку товара по количеству мест на складе?')">Приемка товара</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('В течение какого срока Компания проводит приемку товара по количеству единиц и ассортименту?')">Срок приемки</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Что происходит с товаром, не соответствующим требованиям маркировки?')">Товар без маркировки</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как рассчитывается компенсация за утраченный товар?')">Компенсация за утрату</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Как рассчитать Коэффициент проблемного товара (Кпт)?')">Коэффициент Кпт</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Возвращаются ли крупногабаритные товары через пункт выдачи заказов?')">Крупногабаритный товар</button>
+                    <button class="quick-question-btn" onclick="sendQuickQuestion('Какой штраф выплачивает Компания при необоснованном отказе в приемке?')">Штраф Компании</button>
                 </div>
             </div>
 
@@ -491,7 +493,7 @@
         function addWelcomeMessage() {
             setTimeout(() => {
                 if (emptyChat) emptyChat.style.display = 'none';
-                addMessage('ai', `Здравствуйте${currentUser.login ? ', ' + currentUser.login : ''}! 👋\n\nЯ AI помощник FraudReturn Shield. Готов помочь вам с вопросами о возвратах, заказах и статусе заявок.\n\nВыберите быстрый вопрос выше или задайте свой!`);
+                addMessage('ai', `Здравствуйте${currentUser.login ? ', ' + currentUser.login : ''}! \n\nЯ AI помощник FraudReturn Shield. Готов помочь вам с вопросами о возвратах, заказах и статусе заявок.\n\nВыберите быстрый вопрос выше или задайте свой!`);
             }, 500);
         }
 

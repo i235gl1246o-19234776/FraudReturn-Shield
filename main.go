@@ -1376,11 +1376,11 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 			ClaimedReason:     r.FormValue("reason"),
 			AddressMatch:      r.FormValue("addressMatch") == "on",
 			DeviceNew:         r.FormValue("deviceNew") == "on",
-			IsWeekend:         r.FormValue("isWeekend") == "on",
-			HasTag:            r.FormValue("hasTag") == "on",
-			HasReceipt:        r.FormValue("hasReceipt") == "on",
-			HasDamage:         r.FormValue("hasDamage") == "on",
-			IsUsed:            r.FormValue("isUsed") == "on",
+			IsWeekend:         parseBool(r.FormValue("isWeekend")),
+			HasTag:            parseBool(r.FormValue("hasTag")),
+			HasReceipt:        parseBool(r.FormValue("hasReceipt")),
+			HasDamage:         parseBool(r.FormValue("hasDamage")),
+			IsUsed:            parseBool(r.FormValue("isUsed")),
 			TagsRemoved:       r.FormValue("tagsRemoved") == "on",
 			MissingComponents: r.FormValue("missingComponents") == "on",
 			DaysToReturn:      parseInt(r.FormValue("daysToReturn")),
@@ -1414,12 +1414,9 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// 7. Рендерим
-		tmpl, err := template.ParseFiles("templates/result.html")
-		if err != nil {
-			http.Error(w, "Template error: "+err.Error(), 500)
-			return
-		}
-		tmpl.Execute(w, result)
+		w.Header().Set("Content-Type", "application/json")
+
+		json.NewEncoder(w).Encode(result)
 		return
 	}
 
@@ -2166,6 +2163,10 @@ type FastAPIFraudPayloadRequest struct {
 	ClaimedReason       string  `json:"claimed_reason"`
 }
 
+func parseBool(value string) bool {
+	return value == "1" || value == "true" || value == "on" || value == "yes"
+}
+
 type FastAPIChatRequest struct {
 	Message string `json:"message"`
 }
@@ -2852,7 +2853,7 @@ func main() {
 	http.HandleFunc("/api/client/returns", apiClientReturnsHandler)
 	http.HandleFunc("/api/client/", apiGetClient)
 	http.HandleFunc("/api/order/", apiGetOrder)
-	http.HandleFunc("/api/orders/", apiGetOrders)
+	http.HandleFunc("/api/orders", apiGetOrders)
 	http.HandleFunc("/api/stats", apiGetStats)
 	http.HandleFunc("/api/users", apiGetUsers)
 	http.HandleFunc("/api/users/", apiGetUserDetail)
