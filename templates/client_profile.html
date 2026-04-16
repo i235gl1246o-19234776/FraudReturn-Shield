@@ -172,6 +172,20 @@
             transform: scale(2) translate3d(0, 0, 0);
             filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
         }
+        .tab-shield {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+            color: white;
+        }
+
+        .tab-shield:hover {
+            background: linear-gradient(135deg, #38ef7d 0%, #11998e 100%);
+        }
+
+        .tab-shield:hover .tab-card-icon img {
+            transform: scale(2) translate3d(0, 0, 0);
+            filter: drop-shadow(0 0 20px rgba(17, 153, 142, 0.7));
+        }
+
 
         .tab-card-title {
             font-size: 1.4rem;
@@ -288,6 +302,39 @@
             position: relative;
             overflow: hidden;
         }
+.header-marquee {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            right: 0;
+            transform: translateY(-50%);
+            pointer-events: none;
+            z-index: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 40px;
+        }
+
+        .marquee-text {
+            font-size: 3rem; /* Увеличенный размер */
+            font-weight: 800;
+            opacity: 0;
+            white-space: nowrap;
+            transition: opacity 1.5s ease-in-out; /* Быстрое исчезновение за 1.5 сек */
+        }
+
+        .marquee-left {
+            text-align: left;
+        }
+
+        .marquee-right {
+            text-align: right;
+        }
+
+        .marquee-text.visible {
+            opacity: 0.9;
+        }
 
     </style>
 </head>
@@ -313,6 +360,9 @@
 
     <!-- Заголовок профиля -->
     <section class="profile-header">
+        <div class="header-marquee">
+            <span class="marquee-text marquee-left" id="marqueeLeft">Добро пожаловать!</span>
+            <span class="marquee-text marquee-right" id="marqueeRight">Быстрые возвраты</span>
         </div>
         <div class="container">
             <div class="profile-avatar" id="userAvatar">U</div>
@@ -346,6 +396,13 @@
                 <div class="tab-card-title">AI Нейросеть</div>
                 <div class="tab-card-desc">Помощник и проверки</div>
             </a>
+            <div class="tab-card tab-shield">
+                <div class="tab-card-icon">
+                    <img src="/static/svg/щит.svg" alt="Защита">
+                </div>
+                <div class="tab-card-title">Защита</div>
+                <div class="tab-card-desc">Безопасность аккаунта</div>
+            </div>
         </div>
     </div>
 
@@ -450,6 +507,72 @@
                     window.location.href = '/login';
                 });
         }
+
+         const leftTexts = [
+            'Добро пожаловать!',
+            'Рады видеть вас \nснова!',
+            'Защита ваших \nпокупок',
+            'Удобный возврат',
+            'Быстро и просто'
+        ];
+
+        const rightTexts = [
+            'Быстрые возвраты',
+            'AI помощник 24/7',
+            'Безопасные сделки',
+            'Поддержка всегда \nрядом',
+            'Удобные покупки'
+        ];
+
+        let leftIndex = 0;
+        let rightIndex = 0;
+        let isLeftVisible = true;
+        let isRightVisible = false;
+
+        // Функция для плавного переключения текста
+        function cycleMarqueeText() {
+            const leftElement = document.getElementById('marqueeLeft');
+            const rightElement = document.getElementById('marqueeRight');
+
+            if (isLeftVisible) {
+                // Скрываем левый текст
+                leftElement.classList.remove('visible');
+
+                setTimeout(() => {
+                    // Меняем текст пока он скрыт
+                    leftIndex = (leftIndex + 1) % leftTexts.length;
+                    leftElement.textContent = leftTexts[leftIndex];
+
+                    // Показываем правый текст
+                    rightElement.textContent = rightTexts[rightIndex];
+                    rightElement.classList.add('visible');
+                    isRightVisible = true;
+                    isLeftVisible = false;
+                }, 1500); // Ждём пока исчезнет (1.5 секунды)
+            } else if (isRightVisible) {
+                // Скрываем правый текст
+                rightElement.classList.remove('visible');
+
+                setTimeout(() => {
+                    // Меняем текст пока он скрыт
+                    rightIndex = (rightIndex + 1) % rightTexts.length;
+                    rightElement.textContent = rightTexts[rightIndex];
+
+                    // Показываем левый текст
+                    leftElement.textContent = leftTexts[leftIndex];
+                    leftElement.classList.add('visible');
+                    isLeftVisible = true;
+                    isRightVisible = false;
+                }, 1500); // Ждём пока исчезнет (1.5 секунды)
+            }
+        }
+
+        // Инициализация - показываем первый левый текст
+        document.getElementById('marqueeLeft').textContent = leftTexts[0];
+        document.getElementById('marqueeLeft').classList.add('visible');
+
+        // Запускаем цикл переключения каждые 6 секунд (1.5 сек появление + 3 сек видимость + 1.5 сек исчезновение)
+        setInterval(cycleMarqueeText, 6000);
     </script>
 </body>
 </html>

@@ -2708,12 +2708,12 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 
 	// Создаём возврат
 	insertQuery := `INSERT INTO returns (order_id, client_id, days_since_purchase,
-                has_receipt, tags_removed, missing_components, return_channel, reason, comment, created_at)
-                VALUES ($1, $2, 0, true, false, false, 'online', $3, $4, NOW())
+                has_receipt, tags_removed, missing_components, return_channel, claimed_reason)
+                VALUES ($1, $2, 0, true, false, false, 'online', $3)
                 RETURNING return_id`
 
 	var returnID int
-	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.Reason, req.Comment).Scan(&returnID)
+	err = db.QueryRow(insertQuery, req.OrderID, clientID, req.Reason).Scan(&returnID)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "message": "Ошибка создания возврата: " + err.Error()})
