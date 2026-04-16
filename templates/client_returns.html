@@ -515,7 +515,14 @@
                     comment: comment
                 })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(errData => {
+                        throw new Error(errData.message || 'Ошибка сервера');
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.success && data.return_id) {
                     // Возврат создан, теперь вызываем fraud модель
@@ -546,8 +553,7 @@
             })
             .catch(error => {
                 console.error('Ошибка:', error);
-                showAlert('Возврат успешно оформлен! (демо режим)', 'success');
-                document.getElementById('returnForm').reset();
+                showAlert(error.message || 'Ошибка при оформлении возврата', 'error');
             });
         });
 
