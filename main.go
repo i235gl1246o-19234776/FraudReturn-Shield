@@ -577,21 +577,25 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 
 	if query != "" {
 		querySQL = `
-            SELECT order_id, client_id, order_amount, items_count, 
-                   payment_method, order_timestamp, amount_deviation
-            FROM orders 
-            WHERE client_id = $1 AND order_id::TEXT LIKE $2
-            ORDER BY order_timestamp DESC
+            SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
+                   o.payment_method, o.order_timestamp, o.amount_deviation,
+                   o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
+            FROM orders o
+            LEFT JOIN returns r ON o.order_id = r.order_id
+            WHERE o.client_id = $1 AND o.order_id::TEXT LIKE $2
+            ORDER BY o.order_timestamp DESC
             LIMIT 20
         `
 		args = []interface{}{clientID, "%" + query + "%"}
 	} else {
 		querySQL = `
-            SELECT order_id, client_id, order_amount, items_count, 
-                   payment_method, order_timestamp, amount_deviation
-            FROM orders 
-            WHERE client_id = $1
-            ORDER BY order_timestamp DESC
+            SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
+                   o.payment_method, o.order_timestamp, o.amount_deviation,
+                   o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
+            FROM orders o
+            LEFT JOIN returns r ON o.order_id = r.order_id
+            WHERE o.client_id = $1
+            ORDER BY o.order_timestamp DESC
             LIMIT 20
         `
 		args = []interface{}{clientID}
@@ -609,11 +613,13 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		var ts time.Time
 		var orderID, clientID, itemsCount int
 		var orderAmount, amountDev sql.NullFloat64
-		var paymentMethod sql.NullString
+		var paymentMethod, prodCategory, claimedReason, returnChannel sql.NullString
+		var daysSincePurchase sql.NullInt64
 
 		err := rows.Scan(
 			&orderID, &clientID, &orderAmount, &itemsCount,
 			&paymentMethod, &ts, &amountDev,
+			&prodCategory, &daysSincePurchase, &claimedReason, &returnChannel,
 		)
 		if err != nil {
 			return nil, err
@@ -631,6 +637,18 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		record["order_timestamp"] = ts.Format("02.01.2006 15:04")
 		if amountDev.Valid {
 			record["amount_deviation"] = amountDev.Float64
+		}
+		if prodCategory.Valid {
+			record["product_category"] = prodCategory.String
+		}
+		if daysSincePurchase.Valid {
+			record["days_to_return"] = daysSincePurchase.Int64
+		}
+		if claimedReason.Valid {
+			record["reason"] = claimedReason.String
+		}
+		if returnChannel.Valid {
+			record["return_channel"] = returnChannel.String
 		}
 
 		results = append(results, record)

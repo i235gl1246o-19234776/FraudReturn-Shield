@@ -187,7 +187,6 @@
                 <div class="card">
                     <div class="card-header">
                         <h2>Данные возврата</h2>
-                        <button type="button" class="btn btn-secondary btn-sm" onclick="loadRandomData()">🎲 Случайные данные</button>
                     </div>
                     <div class="card-body">
                         <form class="form" action="/check" method="POST" id="fraudForm">
@@ -261,9 +260,8 @@
                                             <option value="">Выберите категорию</option>
                                             <option value="electronics">Электроника</option>
                                             <option value="clothing">Одежда</option>
-                                            <option value="cosmetics">Косметика</option>
                                             <option value="books">Книги</option>
-                                            <option value="sports">Спорттовары</option>
+                                            <option value="toys">Игрушки</option>
                                             <option value="home">Для дома</option>
                                         </select>
                                     </div>
@@ -505,8 +503,8 @@
         showToast('Данные заказа загружены', 'success');
     }
 
-    // 🔧 ЗАМЕНИТЕ функцию loadClientData на эту версию:
-async function loadClientData(clientId) {
+
+    async function loadClientData(clientId) {
     try {
         const res = await fetch(`/api/client/${clientId}`);
         if (res.ok) {
@@ -590,10 +588,10 @@ async function loadOrderData(orderId) {
                 const catMap = {
                     'electronics': 'electronics',
                     'clothing': 'clothing',
-                    'cosmetics': 'cosmetics',
                     'books': 'books',
                     'sports': 'sports',
-                    'home': 'home'
+                    'home': 'home',
+                    'toys': 'toys'
                 };
                 const mappedCat = catMap[order.product_category.toLowerCase()] || '';
                 if (mappedCat && categorySelect) {
@@ -609,15 +607,16 @@ async function loadOrderData(orderId) {
                 const reasonSelect = document.getElementById('reason');
                 const reasonMap = {
                     'defect': 'defect',
+                    'defective': 'defect',
                     'брак': 'defect',
-                    'size': 'size',
+                    'defect': 'defect',
+                    'wrong size': 'size',
                     'размер': 'size',
-                    'color': 'color',
-                    'цвет': 'color',
-                    'quality': 'quality',
-                    'качество': 'quality',
-                    'changed_mind': 'changed_mind',
+                    'size': 'size',
+                    'not as described': 'other',
+                    'changed mind': 'changed_mind',
                     'передумал': 'changed_mind',
+                    'changed_mind': 'changed_mind',
                     'other': 'other'
                 };
                 const mappedReason = reasonMap[order.reason.toLowerCase()] || 'other';
@@ -629,16 +628,25 @@ async function loadOrderData(orderId) {
             if (order.return_channel) {
                 const channel = order.return_channel.toLowerCase();
                 // Если возврат через курьера/магазин - обычно товар в хорошем состоянии
-                if (channel.includes('courier') || channel.includes('shop')) {
+                if (channel.includes('courier')) {
                     safeSetChecked('hasTag', true);
                     safeSetChecked('hasReceipt', true);
                     safeSetChecked('hasDamage', false);
                     safeSetChecked('isUsed', false);
                 }
-                // Если возврат почтой или с повреждением
-                if (channel.includes('post') || channel.includes('damage')) {
+                // Если возврат почтой
+                if (channel.includes('post')) {
                     safeSetChecked('hasTag', false);
-                    safeSetChecked('hasDamage', true);
+                    safeSetChecked('hasReceipt', true);
+                    safeSetChecked('hasDamage', false);
+                    safeSetChecked('isUsed', false);
+                }
+                // Если возврат через пункт выдачи (dropoff)
+                if (channel.includes('dropoff')) {
+                    safeSetChecked('hasTag', true);
+                    safeSetChecked('hasReceipt', true);
+                    safeSetChecked('hasDamage', false);
+                    safeSetChecked('isUsed', false);
                 }
             }
             
@@ -707,14 +715,6 @@ async function loadOrderData(orderId) {
         return 0.2;
     }
 
-    function loadRandomData() {
-        document.getElementById('accountAgeDays').value = Math.floor(Math.random() * 365) + 1;
-        document.getElementById('totalOrders').value = Math.floor(Math.random() * 50) + 1;
-        document.getElementById('returnRate').value = (Math.random() * 30).toFixed(1);
-        document.getElementById('orderAmount').value = Math.floor(Math.random() * 50000) + 1000;
-        document.getElementById('category').value = ['electronics', 'clothing', 'cosmetics', 'books', 'sports', 'home'][Math.floor(Math.random() * 6)];
-        showToast('Случайные данные загружены', 'success');
-    }
 
     function clearForm() {
     if (confirm('Очистить все поля формы?')) {
@@ -757,6 +757,11 @@ async function loadOrderData(orderId) {
             });
             
             clientInput.addEventListener('focus', (e) => {
+                document.getElementById('clientFillIndicator').style.display = 'none';
+                document.getElementById('orderFillIndicator').style.display = 'none';
+                selectedClientId = null;
+                selectedOrderId = null;
+
                 if (e.target.value) {
                     searchClients(e.target.value);
                 }
@@ -772,6 +777,9 @@ async function loadOrderData(orderId) {
             });
             
             orderInput.addEventListener('focus', (e) => {
+                document.getElementById('orderFillIndicator').style.display = 'none';
+                selectedOrderId = null;
+
                 if (e.target.value) {
                     searchOrders(e.target.value);
                 }
