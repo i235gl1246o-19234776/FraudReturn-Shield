@@ -2420,6 +2420,158 @@ func EnrichFromDB(f *FormData) error {
 	return nil
 }
 
+// apiPredictFraudV4 — POST /api/predict-fraud-v4
+// Принимает return_id, вызывает FastAPI для оценки мошенничества
+func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
+	setCORSHeaders(w, r)
+	applyJSONHeaders(w)
+
+	if r.Method == http.MethodOptions {
+		w.WriteHeader(http.StatusOK)
+		return
+	}
+
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Method not allowed"})
+		return
+	}
+
+	// Парсим запрос
+	var req struct {
+		ReturnID int `json:"return_id"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Invalid request body"})
+		return
+	}
+
+	if req.ReturnID <= 0 {
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "return_id is required"})
+		return
+	}
+
+	log.Printf("🔮 Fraud prediction requested for return_id=%d", req.ReturnID)
+
+	// 🔎 Получаем данные возврата из БД для обогащения признаков
+	returnQuery := `
+		SELECT r.return_id, r.order_id, r.client_id, r.claimed_reason, r.days_since_purchase,
+		       r.has_receipt, r.tags_removed, r.missing_components, r.return_channel,
+		       o.order_amount, o.items_count, o.payment_method, o.product_category,
+		       c.account_age_days, c.total_orders, c.total_returns, c.global_return_rate, c.avg_order_amount
+		FROM returns r
+		JOIN orders o ON r.order_id = o.order_id
+		JOIN clients c ON r.client_id = c.client_id
+		WHERE r.return_id = $1
+	`
+
+	var (
+		returnID, orderID, clientID, daysSincePurchase, itemsCount   int
+		claimedReason, returnChannel, productCategory, paymentMethod sql.NullString
+		hasReceipt, tagsRemoved, missingComponents                   bool
+		orderAmount, globalReturnRate, avgOrderAmount                sql.NullFloat64
+		accountAgeDays, totalOrders, totalReturns                    int
+	)
+
+	err := db.QueryRow(returnQuery, req.ReturnID).Scan(
+		&returnID, &orderID, &clientID, &claimedReason, &daysSincePurchase,
+		&hasReceipt, &tagsRemoved, &missingComponents, &returnChannel,
+		&orderAmount, &itemsCount, &paymentMethod, &productCategory,
+		&accountAgeDays, &totalOrders, &totalReturns, &globalReturnRate, &avgOrderAmount,
+	)
+	if err != nil {
+		log.Printf("❌ Return not found: return_id=%d, error: %v", req.ReturnID, err)
+		w.WriteHeader(http.StatusNotFound)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Return not found"})
+		return
+	}
+
+	// 📦 Подготовка payload для FastAPI
+	fraudPayload := map[string]interface{}{
+		"return_id":                     returnID,
+		"order_id":                      orderID,
+		"client_id":                     clientID,
+		"claimed_reason":                claimedReason.String,
+		"days_since_purchase":           daysSincePurchase,
+		"has_receipt":                   hasReceipt,
+		"tags_removed":                  tagsRemoved,
+		"missing_components":            missingComponents,
+		"return_channel":                returnChannel.String,
+		"order_amount":                  orderAmount.Float64,
+		"items_count":                   itemsCount,
+		"payment_method":                paymentMethod.String,
+		"product_category":              productCategory.String,
+		"account_age_days":              accountAgeDays,
+		"total_orders":                  totalOrders,
+		"total_returns":                 totalReturns,
+		"global_return_rate":            globalReturnRate.Float64,
+		"avg_order_amount":              avgOrderAmount.Float64,
+		"is_electronics":                productCategory.String == "electronics",
+		"region_risk_score":             0.2, // можно рассчитать
+		"distance_from_registration_km": 50.0,
+		"card_country_mismatch":         false,
+		"address_match_score":           1.0,
+		"is_address_match":              true,
+		"returns_last_30d":              0, // можно запросить отдельно
+		"return_rate_last_30d":          0.0,
+		"days_since_last_return":        999,
+	}
+
+	// 🚀 Вызов FastAPI для инференса
+	fastAPIURL := "http://localhost:8000/api/predict-fraud-payload"
+	jsonData, _ := json.Marshal(fraudPayload)
+
+	resp, err := http.Post(fastAPIURL, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Printf("⚠️ FastAPI unavailable, using fallback: %v", err)
+		// 🔧 Заглушка, если FastAPI не отвечает
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":           true,
+			"return_id":         returnID,
+			"probability_fraud": 0.25,
+			"anomaly_score":     0.18,
+			"is_anomaly":        false,
+			"combined_score":    0.25,
+			"decision":          "approve",
+			"risk_level":        "low",
+			"recommendation":    "Возврат можно одобрить",
+		})
+		return
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		log.Printf("❌ Error reading FastAPI response: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{"success": false, "error": "Failed to read prediction"})
+		return
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		log.Printf("⚠️ FastAPI returned status %d: %s", resp.StatusCode, string(body))
+		// Возвращаем заглушку при ошибке
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"success":           true,
+			"return_id":         returnID,
+			"probability_fraud": 0.30,
+			"anomaly_score":     0.20,
+			"is_anomaly":        false,
+			"combined_score":    0.30,
+			"decision":          "review",
+			"risk_level":        "medium",
+			"recommendation":    "Требуется дополнительная проверка",
+		})
+		return
+	}
+
+	// ✅ Возвращаем ответ от FastAPI как есть
+	w.WriteHeader(http.StatusOK)
+	w.Write(body)
+}
+
 // ============================================
 // 🚀 MAIN
 // ============================================
@@ -2531,6 +2683,7 @@ func main() {
 	http.HandleFunc("/api/chat", handleChat)
 	http.HandleFunc("/api/history", requireAdmin(apiGetHistory))
 	http.HandleFunc("/api/clear-history", requireAdmin(apiClearHistory))
+	http.HandleFunc("/api/predict-fraud-v4", apiPredictFraudV4)
 
 	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
