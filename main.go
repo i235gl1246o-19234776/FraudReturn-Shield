@@ -1893,54 +1893,56 @@ func normalizeContributions(features []FeatureExplanation) []FeatureExplanation 
 	return result
 }
 
-// getRiskFactors — формирует список факторов риска, объединяя правила и нормализованные ML-объяснения
 func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
 	factors := []string{}
 	seen := make(map[string]bool)
 
-	// === 1. ML-факторы с иконками важности ===
-	weightIcons := []string{"🔴", "🟠", "🟡", "🟢"} // 4 уровня
-	mlCount := 0
+	// Маркеры важности для ML-факторов
+	mlMarkers := []string{"[!!!]", "[!!] ", "[!]  ", "[.]  "}
 
+	// === 1. ML-факторы (с маркерами важности) ===
+	mlCount := 0
 	for _, feat := range mlFeatures {
-		if mlCount >= 5 {
+		if mlCount >= 4 { // лимит топ-4 от модели
 			break
 		}
 		if feat.Effect == "повышает риск" && feat.Contribution > 0.03 {
 			label := getFeatureLabel(feat.Feature)
 			if !seen[label] {
-				// Определяем иконку по нормализованному вкладу
-				pct := int(feat.Contribution * 100) // 0.25 → 25
-				iconIdx := 3                        // default 🟢
+				pct := int(feat.Contribution * 100)
+				idx := 3
 				if pct >= 20 {
-					iconIdx = 0 // 🔴
+					idx = 0
 				} else if pct >= 15 {
-					iconIdx = 1 // 🟠
+					idx = 1
 				} else if pct >= 10 {
-					iconIdx = 2 // 🟡
+					idx = 2
 				}
-				factors = append(factors, fmt.Sprintf("%s %s", weightIcons[iconIdx], label))
+				factors = append(factors, fmt.Sprintf("%s %s", mlMarkers[idx], label))
 				seen[label] = true
 				mlCount++
 			}
 		}
 	}
 
-	// === 2. Rule-based факторы (без процентов, чтобы не путать) ===
-	ruleFactors := getRuleBasedFactors(f)
-	for _, factor := range ruleFactors {
-		if len(factors) >= 7 {
-			break
-		}
-		// Убираем "(+Х%)" из rule-факторов, оставляем только текст
-		cleanFactor := factor
-		if idx := strings.Index(factor, " ("); idx != -1 {
-			cleanFactor = factor[:idx]
-		}
-		baseName := cleanFactor
-		if !seen[baseName] {
-			factors = append(factors, "⚪ "+cleanFactor) // нейтральная иконка
-			seen[baseName] = true
+	// === 2. Rule-based факторы — БЕЗ процентов, если есть ML-факторы ===
+	// (чтобы не вводить в заблуждение: эти +25% НЕ добавлялись к скору)
+	// Показываем их только если ML не дал достаточно факторов
+	if mlCount < 4 {
+		ruleFactors := getRuleBasedFactors(f)
+		for _, factor := range ruleFactors {
+			if len(factors) >= 7 {
+				break
+			}
+			// Убираем "(+Х%)" — оставляем только текст
+			clean := factor
+			if idx := strings.Index(factor, " ("); idx != -1 {
+				clean = factor[:idx]
+			}
+			if !seen[clean] {
+				factors = append(factors, "[~] "+clean) // нейтральный маркер
+				seen[clean] = true
+			}
 		}
 	}
 
