@@ -10,10 +10,13 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"math"
 	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime/debug"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -96,17 +99,26 @@ type FormData struct {
 	LegalClaimThreat       bool `json:"legalClaimThreat"`
 }
 
+// FeatureExplanation — объяснение вклада признака от ML-модели
+type FeatureExplanation struct {
+	Feature      string  `json:"feature"`
+	Contribution float64 `json:"contribution"`
+	Effect       string  `json:"effect"` // "повышает риск" / "снижает риск"
+	Label        string  `json:"label,omitempty"`
+}
+
 type ResultData struct {
 	FormData
-	RiskScore        float64  `json:"riskScore"`
-	RiskLevel        string   `json:"riskLevel"`
-	RiskClass        string   `json:"riskClass"`
-	Recommendation   string   `json:"recommendation"`
-	TopFactors       []string `json:"topFactors"`
-	StrokeDashOffset float64  `json:"strokeDashOffset"`
-	RiskPercent      int      `json:"riskPercent"`
-	OrderID          int      `json:"orderID"`
-	ClientID         int      `json:"clientID"`
+	RiskScore        float64              `json:"riskScore"`
+	RiskLevel        string               `json:"riskLevel"`
+	RiskClass        string               `json:"riskClass"`
+	Recommendation   string               `json:"recommendation"`
+	TopFactors       []string             `json:"topFactors"`            // Текстовые факторы (для UI)
+	TopFeatures      []FeatureExplanation `json:"topFeatures,omitempty"` // ML-объяснения (для аналитики)
+	StrokeDashOffset float64              `json:"strokeDashOffset"`
+	RiskPercent      int                  `json:"riskPercent"`
+	OrderID          int                  `json:"orderID"`
+	ClientID         int                  `json:"clientID"`
 }
 
 type DBRecord map[string]interface{}
@@ -144,10 +156,66 @@ var (
 )
 
 // ============================================
+// 🧠 МАППИНГ ПРИЗНАКОВ — ЧЕЛОВЕКОЧИТАЕМЫЕ МЕТКИ
+// ============================================
+
+var featureLabelMap = map[string]string{
+	"shipping_region_risk":            "Риск региона доставки",
+	"payment_method_risk":             "Риск метода оплаты",
+	"distance_from_registration_city": "Расстояние от города регистрации",
+	"customer_return_rate":            "Процент возвратов клиента",
+	"account_age_days":                "Возраст аккаунта",
+	"order_amount":                    "Сумма заказа",
+	"items_count":                     "Количество товаров в заказе",
+	"discount_amount":                 "Размер скидки",
+	"amount_deviation":                "Отклонение суммы от среднего",
+	"orders_last_30d":                 "Заказы за 30 дней",
+	"is_electronics":                  "Категория: электроника",
+	"region_risk_score":               "Оценка риска региона",
+	"card_country_mismatch":           "Несоответствие страны карты",
+	"delivery_address_type":           "Тип адреса доставки",
+	"address_match_score":             "Совпадение адресов",
+	"is_address_match":                "Адрес совпадает с регистрацией",
+	"returns_last_30d":                "Возвраты за 30 дней",
+	"return_rate_last_30d":            "Процент возвратов за 30 дней",
+	"days_since_last_return":          "Дней с последнего возврата",
+	"days_since_purchase":             "Дней с момента покупки",
+	"return_channel":                  "Канал возврата",
+	"has_receipt":                     "Наличие чека",
+	"tags_removed":                    "Бирки удалены",
+	"missing_components":              "Отсутствуют компоненты",
+	"claimed_reason":                  "Причина возврата",
+	"device_trust_score":              "Доверие к устройству",
+	"ip_trust_score":                  "Доверие к IP",
+	"ip_velocity_24h":                 "Активность IP за 24ч",
+	"accounts_per_device":             "Аккаунтов на устройство",
+	"chargeback_history_90d":          "История чарджбэков",
+	"threat_language_detected":        "Обнаружены угрозы в тексте",
+	"legal_claim_threat":              "Угроза юридического иска",
+	"global_return_rate":              "Глобальный % возвратов",
+	"avg_order_amount":                "Средняя сумма заказа",
+	"product_category":                "Категория товара",
+	"payment_card_bin":                "BIN карты",
+	"card_issuing_country":            "Страна эмитента карты",
+}
+
+// getFeatureLabel — получение человекочитаемой метки признака
+func getFeatureLabel(featureName string) string {
+	if label, ok := featureLabelMap[featureName]; ok {
+		return label
+	}
+	// Fallback: преобразуем snake_case в читаемый вид
+	words := strings.Split(featureName, "_")
+	for i := range words {
+		words[i] = strings.Title(words[i])
+	}
+	return strings.Join(words, " ")
+}
+
+// ============================================
 // 🔧 CORS УТИЛИТЫ
 // ============================================
 
-// setCORSHeaders — настройка CORS с поддержкой credentials
 func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	allowedOrigins := []string{
@@ -169,7 +237,6 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 }
 
-// applyJSONHeaders — заголовки для JSON-ответов
 func applyJSONHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 }
@@ -509,7 +576,7 @@ func SaveReturnToDB(form FormData) error {
 	query := `INSERT INTO returns (order_id, client_id, days_since_purchase,
                 has_receipt, tags_removed, missing_components,
                 return_channel, claimed_reason, created_at)
-                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())`
+                VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())`
 
 	_, err := db.Exec(query,
 		form.OrderID,
@@ -520,7 +587,6 @@ func SaveReturnToDB(form FormData) error {
 		form.MissingComponents,
 		form.ReturnChannel,
 		form.ClaimedReason,
-		"", // comment можно добавить позже
 	)
 
 	return err
@@ -642,10 +708,25 @@ func CloseDB() {
 }
 
 // ============================================
-// 📦 ЗАКАЗЫ
+// 📦 ЗАКАЗЫ — ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ
 // ============================================
 
 func apiGetOrders(w http.ResponseWriter, r *http.Request) {
+	// ✅ Recovery + логирование паник
+	defer func() {
+		if rec := recover(); rec != nil {
+			log.Printf("❌ PANIC in apiGetOrders: %v", rec)
+			log.Printf("   Stack: %s", debug.Stack())
+			setCORSHeaders(w, r)
+			applyJSONHeaders(w)
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{
+				"error": "Internal server error",
+				"debug": fmt.Sprintf("%v", rec),
+			})
+		}
+	}()
+
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
 
@@ -658,90 +739,128 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 	clientID := r.URL.Query().Get("client_id")
 	query := r.URL.Query().Get("q")
 
-	var orders []DBRecord
-	var err error
+	log.Printf("🔍 [apiGetOrders] client_id='%s', q='%s', path='%s'", clientID, query, r.URL.Path)
 
-	if clientID != "" {
-		orders, err = GetOrdersByClientID(clientID, query)
-	} else if query != "" {
-		order, err := GetOrderByID(parseInt(query))
-		if err != nil {
-			w.WriteHeader(http.StatusNotFound)
-			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Order not found"})
-			return
-		}
-		orders = []DBRecord{*order}
-	} else {
-		orders, err = GetRecentOrders(20)
-	}
-
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to fetch orders"})
+	// ✅ Проверка: если clientID пустой — это ошибка вызова
+	if clientID == "" {
+		log.Printf("⚠️ client_id is empty in request")
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "client_id is required"})
 		return
 	}
 
-	json.NewEncoder(w).Encode(map[string]interface{}{"orders": orders})
+	// ✅ Преобразуем clientID в int для проверки
+	cid, err := strconv.Atoi(clientID)
+	if err != nil || cid <= 0 {
+		log.Printf("⚠️ Invalid client_id: '%s'", clientID)
+		w.WriteHeader(http.StatusBadRequest)
+		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Invalid client_id"})
+		return
+	}
+
+	// ✅ Вызываем функцию с логированием результата
+	orders, err := GetOrdersByClientID(clientID, query)
+	if err != nil {
+		log.Printf("❌ GetOrdersByClientID returned error: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"error":     "Database error: " + err.Error(),
+			"client_id": clientID,
+			"query":     query,
+		})
+		return
+	}
+
+	log.Printf("✅ Found %d orders for client_id=%s", len(orders), clientID)
+
+	// ✅ Отправляем ответ
+	encoder := json.NewEncoder(w)
+	encoder.SetEscapeHTML(false)
+	if err := encoder.Encode(map[string]interface{}{"orders": orders}); err != nil {
+		log.Printf("❌ JSON encode error: %v", err)
+		// Пытаемся отправить ошибку, если заголовки ещё не ушли
+		if !strings.Contains(w.Header().Get("Content-Type"), "application/json") {
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to encode JSON"})
+		}
+		return
+	}
 }
 
 func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 	if db == nil {
-		return nil, fmt.Errorf("база данных не подключена")
+		return nil, fmt.Errorf("database not connected")
 	}
+
+	log.Printf("[DEBUG] GetOrdersByClientID: clientID='%s', query='%s'", clientID, query)
 
 	var querySQL string
 	var args []interface{}
 
 	if query != "" {
 		querySQL = `
-            SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
-                   o.payment_method, o.order_timestamp, o.amount_deviation,
-                   o.orders_last_30d, o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
-            FROM orders o
-            LEFT JOIN returns r ON o.order_id = r.order_id
-            WHERE o.client_id = $1 AND o.order_id::TEXT LIKE $2
-            ORDER BY o.order_timestamp DESC
-            LIMIT 20
-        `
+			SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
+			       o.payment_method, o.order_timestamp, o.amount_deviation,
+			       o.orders_last_30d, o.product_category, 
+			       r.days_since_purchase, r.claimed_reason, r.return_channel
+			FROM orders o
+			LEFT JOIN returns r ON o.order_id = r.order_id
+			WHERE o.client_id = $1 AND o.order_id::TEXT LIKE $2
+			ORDER BY o.order_timestamp DESC
+			LIMIT 20
+		`
 		args = []interface{}{clientID, "%" + query + "%"}
 	} else {
 		querySQL = `
-            SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
-                   o.payment_method, o.order_timestamp, o.amount_deviation,
-                   o.orders_last_30d, o.product_category, r.days_since_purchase, r.claimed_reason, r.return_channel
-            FROM orders o
-            LEFT JOIN returns r ON o.order_id = r.order_id
-            WHERE o.client_id = $1
-            ORDER BY o.order_timestamp DESC
-            LIMIT 20
-        `
+			SELECT o.order_id, o.client_id, o.order_amount, o.items_count,
+			       o.payment_method, o.order_timestamp, o.amount_deviation,
+			       o.orders_last_30d, o.product_category, 
+			       r.days_since_purchase, r.claimed_reason, r.return_channel
+			FROM orders o
+			LEFT JOIN returns r ON o.order_id = r.order_id
+			WHERE o.client_id = $1
+			ORDER BY o.order_timestamp DESC
+			LIMIT 20
+		`
 		args = []interface{}{clientID}
 	}
 
+	log.Printf("[DEBUG] Executing query with %d args", len(args))
+
 	rows, err := db.Query(querySQL, args...)
 	if err != nil {
-		return nil, err
+		log.Printf("❌ Query execution error: %v | SQL: %s", err, querySQL)
+		return nil, fmt.Errorf("query failed: %w", err)
 	}
 	defer rows.Close()
 
 	var results []DBRecord
+	rowNum := 0
+
 	for rows.Next() {
+		rowNum++
 		var record DBRecord = make(DBRecord)
 		var ts time.Time
+
+		// Переменные в ТОЧНОМ порядке колонок SELECT
 		var orderID, clientID, itemsCount int
 		var orderAmount, amountDev sql.NullFloat64
 		var paymentMethod, prodCategory, claimedReason, returnChannel sql.NullString
-		var daysSincePurchase sql.NullInt64
+		var daysSincePurchase, ordersLast30d sql.NullInt64
 
 		err := rows.Scan(
 			&orderID, &clientID, &orderAmount, &itemsCount,
 			&paymentMethod, &ts, &amountDev,
+			&ordersLast30d, // ← критически важно: 8-я переменная
 			&prodCategory, &daysSincePurchase, &claimedReason, &returnChannel,
 		)
 		if err != nil {
-			return nil, err
+			log.Printf("❌ Scan error on row #%d: %v", rowNum, err)
+			log.Printf("   Column types: order_id=int, client_id=int, order_amount=float, items_count=int, payment_method=string, order_timestamp=timestamp, amount_deviation=float, orders_last_30d=int, product_category=string, days_since_purchase=int, claimed_reason=string, return_channel=string")
+			return nil, fmt.Errorf("scan failed on row %d: %w", rowNum, err)
 		}
 
+		// Заполнение record
 		record["order_id"] = orderID
 		record["client_id"] = clientID
 		if orderAmount.Valid {
@@ -754,6 +873,9 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		record["order_timestamp"] = ts.Format("02.01.2006 15:04")
 		if amountDev.Valid {
 			record["amount_deviation"] = amountDev.Float64
+		}
+		if ordersLast30d.Valid {
+			record["orders_last_30d"] = ordersLast30d.Int64
 		}
 		if prodCategory.Valid {
 			record["product_category"] = prodCategory.String
@@ -771,6 +893,12 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		results = append(results, record)
 	}
 
+	if err = rows.Err(); err != nil {
+		log.Printf("❌ rows iteration error: %v", err)
+		return nil, err
+	}
+
+	log.Printf("[DEBUG] GetOrdersByClientID: successfully processed %d rows", rowNum)
 	return results, nil
 }
 
@@ -899,6 +1027,7 @@ func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error
 		return 0, 0, 0, fmt.Errorf("база данных не подключена")
 	}
 
+	// Исправлено: сравниваем с 0.2 и 0.5 как с долями (20% и 50%), а не с процентами
 	query := `
                 SELECT
                         COUNT(CASE WHEN global_return_rate IS NOT NULL AND global_return_rate <= 0.2 THEN 1 END) as active,
@@ -1307,7 +1436,7 @@ func apiClearHistory(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================
-// 🔁 ВОЗВРАТЫ КЛИЕНТА — ИСПРАВЛЕННЫЕ
+// 🔁 ВОЗВРАТЫ КЛИЕНТА
 // ============================================
 
 func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
@@ -1376,7 +1505,6 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔐 Авторизация
 	clientID, err := getClientIDFromRequest(r)
 	if err != nil {
 		log.Printf("❌ Auth error: %v", err)
@@ -1385,7 +1513,6 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 📋 Чтение и логирование тела запроса
 	bodyBytes, err := io.ReadAll(r.Body)
 	if err != nil {
 		log.Printf("❌ Ошибка чтения тела: %v", err)
@@ -1394,9 +1521,7 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	r.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-	log.Printf("📥 Raw body: %s", string(bodyBytes))
 
-	// Парсинг JSON
 	var req CreateReturnRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		log.Printf("❌ Ошибка парсинга JSON: %v", err)
@@ -1405,11 +1530,7 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Printf("📦 Parsed: order_id=%d, claimed_reason='%s'", req.OrderID, req.ClaimedReason)
-
-	// ✅ Валидация
 	if req.OrderID <= 0 {
-		log.Printf("❌ Validation: invalid order_id=%d", req.OrderID)
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -1419,7 +1540,6 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if req.ClaimedReason == "" {
-		log.Printf("❌ Validation: empty claimed_reason")
 		w.WriteHeader(http.StatusBadRequest)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -1428,12 +1548,10 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔎 Проверка заказа
 	orderQuery := `SELECT order_id FROM orders WHERE order_id = $1 AND client_id = $2 LIMIT 1`
 	var orderID int
 	err = db.QueryRow(orderQuery, req.OrderID, clientID).Scan(&orderID)
 	if err != nil {
-		log.Printf("❌ Order not found: order_id=%d, client_id=%d", req.OrderID, clientID)
 		w.WriteHeader(http.StatusNotFound)
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success": false,
@@ -1442,7 +1560,6 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 💾 Создание возврата — ❗ БЕЗ поля comment
 	insertQuery := `INSERT INTO returns (
 		order_id, client_id, days_since_purchase,
 		has_receipt, tags_removed, missing_components,
@@ -1461,8 +1578,6 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		})
 		return
 	}
-
-	log.Printf("Возврат создан: return_id=%d", returnID)
 
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":   true,
@@ -1579,19 +1694,15 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if r.Method == http.MethodPost {
-		// Поддерживаем и JSON, и form-urlencoded
 		var form FormData
 
-		// Проверяем Content-Type
 		contentType := r.Header.Get("Content-Type")
 		if strings.Contains(contentType, "application/json") {
-			// JSON формат (из JavaScript fetch)
 			if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 				http.Error(w, "Invalid JSON: "+err.Error(), http.StatusBadRequest)
 				return
 			}
 		} else {
-			// Form-urlencoded (традиционная отправка формы)
 			r.ParseForm()
 			form = FormData{
 				ClientID: parseInt(r.FormValue("clientID")), OrderID: parseInt(r.FormValue("orderID")),
@@ -1605,7 +1716,6 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Заполняем поля по умолчанию если они не установлены
 		if form.OrderAmount <= 0 {
 			form.OrderAmount = parseFloat(r.FormValue("orderAmount"))
 		}
@@ -1686,16 +1796,18 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 }
 
 // ============================================
-// 🧮 ЛОГИКА РИСКА
+// 🧮 ЛОГИКА РИСКА — ОБНОВЛЁННАЯ
 // ============================================
 
 func calculateRisk(f FormData) ResultData {
 	log.Printf("[DEBUG] FormData: %+v", f)
-	score, err := predictRisk(f)
+
+	score, mlFeatures, err := predictRiskWithFeatures(f)
 
 	if err != nil {
 		log.Printf("⚠️ Python ONNX ошибка: %v, используем заглушку", err)
 		score = calculateRiskFallback(f)
+		mlFeatures = []FeatureExplanation{}
 	}
 
 	if score < 0 {
@@ -1711,16 +1823,215 @@ func calculateRisk(f FormData) ResultData {
 	}
 
 	level, class, recommendation := getRiskLevel(score)
-	factors := getRiskFactors(f)
 
-	log.Printf("[INFO] Final score: %.4f, Level: %s", score, level)
+	// 🔥 Ключевое изменение: передаём нормализованные ML-факторы в getRiskFactors
+	normalizedFeatures := normalizeContributions(mlFeatures)
+	factors := getRiskFactors(f, normalizedFeatures)
+
+	log.Printf("[INFO] Final score: %.4f, Level: %s, Factors: %v", score, level, factors)
 
 	return ResultData{
-		FormData: f, RiskScore: float64(score), RiskLevel: level,
-		RiskClass: class, Recommendation: recommendation, TopFactors: factors,
-		StrokeDashOffset: (1 - float64(score)) * 283, RiskPercent: int(float64(score) * 100),
-		OrderID: f.OrderID, ClientID: f.ClientID,
+		FormData:         f,
+		RiskScore:        float64(score),
+		RiskLevel:        level,
+		RiskClass:        class,
+		Recommendation:   recommendation,
+		TopFactors:       factors,            // Текстовые факторы для UI
+		TopFeatures:      normalizedFeatures, // Нормализованные ML-объяснения для аналитики
+		StrokeDashOffset: (1 - float64(score)) * 283,
+		RiskPercent:      int(float64(score) * 100),
+		OrderID:          f.OrderID,
+		ClientID:         f.ClientID,
 	}
+}
+
+func normalizeContributions(features []FeatureExplanation) []FeatureExplanation {
+	if len(features) == 0 {
+		return features
+	}
+
+	// Берём абсолютные значения для оценки "важности"
+	type scoredFeat struct {
+		FeatureExplanation
+		absContribution float64
+	}
+
+	scored := make([]scoredFeat, 0, len(features))
+	for _, f := range features {
+		if f.Effect == "повышает риск" && f.Contribution > 0.001 {
+			scored = append(scored, scoredFeat{
+				FeatureExplanation: f,
+				absContribution:    math.Abs(f.Contribution),
+			})
+		}
+	}
+
+	if len(scored) == 0 {
+		return []FeatureExplanation{}
+	}
+
+	// Сортируем по убыванию важности
+	sort.Slice(scored, func(i, j int) bool {
+		return scored[i].absContribution > scored[j].absContribution
+	})
+
+	// Присваиваем "ранги" для отображения: топ-1 = 25%, топ-2 = 20%, и т.д.
+	// Это визуальная шкала, а не математический вклад!
+	visualWeights := []int{25, 20, 15, 12, 10, 8, 6, 5, 4, 3}
+
+	result := make([]FeatureExplanation, 0, len(scored))
+	for i, sf := range scored {
+		if i >= len(visualWeights) {
+			break
+		}
+		feat := sf.FeatureExplanation
+		// Создаём "визуальный" вклад для UI
+		feat.Contribution = float64(visualWeights[i]) / 100.0
+		result = append(result, feat)
+	}
+
+	return result
+}
+
+// getRiskFactors — формирует список факторов риска, объединяя правила и нормализованные ML-объяснения
+func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
+	factors := []string{}
+	seen := make(map[string]bool)
+
+	// === 1. ML-факторы с иконками важности ===
+	weightIcons := []string{"🔴", "🟠", "🟡", "🟢"} // 4 уровня
+	mlCount := 0
+
+	for _, feat := range mlFeatures {
+		if mlCount >= 5 {
+			break
+		}
+		if feat.Effect == "повышает риск" && feat.Contribution > 0.03 {
+			label := getFeatureLabel(feat.Feature)
+			if !seen[label] {
+				// Определяем иконку по нормализованному вкладу
+				pct := int(feat.Contribution * 100) // 0.25 → 25
+				iconIdx := 3                        // default 🟢
+				if pct >= 20 {
+					iconIdx = 0 // 🔴
+				} else if pct >= 15 {
+					iconIdx = 1 // 🟠
+				} else if pct >= 10 {
+					iconIdx = 2 // 🟡
+				}
+				factors = append(factors, fmt.Sprintf("%s %s", weightIcons[iconIdx], label))
+				seen[label] = true
+				mlCount++
+			}
+		}
+	}
+
+	// === 2. Rule-based факторы (без процентов, чтобы не путать) ===
+	ruleFactors := getRuleBasedFactors(f)
+	for _, factor := range ruleFactors {
+		if len(factors) >= 7 {
+			break
+		}
+		// Убираем "(+Х%)" из rule-факторов, оставляем только текст
+		cleanFactor := factor
+		if idx := strings.Index(factor, " ("); idx != -1 {
+			cleanFactor = factor[:idx]
+		}
+		baseName := cleanFactor
+		if !seen[baseName] {
+			factors = append(factors, "⚪ "+cleanFactor) // нейтральная иконка
+			seen[baseName] = true
+		}
+	}
+
+	if len(factors) == 0 {
+		factors = append(factors, "✅ Все параметры в норме")
+	}
+	if len(factors) > 7 {
+		factors = factors[:7]
+	}
+
+	return factors
+}
+
+// getRuleBasedFactors — вспомогательная функция с исходными правилами
+// Возвращает факторы в формате "Название (+Х%)" для единообразия с ML-факторами
+func getRuleBasedFactors(f FormData) []string {
+	factors := []string{}
+
+	if !f.HasTag {
+		factors = append(factors, "Бирка отсутствует (+25%)")
+	}
+	if !f.HasReceipt {
+		factors = append(factors, "Чек не предоставлен (+15%)")
+	}
+	if f.HasDamage {
+		factors = append(factors, "Есть повреждения товара (+20%)")
+	}
+	if f.IsUsed {
+		factors = append(factors, "Товар имеет следы использования (+25%)")
+	}
+	if f.ClaimedReason == "changed_mind" {
+		factors = append(factors, "Возврат без объективной причины (+15%)")
+	}
+	if f.DaysToReturn <= 3 {
+		factors = append(factors, "Очень быстрый возврат (+10%)")
+	}
+	if f.AccountAgeDays < 30 {
+		factors = append(factors, "🆕 Новый аккаунт (+12%)")
+	}
+	// Исправлено: сравниваем с 30 (проценты), а не с 0.3
+	if f.ReturnRate > 30 {
+		factors = append(factors, "Высокий % возвратов у клиента (+18%)")
+	}
+	if f.OrderAmount > 30000 {
+		factors = append(factors, "Высокая сумма заказа (+10%)")
+	}
+	// Исправлено: сравниваем с 0.5 как с долей риска
+	if f.PaymentMethodRisk > 0.5 {
+		factors = append(factors, "Рискованный метод оплаты (+10%)")
+	}
+	// Исправлено: сравниваем с 0.5 как с долей риска
+	if f.ShippingRegionRisk > 0.5 {
+		factors = append(factors, "Рискованный регион доставки (+8%)")
+	}
+	// Исправлено: сравниваем с 500 км
+	if f.DistanceFromRegistration > 500 {
+		factors = append(factors, "Большое расстояние от регистрации (+7%)")
+	}
+	// Исправлено: сравниваем с 0.5 как с долей доверия
+	if f.DeviceTrustScore < 0.5 {
+		factors = append(factors, "Низкое доверие к устройству (+10%)")
+	}
+	// Исправлено: сравниваем с 0.5 как с долей доверия
+	if f.IPTrustScore < 0.5 {
+		factors = append(factors, "Низкое доверие к IP (+10%)")
+	}
+	if f.TagsRemoved {
+		factors = append(factors, "Бирки удалены (+20%)")
+	}
+	if f.MissingComponents {
+		factors = append(factors, "Отсутствуют компоненты (+18%)")
+	}
+
+	// Сортируем по "весу" (извлекаем число из "+Х%")
+	sort.Slice(factors, func(i, j int) bool {
+		extractPct := func(s string) int {
+			start := strings.Index(s, "(+")
+			if start == -1 {
+				return 0
+			}
+			end := strings.Index(s[start:], "%)")
+			if end == -1 {
+				return 0
+			}
+			pct, _ := strconv.Atoi(s[start+2 : start+end])
+			return pct
+		}
+		return extractPct(factors[i]) > extractPct(factors[j])
+	})
+
+	return factors
 }
 
 func enrichRiskFromDB(clientID int, baseScore float64) (float64, []string) {
@@ -1732,25 +2043,33 @@ func enrichRiskFromDB(clientID int, baseScore float64) (float64, []string) {
 		return score, extraFactors
 	}
 
-	if rate, ok := (*client)["global_return_rate"].(float64); ok && rate > 30 {
+	// Исправлено: сравниваем с 0.3 (30% как доля), а не с 30
+	if rate, ok := (*client)["global_return_rate"].(float64); ok && rate > 0.3 {
 		score += 0.15
 		extraFactors = append(extraFactors, "Высокий % возвратов у клиента")
 	}
+	// Исправлено: сравниваем с 30 днями
 	if age, ok := (*client)["account_age_days"].(int); ok && age < 30 {
 		score += 0.10
 		extraFactors = append(extraFactors, "Новый аккаунт")
 	}
+	// Исправлено: сравниваем с 10 возвратами
 	if total, ok := (*client)["total_returns"].(int); ok && total > 10 {
 		score += 0.08
 		extraFactors = append(extraFactors, "Много возвратов в истории")
 	}
+	// Исправлено: сравниваем с 2.0 как с частотой
 	if freq, ok := (*client)["address_change_frequency"].(float64); ok && freq > 2.0 {
 		score += 0.07
 		extraFactors = append(extraFactors, "Частая смена адресов")
 	}
 
+	// Нормализуем итоговый скор
 	if score > 1.0 {
 		score = 1.0
+	}
+	if score < 0.0 {
+		score = 0.0
 	}
 	return score, extraFactors
 }
@@ -1898,40 +2217,8 @@ func calculateRiskFallback(f FormData) float32 {
 	return float32(score)
 }
 
-func getRiskFactors(f FormData) []string {
-	factors := []string{}
-	if !f.HasTag {
-		factors = append(factors, "Бирка отсутствует")
-	}
-	if !f.HasReceipt {
-		factors = append(factors, "Чек не предоставлен")
-	}
-	if f.HasDamage {
-		factors = append(factors, "Есть повреждения товара")
-	}
-	if f.IsUsed {
-		factors = append(factors, "Товар имеет следы использования")
-	}
-	if f.ClaimedReason == "changed_mind" {
-		factors = append(factors, "Возврат без объективной причины")
-	}
-	if f.DaysToReturn <= 3 {
-		factors = append(factors, "Очень быстрый возврат")
-	}
-	if f.AccountAgeDays < 30 {
-		factors = append(factors, "🆕 Новый аккаунт")
-	}
-	if f.ReturnRate > 30 {
-		factors = append(factors, "Высокий % возвратов у клиента")
-	}
-	if len(factors) == 0 {
-		factors = append(factors, "Все параметры в норме")
-	}
-	return factors
-}
-
 // ============================================
-// 🐍 PYTHON / FASTAPI ИНТЕГРАЦИЯ
+// 🐍 PYTHON / FASTAPI ИНТЕГРАЦИЯ — ОБНОВЛЁННАЯ
 // ============================================
 
 var fastAPIURL = "http://localhost:8000"
@@ -1943,7 +2230,8 @@ func callFastAPI(endpoint string, payload interface{}, result interface{}) error
 		return fmt.Errorf("ошибка маршалинга JSON: %v", err)
 	}
 
-	resp, err := http.Post(url, "application/json", bytes.NewBuffer(jsonData))
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(url, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		return fmt.Errorf("ошибка запроса к FastAPI: %v", err)
 	}
@@ -2015,19 +2303,20 @@ type FastAPIFraudPayloadRequest struct {
 }
 
 type FastAPIFraudPredictionResponse struct {
-	Success          bool    `json:"success"`
-	Score            float64 `json:"score,omitempty"`
-	Error            string  `json:"error,omitempty"`
-	RiskLevel        string  `json:"risk_level,omitempty"`
-	Recommendation   string  `json:"recommendation,omitempty"`
-	ReturnID         int     `json:"return_id,omitempty"`
-	ClientID         int     `json:"client_id,omitempty"`
-	OrderID          int     `json:"order_id,omitempty"`
-	ProbabilityFraud float64 `json:"probability_fraud,omitempty"`
-	AnomalyScore     float64 `json:"anomaly_score,omitempty"`
-	IsAnomaly        bool    `json:"is_anomaly,omitempty"`
-	CombinedScore    float64 `json:"combined_score,omitempty"`
-	Decision         string  `json:"decision,omitempty"`
+	Success          bool                 `json:"success"`
+	Score            float64              `json:"score,omitempty"`
+	Error            string               `json:"error,omitempty"`
+	RiskLevel        string               `json:"risk_level,omitempty"`
+	Recommendation   string               `json:"recommendation,omitempty"`
+	ReturnID         int                  `json:"return_id,omitempty"`
+	ClientID         int                  `json:"client_id,omitempty"`
+	OrderID          int                  `json:"order_id,omitempty"`
+	ProbabilityFraud float64              `json:"probability_fraud,omitempty"`
+	AnomalyScore     float64              `json:"anomaly_score,omitempty"`
+	IsAnomaly        bool                 `json:"is_anomaly,omitempty"`
+	CombinedScore    float64              `json:"combined_score,omitempty"`
+	Decision         string               `json:"decision,omitempty"`
+	TopFeatures      []FeatureExplanation `json:"top_features,omitempty"`
 }
 
 type FastAPIChatRequest struct {
@@ -2055,7 +2344,8 @@ func loadModel(modelPath string) error {
 	return nil
 }
 
-func predictRisk(f FormData) (float32, error) {
+// predictRiskWithFeatures — новая функция, возвращающая и скор, и топ-фичи
+func predictRiskWithFeatures(f FormData) (float32, []FeatureExplanation, error) {
 	payload := FastAPIFraudPayloadRequest{
 		ClientID: f.ClientID, OrderID: f.OrderID, ReturnID: 0,
 		AccountAgeDays: f.AccountAgeDays, TotalOrders: f.TotalOrders,
@@ -2081,10 +2371,10 @@ func predictRisk(f FormData) (float32, error) {
 	err := callFastAPI("/api/predict-fraud-payload", payload, &resp)
 	if err != nil {
 		log.Printf("[ERROR] FastAPI predict error: %v", err)
-		return 0, err
+		return 0, []FeatureExplanation{}, err
 	}
 	if !resp.Success {
-		return 0, fmt.Errorf("%s", resp.Error)
+		return 0, []FeatureExplanation{}, fmt.Errorf("%s", resp.Error)
 	}
 
 	score := resp.CombinedScore
@@ -2092,9 +2382,16 @@ func predictRisk(f FormData) (float32, error) {
 		score = resp.ProbabilityFraud
 	}
 
-	log.Printf("[INFO] v4 prediction: combined=%.4f, prob=%.4f, decision=%s",
-		resp.CombinedScore, resp.ProbabilityFraud, resp.Decision)
-	return float32(score), nil
+	log.Printf("[INFO] v4 prediction: combined=%.4f, prob=%.4f, decision=%s, features=%d",
+		resp.CombinedScore, resp.ProbabilityFraud, resp.Decision, len(resp.TopFeatures))
+
+	return float32(score), resp.TopFeatures, nil
+}
+
+// predictRisk — обратная совместимость (вызывает новую функцию)
+func predictRisk(f FormData) (float32, error) {
+	score, _, err := predictRiskWithFeatures(f)
+	return score, err
 }
 
 func parseInt(value string) int {
@@ -2285,7 +2582,6 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 
 	clientIDStr := r.URL.Query().Get("client_id")
 
-	// Если client_id не передан в query — получаем из сессии/куки
 	if clientIDStr == "" {
 		clientID, err := getClientIDFromRequest(r)
 		if err != nil {
@@ -2335,7 +2631,8 @@ func EnrichFromDB(f *FormData) error {
 		f.AccountAgeDays = accountAge
 		f.TotalOrders = totalOrders
 		if totalOrders > 0 {
-			f.ReturnRate = float64(totalReturns) / float64(totalOrders) * 100
+			// global_return_rate хранится как доля (0.18 = 18%), конвертируем в проценты для UI
+			f.ReturnRate = globalRate.Float64 * 100
 		}
 		if avgOrderAmt.Valid {
 			f.AvgOrderAmount = avgOrderAmt.Float64
@@ -2439,14 +2736,13 @@ func EnrichFromDB(f *FormData) error {
 		f.ReturnRate30d = float64(refundVelocity30d) / float64(f.TotalOrders)
 	}
 
-	log.Printf("[DEBUG] DB-Enriched: AccountAge=%d, Orders=%d, Returns=%d, Velocity30d=%d",
-		f.AccountAgeDays, f.TotalOrders, f.TotalReturns, refundVelocity30d)
+	log.Printf("[DEBUG] DB-Enriched: AccountAge=%d, Orders=%d, Returns=%d, Velocity30d=%d, ReturnRate=%.2f%%",
+		f.AccountAgeDays, f.TotalOrders, f.TotalReturns, refundVelocity30d, f.ReturnRate)
 
 	return nil
 }
 
 // apiPredictFraudV4 — POST /api/predict-fraud-v4
-// Принимает return_id, вызывает FastAPI для оценки мошенничества
 func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2462,7 +2758,6 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Парсим запрос
 	var req struct {
 		ReturnID int `json:"return_id"`
 	}
@@ -2480,7 +2775,6 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("🔮 Fraud prediction requested for return_id=%d", req.ReturnID)
 
-	// 🔎 Получаем данные возврата из БД для обогащения признаков
 	returnQuery := `
 		SELECT r.return_id, r.order_id, r.client_id, r.claimed_reason, r.days_since_purchase,
 		       r.has_receipt, r.tags_removed, r.missing_components, r.return_channel,
@@ -2513,7 +2807,6 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 📦 Подготовка payload для FastAPI
 	fraudPayload := map[string]interface{}{
 		"return_id":                     returnID,
 		"order_id":                      orderID,
@@ -2534,24 +2827,23 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 		"global_return_rate":            globalReturnRate.Float64,
 		"avg_order_amount":              avgOrderAmount.Float64,
 		"is_electronics":                productCategory.String == "electronics",
-		"region_risk_score":             0.2, // можно рассчитать
+		"region_risk_score":             0.2,
 		"distance_from_registration_km": 50.0,
 		"card_country_mismatch":         false,
 		"address_match_score":           1.0,
 		"is_address_match":              true,
-		"returns_last_30d":              0, // можно запросить отдельно
+		"returns_last_30d":              0,
 		"return_rate_last_30d":          0.0,
 		"days_since_last_return":        999,
 	}
 
-	// 🚀 Вызов FastAPI для инференса
 	fastAPIURL := "http://localhost:8000/api/predict-fraud-payload"
 	jsonData, _ := json.Marshal(fraudPayload)
 
-	resp, err := http.Post(fastAPIURL, "application/json", bytes.NewBuffer(jsonData))
+	client := &http.Client{Timeout: 30 * time.Second}
+	resp, err := client.Post(fastAPIURL, "application/json", bytes.NewBuffer(jsonData))
 	if err != nil {
 		log.Printf("⚠️ FastAPI unavailable, using fallback: %v", err)
-		// 🔧 Заглушка, если FastAPI не отвечает
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":           true,
 			"return_id":         returnID,
@@ -2577,7 +2869,6 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 
 	if resp.StatusCode != http.StatusOK {
 		log.Printf("⚠️ FastAPI returned status %d: %s", resp.StatusCode, string(body))
-		// Возвращаем заглушку при ошибке
 		json.NewEncoder(w).Encode(map[string]interface{}{
 			"success":           true,
 			"return_id":         returnID,
@@ -2592,17 +2883,14 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Возвращаем ответ от FastAPI как есть
 	w.WriteHeader(http.StatusOK)
 	w.Write(body)
 }
 
 func apiHandleDecisionAlias(w http.ResponseWriter, r *http.Request) {
-	// Просто перенаправляем на основной хендлер
 	apiHandleDecision(w, r)
 }
 
-// === НОВЫЙ: Получение одной записи истории по ID ===
 func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2634,7 +2922,6 @@ func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
 
 	row := db.QueryRow(query, checkID)
 
-	// 🔥 Временные переменные для Scan
 	var scanCheckID, scanOrderID, scanClientID int
 	var orderAmt, riskScore sql.NullFloat64
 	var riskLevel, riskClass, recommendation, decision sql.NullString
@@ -2667,7 +2954,6 @@ func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// 🔥 Заполняем мапу из временных переменных
 	record := DBRecord{
 		"check_id":  scanCheckID,
 		"order_id":  scanOrderID,
@@ -2699,7 +2985,6 @@ func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
 		record["decided_at"] = decidedAt.Time.Format("2006-01-02 15:04:05")
 	}
 
-	// Парсим top_factors
 	if factorsStr.Valid && factorsStr.String != "" && factorsStr.String != "{}" {
 		factors := strings.Trim(factorsStr.String, "{}")
 		factorList := strings.Split(factors, ",")
@@ -2725,7 +3010,7 @@ func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		OrderID     int     `json:"order_id"`
 		ClientID    int     `json:"client_id"`
-		Decision    string  `json:"decision"` // approve, review, reject
+		Decision    string  `json:"decision"`
 		RiskScore   float64 `json:"risk_score"`
 		OrderAmount float64 `json:"order_amount"`
 		CheckID     int     `json:"check_id,omitempty"`
@@ -2740,19 +3025,16 @@ func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
 	log.Printf("🎯 Decision received: order_id=%d, decision=%s, risk=%.2f",
 		req.OrderID, req.Decision, req.RiskScore)
 
-	// === 🔥 Сохраняем/обновляем запись в check_history ===
 	if db != nil && req.OrderID > 0 && req.ClientID > 0 {
 		var err error
 
 		if req.CheckID > 0 {
-			// Обновляем существующую запись
 			_, err = db.Exec(`
                 UPDATE check_history 
                 SET decision = $1, decided_at = NOW()
                 WHERE check_id = $2 AND order_id = $3
             `, req.Decision, req.CheckID, req.OrderID)
 		} else {
-			// Создаём новую запись если check_id не передан
 			_, err = db.Exec(`
                 INSERT INTO check_history 
                 (order_id, client_id, order_amount, risk_score, decision, checked_at)
@@ -2767,7 +3049,6 @@ func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Возвращаем успешный ответ с данными для редиректа
 	json.NewEncoder(w).Encode(map[string]interface{}{
 		"success":  true,
 		"check_id": req.CheckID,
@@ -2780,11 +3061,9 @@ func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// === НОВЫЙ: Страница результата с параметрами из URL ===
 func resultPage(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 
-	// Получаем параметры из query string
 	orderID := r.URL.Query().Get("order_id")
 	clientID := r.URL.Query().Get("client_id")
 	riskScore := r.URL.Query().Get("risk_score")
@@ -2820,7 +3099,6 @@ func resultPage(w http.ResponseWriter, r *http.Request) {
 		"DBConnected":    db != nil,
 	}
 
-	// Пытаемся загрузить полные данные из БД если есть check_id
 	if checkID != "" && db != nil {
 		if cid, err := strconv.Atoi(checkID); err == nil {
 			query := `SELECT order_id, client_id, order_amount, risk_score, 
@@ -2857,7 +3135,6 @@ func resultPage(w http.ResponseWriter, r *http.Request) {
 					record["recommendation"] = recommendation.String
 				}
 
-				// Парсим top_factors из PostgreSQL array
 				if factorsStr != "" && factorsStr != "{}" {
 					factorsStr = strings.Trim(factorsStr, "{}")
 					factors := strings.Split(factorsStr, ",")
@@ -2915,87 +3192,61 @@ func main() {
 		log.Fatalf("Директория static не найдена: %s", staticDir)
 	}
 
-	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
-		relativePath := strings.TrimPrefix(r.URL.Path, "/static/")
-		path := filepath.Join(staticDir, relativePath)
-		if _, err := os.Stat(path); os.IsNotExist(err) {
-			http.NotFound(w, r)
-			return
-		}
-		if strings.HasSuffix(path, ".css") {
-			w.Header().Set("Content-Type", "text/css; charset=utf-8")
-		} else if strings.HasSuffix(path, ".js") {
-			w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
-		} else if strings.HasSuffix(path, ".png") {
-			w.Header().Set("Content-Type", "image/png")
-		} else if strings.HasSuffix(path, ".jpg") || strings.HasSuffix(path, ".jpeg") {
-			w.Header().Set("Content-Type", "image/jpeg")
-		} else if strings.HasSuffix(path, ".svg") {
-			w.Header().Set("Content-Type", "image/svg+xml")
-		} else if strings.HasSuffix(path, ".ico") {
-			w.Header().Set("Content-Type", "image/x-icon")
-		}
-		http.ServeFile(w, r, path)
-	})
+	// ✅ 1. Статика — самый специфичный префикс
+	http.HandleFunc("/static/", serveStatic)
 
-	// Страницы
+	// ✅ 2. API-маршруты (БЕЗ авторизации или с лёгкой) — ДО "/"
+	//    Важно: точные пути регистрируем ДО префиксов!
+
+	// Auth API (без middleware)
+	http.HandleFunc("/api/login", apiLogin)
+	http.HandleFunc("/api/logout", apiLogout)
+
+	// Public API
+	http.HandleFunc("/api/stats", apiGetStats)
+	http.HandleFunc("/api/chat", handleChat)
+
+	// Client API — с authMiddleware (не requireAdmin!)
+	http.HandleFunc("/api/client/orders", authMiddleware(apiGetClientOrders))
+	http.HandleFunc("/api/client/returns", authMiddleware(apiClientReturnsHandler))
+	http.HandleFunc("/api/client/", authMiddleware(apiGetClient)) // префикс — в конце!
+
+	// Order API
+	http.HandleFunc("/api/order/", apiGetOrder)  // префикс
+	http.HandleFunc("/api/orders", apiGetOrders) // ТОЧНЫЙ путь — после префиксов!
+
+	// Users API
+	http.HandleFunc("/api/users", apiGetUsers)
+	http.HandleFunc("/api/users/", apiGetUserDetail)
+	http.HandleFunc("/api/search/users", apiSearchUsers)
+
+	// History API — только для админа
+	http.HandleFunc("/api/history", requireAdmin(apiGetHistory))
+	http.HandleFunc("/api/history/", requireAdmin(apiGetHistoryItem))
+	http.HandleFunc("/api/clear-history", requireAdmin(apiClearHistory))
+
+	// Fraud prediction & decisions — только для админа
+	http.HandleFunc("/api/predict-fraud-v4", requireAdmin(apiPredictFraudV4))
+	http.HandleFunc("/api/decision", requireAdmin(apiHandleDecision))
+	http.HandleFunc("/check/decision", requireAdmin(apiHandleDecisionAlias))
+
+	// ✅ 3. Страницы (с авторизацией)
 	http.HandleFunc("/login", loginPage)
 	http.HandleFunc("/result", requireAdmin(resultPage))
-	http.HandleFunc("/admin/profile", requireAdmin(adminProfileHandler))
-	http.HandleFunc("/client/orders", authMiddleware(clientOrdersHandler))
-	http.HandleFunc("/admin/chat", requireAdmin(adminChatHandler))
-	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
-	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
-	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
-
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		cookie, err := r.Cookie("user")
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		decodedUser, err := base64.StdEncoding.DecodeString(cookie.Value)
-		if err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		var userData struct {
-			Role string `json:"role"`
-		}
-		if err := json.Unmarshal(decodedUser, &userData); err != nil {
-			http.Redirect(w, r, "/login", http.StatusSeeOther)
-			return
-		}
-		if userData.Role == "admin" {
-			http.Redirect(w, r, "/admin/profile", http.StatusSeeOther)
-		} else {
-			http.Redirect(w, r, "/client/profile", http.StatusSeeOther)
-		}
-	})
-
 	http.HandleFunc("/check", requireAdmin(checkHandler))
 	http.HandleFunc("/history", requireAdmin(historyPage))
 	http.HandleFunc("/users", requireAdmin(usersPage))
 
-	// API
-	http.HandleFunc("/api/login", apiLogin)
-	http.HandleFunc("/api/logout", apiLogout)
-	http.HandleFunc("/api/client/orders", apiGetClientOrders)
-	http.HandleFunc("/api/client/returns", apiClientReturnsHandler)
-	http.HandleFunc("/api/client/", apiGetClient)
-	http.HandleFunc("/api/order/", apiGetOrder)
-	http.HandleFunc("/api/orders", apiGetOrders)
-	http.HandleFunc("/api/stats", apiGetStats)
-	http.HandleFunc("/api/users", apiGetUsers)
-	http.HandleFunc("/api/users/", apiGetUserDetail)
-	http.HandleFunc("/api/search/users", apiSearchUsers)
-	http.HandleFunc("/api/chat", handleChat)
-	http.HandleFunc("/api/history", requireAdmin(apiGetHistory))
-	http.HandleFunc("/api/clear-history", requireAdmin(apiClearHistory))
-	http.HandleFunc("/api/predict-fraud-v4", apiPredictFraudV4)
-	http.HandleFunc("/api/decision", requireAdmin(apiHandleDecision))
-	http.HandleFunc("/check/decision", requireAdmin(apiHandleDecisionAlias))
-	http.HandleFunc("/api/history/", requireAdmin(apiGetHistoryItem))
+	// Профили
+	http.HandleFunc("/admin/profile", requireAdmin(adminProfileHandler))
+	http.HandleFunc("/admin/chat", requireAdmin(adminChatHandler))
+	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
+	http.HandleFunc("/client/orders", authMiddleware(clientOrdersHandler))
+	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
+	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
+
+	// ✅ 4. Catch-all "/" — ПОСЛЕДНИМ!
+	http.HandleFunc("/", rootHandler)
 
 	port := getEnv("PORT", ":8083")
 	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
@@ -3006,23 +3257,112 @@ func main() {
 	}
 }
 
+// ✅ Отдельная функция для статики — чище и безопаснее
+func serveStatic(w http.ResponseWriter, r *http.Request) {
+	relativePath := strings.TrimPrefix(r.URL.Path, "/static/")
+	path := filepath.Join(filepath.Join("static"), relativePath)
+
+	if _, err := os.Stat(path); os.IsNotExist(err) {
+		http.NotFound(w, r)
+		return
+	}
+
+	// Установка Content-Type
+	ext := strings.ToLower(filepath.Ext(path))
+	switch ext {
+	case ".css":
+		w.Header().Set("Content-Type", "text/css; charset=utf-8")
+	case ".js":
+		w.Header().Set("Content-Type", "application/javascript; charset=utf-8")
+	case ".png":
+		w.Header().Set("Content-Type", "image/png")
+	case ".jpg", ".jpeg":
+		w.Header().Set("Content-Type", "image/jpeg")
+	case ".svg":
+		w.Header().Set("Content-Type", "image/svg+xml")
+	case ".ico":
+		w.Header().Set("Content-Type", "image/x-icon")
+	case ".html":
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	}
+
+	http.ServeFile(w, r, path)
+}
+
+// ✅ Root handler — только редиректы, без логики
+func rootHandler(w http.ResponseWriter, r *http.Request) {
+	// Исключаем попадание API-запросов сюда
+	if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/static/") {
+		http.NotFound(w, r)
+		return
+	}
+
+	cookie, err := r.Cookie("user")
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	decodedUser, err := base64.StdEncoding.DecodeString(cookie.Value)
+	if err != nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	var userData struct {
+		Role string `json:"role"`
+	}
+	if err := json.Unmarshal(decodedUser, &userData); err != nil {
+		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		return
+	}
+	if userData.Role == "admin" {
+		http.Redirect(w, r, "/admin/profile", http.StatusSeeOther)
+	} else {
+		http.Redirect(w, r, "/client/profile", http.StatusSeeOther)
+	}
+}
+
 func startFastAPIService() {
-	wd, _ := os.Getwd()
+	wd, err := os.Getwd()
+	if err != nil {
+		log.Printf("[ERROR] Не удалось получить рабочую директорию: %v", err)
+		return
+	}
+
+	// Определяем доступный интерпретатор Python
 	pythonPath := "python3"
 	if _, err := exec.LookPath("python"); err == nil {
 		pythonPath = "python"
 	} else if _, err := exec.LookPath("py"); err == nil {
 		pythonPath = "py"
 	}
+
 	scriptPath := filepath.Join(wd, "api.py")
+
+	// Проверяем наличие скрипта
+	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
+		log.Printf("[WARN] FastAPI скрипт не найден: %s", scriptPath)
+		return
+	}
 
 	cmd := exec.Command(pythonPath, scriptPath)
 	cmd.Dir = wd
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
+	cmd.Env = append(os.Environ(), "PYTHONUNBUFFERED=1")
 
 	log.Printf("[INFO] Запуск FastAPI сервиса: %s %s", pythonPath, scriptPath)
-	if err := cmd.Run(); err != nil {
-		log.Printf("[ERROR] FastAPI сервис остановился: %v", err)
+
+	if err := cmd.Start(); err != nil {
+		log.Printf("[ERROR] Не удалось запустить FastAPI: %v", err)
+		return
 	}
+
+	// Ждём завершения процесса в горутине
+	go func() {
+		if err := cmd.Wait(); err != nil {
+			log.Printf("[ERROR] FastAPI сервис завершился с ошибкой: %v", err)
+		} else {
+			log.Println("[INFO] FastAPI сервис завершён")
+		}
+	}()
 }
