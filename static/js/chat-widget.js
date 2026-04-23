@@ -1,6 +1,3 @@
-// ============================================
-// AI CHAT WIDGET
-// ============================================
 
 class ChatWidget {
     constructor() {
@@ -31,12 +28,10 @@ class ChatWidget {
         const btn = document.getElementById('chatWidgetBtn');
     }
     handleClick() {
-        // Перенаправление на вкладку AI Нейросеть
         window.location.href = '/client/chat';
     }
 }
 
-// Инициализация виджета после загрузки DOM
 document.addEventListener('DOMContentLoaded', () => {
     window.chatWidget = new ChatWidget();
 });

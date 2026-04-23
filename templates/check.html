@@ -7,7 +7,6 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-                /* === Risk Gauge Styles === */
         .risk-gauge {
             display: flex;
             flex-direction: column;
@@ -25,7 +24,7 @@
         .gauge-circle svg {
             width: 100%;
             height: 100%;
-            transform: rotate(-90deg); /* 🔥 Старт сверху! */
+            transform: rotate(-90deg); 
         }
 
         .gauge-bg {
@@ -38,13 +37,12 @@
             fill: none;
             stroke: var(--wb-purple);
             stroke-width: 8;
-            stroke-linecap: round; /* 🔥 Плавные края */
-            stroke-dasharray: 283; /* 2 * π * 45 ≈ 283 */
-            stroke-dashoffset: 283; /* Пустой по умолчанию */
+            stroke-linecap: round; 
+            stroke-dasharray: 283; 
+            stroke-dashoffset: 283; 
             transition: stroke-dashoffset 0.8s ease-out, stroke 0.3s ease;
         }
 
-        /* Цвета в зависимости от риска */
         .gauge-fill.low { stroke: var(--success); }
         .gauge-fill.medium { stroke: #f59e0b; }
         .gauge-fill.high { stroke: var(--error); }
@@ -158,7 +156,6 @@
             color: var(--success); font-size: 0.85rem; margin-left: 10px;
             animation: fadeIn 0.3s ease;
         }
-        /* === Risk Gauge === */
         .risk-gauge { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px 0; }
         .gauge-circle { position: relative; width: 120px; height: 120px; }
         .gauge-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
@@ -203,7 +200,6 @@
         </div>
     </nav>
 
-        <!-- Hero -->
         <section class="hero">
             </div>
             <div class="container">
@@ -213,7 +209,6 @@
             </div>
         </section>
 
-        <!-- Основная форма -->
         <main class="main">
             <div class="container">
                 <div class="card">
@@ -222,7 +217,6 @@
                     </div>
                     <div class="card-body">
                         <form class="form" action="/check" method="POST" id="fraudForm">
-                            <!-- Секция 1: Идентификаторы -->
                             <div class="form-section">
                                 <h3>Идентификаторы</h3>
                                 <div class="form-row">
@@ -253,7 +247,6 @@
                                 </div>
                             </div>
 
-                            <!-- Секция 2: Данные клиента -->
                             <div class="form-section">
                                 <h3>Данные клиента
                                     <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
@@ -275,7 +268,6 @@
                                 </div>
                             </div>
 
-                            <!-- Секция 3: Параметры заказа -->
                             <div class="form-section">
                                 <h3>Параметры заказа
                                     <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
@@ -308,7 +300,6 @@
                                 </div>
                             </div>
 
-                            <!-- Секция 4: Состояние товара -->
                             <div class="form-section">
                                 <h3>Состояние товара</h3>
                                 <div class="checkbox-group">
@@ -331,7 +322,6 @@
                                 </div>
                             </div>
 
-                            <!-- Секция 5: Причина возврата -->
                             <div class="form-section">
                                 <h3>Причина возврата *</h3>
                                 <div class="form-group">
@@ -347,7 +337,6 @@
                                 </div>
                             </div>
 
-                            <!-- Кнопки -->
                             <div style="display: flex; gap: 15px; margin-top: 25px;">
                                 <button type="submit" class="btn btn-primary" style="flex: 1;">
                                     Оценить риск
@@ -355,8 +344,7 @@
                                 <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
                             </div>
 
-                            <!-- 🔧 СКРЫТЫЕ ПОЛЯ для недостающих признаков модели (42 total) -->
-                             <input type="hidden" name="isWeekend" value="0">
+                            <input type="hidden" name="isWeekend" value="0">
                             <input type="hidden" name="discountPercent" value="0">
                             <input type="hidden" name="promoCodeUsed" value="0">
                             <input type="hidden" name="firstOrderDiscountAbuse" value="0">
@@ -391,7 +379,6 @@
                     </div>
                 </div>
 
-                <!-- Результат -->
                 <div id="resultCard" class="card result-card" style="display: none;">
                     <div class="card-header">
                         <h2>Результат анализа</h2>
@@ -428,7 +415,6 @@
             </div>
         </main>
 
-        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn Shield. Учебный проект</p>
@@ -440,7 +426,6 @@
     let selectedClientId = null;
     let selectedOrderId = null;
 
-    // Обработчик отправки формы
    document.getElementById('fraudForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -448,13 +433,11 @@
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
-    // 🔧 Чекбоксы → boolean (не 1/0!)
     data.hasTag = document.getElementById('hasTag')?.checked;
     data.hasReceipt = document.getElementById('hasReceipt')?.checked;
     data.hasDamage = document.getElementById('hasDamage')?.checked;
     data.isUsed = document.getElementById('isUsed')?.checked;
     
-    // 🔧 Числовые поля
     data.clientID = parseInt(data.clientID) || 0;
     data.orderID = parseInt(data.orderID) || 0;
     data.accountAgeDays = parseInt(data.accountAgeDays) || 0;
@@ -462,7 +445,6 @@
     data.orderAmount = parseFloat(data.orderAmount) || 0;
     data.daysToReturn = parseInt(data.daysToReturn) || 0;
     
-    // 🔧 Булевы скрытые поля
     data.isWeekend = data.isWeekend === "1" || data.isWeekend === true;
     data.promoCodeUsed = data.promoCodeUsed === "1";
     data.firstOrderDiscountAbuse = data.firstOrderDiscountAbuse === "1";
@@ -475,7 +457,6 @@
     data.threatLanguageDetected = data.threatLanguageDetected === "1";
     data.legalClaimThreat = data.legalClaimThreat === "1";
     
-    // 🔧 Числовые скрытые поля (убираем пустые строки)
     const numericFields = [
         'discountPercent', 'paymentMethodRisk', 'deliveryAddressType',
         'distanceFromRegistrationCity', 'orderHour', 'ipVelocity24h',
@@ -498,14 +479,13 @@
         
         const response = await fetch('/check', {
             method: 'POST',
-            credentials: 'include', // 🔥 Важно!
+            credentials: 'include', 
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify(data)
         });
         
-        // 🔍 Проверяем тип ответа
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
@@ -518,7 +498,6 @@
             const result = await response.json();
             console.log('Ответ:', result);
             
-            // 🔥 Редирект на /result с параметрами
            const params = new URLSearchParams({
                 order_id: result.orderID || data.orderID,
                 client_id: result.clientID || data.clientID,
@@ -573,7 +552,6 @@
         }
     }
 
-    // Выбор клиента
     async function selectClient(clientId) {
         selectedClientId = clientId;
         document.getElementById('clientID').value = clientId;
@@ -602,10 +580,9 @@ async function searchOrders(query, clientId = null) {
             : `/api/orders?q=${encodeURIComponent(query)}`;
             
         const res = await fetch(url, {
-            credentials: 'include' // 🔥 Важно для куки авторизации
+            credentials: 'include' 
         });
         
-        // 🔍 Проверяем Content-Type ответа
         const contentType = res.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await res.text();
@@ -658,7 +635,6 @@ async function searchOrders(query, clientId = null) {
         if (res.ok) {
             const client = await res.json();
             
-            // === Видимые поля ===
             if (client.account_age_days) {
                 document.getElementById('accountAgeDays').value = client.account_age_days;
             }
@@ -666,28 +642,23 @@ async function searchOrders(query, clientId = null) {
                 document.getElementById('totalOrders').value = client.total_orders;
             }
             
-            // === СКРЫТЫЕ ПОЛЯ — заполняем из БД ===
             setHiddenField('avgOrderAmount', client.avg_order_amount);
             setHiddenField('totalReturns', client.total_returns);
             setHiddenField('addressChangeFrequency', client.address_change_frequency);
             setHiddenField('categoryReturnsCount', client.category_returns_count);
             
-            // 🎯 Вычисляем производные признаки (как в Go EnrichFromDB)
             const totalOrders = parseInt(client.total_orders) || 0;
             const totalReturns = parseInt(client.total_returns) || 0;
             
-            // ReturnRate30d (упрощённо: общий % возвратов)
             if (totalOrders > 0) {
                 const returnRate30d = (totalReturns / totalOrders) * 100;
                 setHiddenField('returnRate30d', returnRate30d.toFixed(2));
             }
             
-            // Trust scores (базовая эвристика)
             const trustScore = totalOrders > 0 ? Math.max(0.3, 1 - (totalReturns / totalOrders) * 0.5) : 0.75;
             setHiddenField('deviceTrustScore', trustScore.toFixed(2));
             setHiddenField('ipTrustScore', trustScore.toFixed(2));
             
-            // Accounts per IP/Device (если есть address_change_frequency)
             if (client.address_change_frequency) {
                 const freq = parseFloat(client.address_change_frequency);
                 setHiddenField('accountsPerIP', Math.min(10, Math.floor(freq) + 1));
@@ -702,7 +673,6 @@ async function searchOrders(query, clientId = null) {
     }
 }
 
-// 🔧 ЗАМЕНИТЕ функцию loadOrderData на эту версию:
 
 function safeSetChecked(id, value) {
     const el = document.getElementById(id);
@@ -723,7 +693,6 @@ async function loadOrderData(orderId) {
         if (res.ok) {
             const order = await res.json();
             
-            // === Видимые поля ===
             if (order.order_amount) {
                 safeSetValue('orderAmount', order.order_amount);
             }
@@ -775,21 +744,19 @@ async function loadOrderData(orderId) {
 
             if (order.return_channel) {
                 const channel = order.return_channel.toLowerCase();
-                // Если возврат через курьера/магазин - обычно товар в хорошем состоянии
                 if (channel.includes('courier')) {
                     safeSetChecked('hasTag', true);
                     safeSetChecked('hasReceipt', true);
                     safeSetChecked('hasDamage', false);
                     safeSetChecked('isUsed', false);
                 }
-                // Если возврат почтой
                 if (channel.includes('post')) {
                     safeSetChecked('hasTag', false);
                     safeSetChecked('hasReceipt', true);
                     safeSetChecked('hasDamage', false);
                     safeSetChecked('isUsed', false);
                 }
-                // Если возврат через пункт выдачи (dropoff)
+
                 if (channel.includes('dropoff')) {
                     safeSetChecked('hasTag', true);
                     safeSetChecked('hasReceipt', true);
@@ -798,12 +765,10 @@ async function loadOrderData(orderId) {
                 }
             }
             
-            // === СКРЫТЫЕ ПОЛЯ из заказа ===
             setHiddenField('paymentMethodRisk', getPaymentRisk(order.payment_method));
             setHiddenField('amountDeviation', order.amount_deviation);
             setHiddenField('ordersLast30d', order.orders_last_30d);
             
-            // === Время заказа → признаки ===
             if (order.order_timestamp) {
                 const date = new Date(order.order_timestamp);
                 const hour = date.getHours();
@@ -815,17 +780,14 @@ async function loadOrderData(orderId) {
                 setHiddenField('orderTimeNight', isNight ? 1 : 0);
             }
             
-            // === Электроника? ===
             const category = document.getElementById('category')?.value;
             setHiddenField('isElectronics', category === 'electronics' ? 1 : 0);
             
-            // === Velocity признаки (упрощённо) ===
             const orders30d = parseInt(order.orders_last_30d) || 0;
             setHiddenField('ipVelocity24h', Math.min(orders30d, 20));
             setHiddenField('ipVelocity7d', Math.min(orders30d * 2, 50));
             setHiddenField('refundVelocity30d', orders30d);
             
-            // === Promo / Discount ===
             const orderAmount = parseFloat(order.order_amount) || 0;
             const discount = parseFloat(order.discount_amount) || 0;
             if (orderAmount > 0 && discount > 0) {
@@ -844,17 +806,13 @@ async function loadOrderData(orderId) {
     }
 }
 
-    // 🆕 Вспомогательная функция для скрытых полей
     function setHiddenField(name, value) {
         const field = document.querySelector(`input[name="${name}"]`);
         if (field && value !== undefined && value !== null) {
             field.value = value;
-            // 🔍 Отладка: раскомментируйте, чтобы видеть в консоли
-            // console.log(`[HIDDEN] ${name} = ${value}`);
         }
     }
 
-    // 🆕 Helper: риск платёжного метода
     function getPaymentRisk(method) {
         if (!method) return 0.2;
         const m = method.toLowerCase();

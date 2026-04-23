@@ -1,4 +1,4 @@
-<!-- admin_profile.html - Страница профиля администратора -->
+
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -58,7 +58,6 @@
             color: white;
             position: relative;
             overflow: hidden;
-            /* Явно задаем минимальную высоту, чтобы позиционирование работало корректно */
             min-height: 300px;
         }
 
@@ -220,7 +219,6 @@
     </style>
 </head>
 <body>
-    <!-- Навигация -->
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -238,10 +236,8 @@
         </div>
     </nav>
 
-    <!-- Заголовок администратора (теперь содержит щиты внутри для позиционирования) -->
     <section class="admin-header">
 
-        <!-- Контент заголовка -->
         <div class="container">
             <div class="admin-avatar" id="adminAvatar">A</div>
             <h1 class="admin-name" id="adminName">Администратор</h1>
@@ -249,9 +245,8 @@
         </div>
     </section>
 
-    <!-- Основной контент -->
+
     <div class="container">
-        <!-- Статистика -->
         <div class="admin-stats">
             <div class="admin-stat-card">
                 <div class="admin-stat-value">{{.Stats.total_clients}}</div>
@@ -271,7 +266,6 @@
             </div>
         </div>
 
-        <!-- Быстрые действия -->
         <div class="admin-actions">
             <h3>Быстрые действия</h3>
             <div class="action-grid">

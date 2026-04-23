@@ -25,7 +25,6 @@ class FraudDataGenerator:
             'category': self.rng.choice(self.categories),
             'days_to_return': self.rng.integers(3, 14),
             'claimed_reason': self.rng.choice(self.reasons),
-            # Нейтральные значения по умолчанию
             'is_fraud': False,
             'fraud_pattern': 'none',
             'wear_evidence_detected': 0,
@@ -206,7 +205,6 @@ class FraudDataGenerator:
                 'order_hour': self.rng.choice([0, 1, 2, 3, 22, 23]),
                 'ip_velocity_24h': self.rng.integers(4, 10)
             })
-        # Новые паттерны
         elif pattern == 'old_item_return':
             base.update({
                 'category': 'Одежда',
@@ -366,7 +364,6 @@ class FraudDataGenerator:
                 'same_item_burst': True
             })
         else:
-            # Fallback для неизвестных паттернов
             base.update({
                 'is_fraud': True,
                 'fraud_pattern': pattern,
@@ -397,22 +394,18 @@ class FraudDataGenerator:
         return pd.DataFrame(data)
 
 
-# === ЗАПУСК ГЕНЕРАЦИИ ===
 if __name__ == "__main__":
     generator = FraudDataGenerator(seed=42)
 
-    # Генерируем по 5 записей на каждый паттерн (итого ~130 записей)
     df = generator.generate_dataset(records_per_pattern=5)
 
-    # Сохраняем в CSV
     output_file = 'fraud_patterns_dataset.csv'
     df.to_csv(output_file, index=False, encoding='utf-8-sig')
 
-    print(f"✅ Успешно создано {len(df)} записей.")
-    print(f"📁 Файл сохранен как: {output_file}")
-    print("\n📊 Распределение паттернов:")
+    print(f"Успешно создано {len(df)} записей.")
+    print(f"Файл сохранен как: {output_file}")
+    print("\nРаспределение паттернов:")
     print(df['fraud_pattern'].value_counts())
 
-    # Показать пример данных
     print("\n🔍 Пример первых 3 записей (транспонировано для удобства):")
     print(df.head(3).T)

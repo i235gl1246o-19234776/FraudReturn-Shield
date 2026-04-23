@@ -1,5 +1,4 @@
 
-<!-- client_chat.html - Страница чата клиента с AI -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -356,7 +355,6 @@
     </style>
 </head>
 <body>
-    <!-- Навигация -->
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -373,7 +371,6 @@
         </div>
     </nav>
 
-    <!-- Заголовок страницы -->
     <section class="page-header">
         </div>
         <div class="container">
@@ -385,10 +382,8 @@
         </div>
     </section>
 
-    <!-- Основной контент -->
     <div class="container">
         <div class="chat-container">
-            <!-- Быстрые вопросы -->
             <div class="quick-questions">
                 <h4>Быстрые вопросы:</h4>
                 <div class="quick-questions-buttons">
@@ -403,7 +398,6 @@
                 </div>
             </div>
 
-            <!-- Сообщения -->
             <div class="chat-messages" id="chatMessages">
                 <div class="empty-chat" id="emptyChat">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -414,7 +408,6 @@
                 </div>
             </div>
 
-            <!-- Ввод сообщения -->
             <div class="chat-input-area">
                 <form class="chat-input-form" id="chatForm">
                     <input type="text" id="messageInput" placeholder="Введите ваш вопрос..." autocomplete="off">
@@ -507,20 +500,15 @@
             const message = messageInput.value.trim();
             if (!message) return;
 
-            // Очищаем поле ввода
             messageInput.value = '';
             sendBtn.disabled = true;
 
-            // Скрываем пустое состояние
             if (emptyChat) emptyChat.style.display = 'none';
 
-            // Добавляем сообщение пользователя
             addMessage('user', message);
 
-            // Показываем индикатор набора
             showTypingIndicator();
 
-            // Отправляем запрос на сервер (или используем нейросеть)
             getNeuralResponse(message).then(aiResponse => {
                 hideTypingIndicator();
                 addMessage('ai', aiResponse);
@@ -583,7 +571,6 @@
             messageDiv.appendChild(timeDiv);
             chatMessages.appendChild(messageDiv);
 
-            // Прокрутка вниз
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
@@ -641,7 +628,6 @@
             document.body.appendChild(chatBtn);
         }
 
-        // Инициализация кнопки чата после загрузки DOM
         document.addEventListener('DOMContentLoaded', initChatButton);
     </script>
 </body>

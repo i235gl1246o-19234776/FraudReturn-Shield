@@ -1,15 +1,9 @@
-# feature_encoder.py
 import pandas as pd
 import joblib
 from typing import List, Dict
 
 
 class OneHotFeatureEncoder:
-    """
-    One-Hot Encoder для категориальных признаков.
-    Гарантирует согласованность колонок между обучением и инференсом.
-    """
-
     def __init__(self):
         self.expected_columns = []
         self.cat_cols = []
@@ -45,7 +39,6 @@ class OneHotFeatureEncoder:
         return df_out
 
     def transform_single_dict(self, features_dict: Dict) -> Dict:
-        """Трансформация одного словаря признаков"""
         if not self.fitted:
             raise ValueError("Encoder not fitted.")
 

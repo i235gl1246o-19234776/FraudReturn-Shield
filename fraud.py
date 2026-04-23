@@ -1,7 +1,6 @@
 import sys
 import io
 
-# Принудительно устанавливаем UTF-8 для stdout и stderr
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 import sys
@@ -15,30 +14,24 @@ import random
 import math
 from datetime import datetime, timedelta
 
-# ==========================================
-# КОНФИГУРАЦИЯ БД
-# ==========================================
+
 Conn_params = {
-    'host': 'localhost',  # или IP-адрес сервера
-    'port': 5432,  # стандартный порт PostgreSQL
-    'database': 'fraud_return_db',  # имя базы данных
-    'user': 'postgres',  # имя пользователя
-    'password': 'OmegaBloody13'  # пароль
+    'host': 'localhost',  
+    'port': 5432, 
+    'database': 'fraud_return_db',  
+    'user': 'postgres',  
+    'password': 'OmegaBloody13'  
 }
 
-# Инициализация Faker
+
 fake = Faker('ru_RU')
 
-
-# Для консистентности можно зафиксировать seed
-# fake.seed_instance(42)
 
 def get_connection():
     return psycopg2.connect(**Conn_params)
 
 
 def create_tables(cur):
-    """Создает таблицы согласно предоставленной схеме."""
     schema_sql = """
     -- 1. Клиенты
     CREATE TABLE IF NOT EXISTS clients (
@@ -176,8 +169,7 @@ def create_tables(cur):
 
 
 def haversine_distance(lat1, lon1, lat2, lon2):
-    """Расчет расстояния между двумя точками в км."""
-    R = 6371  # Радиус Земли в км
+    R = 6371 
     d_lat = math.radians(lat2 - lat1)
     d_lon = math.radians(lon2 - lon1)
     a = math.sin(d_lat / 2) ** 2 + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(
@@ -187,7 +179,6 @@ def haversine_distance(lat1, lon1, lat2, lon2):
 
 
 def generate_clients(cur, count=1000):
-    """Генерирует клиентов и возвращает список их ID и данных для связи."""
     print(f"Генерация {count} клиентов...")
     clients_data = []
     now = datetime.now()
@@ -196,7 +187,6 @@ def generate_clients(cur, count=1000):
         phone = fake.phone_number()
         phone_hash = hashlib.sha256(phone.encode()).hexdigest()
 
-        # Координаты (примерно центр России + разброс)
         lat = random.uniform(50.0, 60.0)
         lng = random.uniform(30.0, 40.0)
 
@@ -208,15 +198,15 @@ def generate_clients(cur, count=1000):
             account_age,
             total_orders,
             total_returns,
-            round(random.uniform(0.0, 0.3), 2),  # global_return_rate
-            round(random.uniform(1000, 50000), 2),  # avg_order_amount
-            round(random.uniform(0.0, 5.0), 2),  # address_change_frequency
-            random.randint(0, 5),  # category_returns_count
+            round(random.uniform(0.0, 0.3), 2),  
+            round(random.uniform(1000, 50000), 2),  
+            round(random.uniform(0.0, 5.0), 2),  
+            random.randint(0, 5),  
             fake.city(),
             lat,
             lng,
             phone_hash,
-            now - timedelta(days=account_age)  # created_at
+            now - timedelta(days=account_age)  
         ))
 
     insert_query = """
@@ -228,10 +218,6 @@ def generate_clients(cur, count=1000):
         RETURNING client_id, client_lat, client_lng, registration_city
     """
 
-    # Execute batch doesn't easily support RETURNING for all rows in one go efficiently without complex handling
-    # So we insert then fetch or use a loop for small batches. For 1000, loop is acceptable or bulk insert + select.
-    # Let's do bulk insert first.
-
     simple_insert = """
         INSERT INTO clients (
             account_age_days, total_orders, total_returns, global_return_rate, 
@@ -241,7 +227,6 @@ def generate_clients(cur, count=1000):
     """
     execute_batch(cur, simple_insert, clients_data)
 
-    # Fetch generated IDs and coords to link with orders
     cur.execute(
         "SELECT client_id, client_lat, client_lng, registration_city FROM clients ORDER BY client_id DESC LIMIT %s",
         (count,))
@@ -250,17 +235,15 @@ def generate_clients(cur, count=1000):
 
 
 def generate_orders(cur, clients_list):
-    """Генерирует заказы для клиентов."""
     print("Генерация заказов...")
     orders_data = []
-    order_ids_map = {}  # client_id -> [order_ids]
+    order_ids_map = {}  
 
     categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Toys']
     regions = ['Moscow', 'SPB', 'Siberia', 'South', 'FarEast']
     address_types = ['home', 'office', 'pickup', 'post_office']
 
     for client_id, c_lat, c_lng, reg_city in clients_list:
-        # Генерируем от 1 до 5 заказов на клиента для разнообразия
         num_orders = random.randint(1, 5)
         client_order_ids = []
 
@@ -270,7 +253,6 @@ def generate_orders(cur, clients_list):
             cat = random.choice(categories)
             is_elec = cat == 'Electronics'
 
-            # Delivery coords slightly offset from registration
 
             c_lat = float(c_lat) if c_lat is not None else 0.0
             c_lng = float(c_lng) if c_lng is not None else 0.0
@@ -280,33 +262,33 @@ def generate_orders(cur, clients_list):
             dist = haversine_distance(c_lat, c_lng, d_lat, d_lng)
 
             card_country = random.choice(['RU', 'US', 'CN', 'KZ'])
-            issuing_country = random.choice(['RU', 'RU', 'RU', 'US'])  # Bias towards RU
+            issuing_country = random.choice(['RU', 'RU', 'RU', 'US'])  
             mismatch = card_country != issuing_country
 
             orders_data.append((
                 client_id,
                 amount,
-                random.randint(1, 10),  # items_count
-                round(random.uniform(0, amount * 0.2), 2),  # discount
-                random.choice(['card', 'sbp', 'cash']),  # payment
+                random.randint(1, 10),  
+                round(random.uniform(0, amount * 0.2), 2),  
+                random.choice(['card', 'sbp', 'cash']),  
                 order_ts,
-                round(random.uniform(-10, 10), 2),  # deviation
-                random.randint(0, 5),  # orders_last_30d
+                round(random.uniform(-10, 10), 2),  
+                random.randint(0, 5),  
                 cat,
                 is_elec,
                 random.choice(regions),
-                round(random.uniform(0, 9.99), 2),  # region_risk
-                fake.city(),  # delivery_city
+                round(random.uniform(0, 9.99), 2),  
+                fake.city(),  
                 d_lat,
                 d_lng,
                 round(dist, 2),
-                str(random.randint(100000, 999999)),  # bin
+                str(random.randint(100000, 999999)),  
                 issuing_country,
                 mismatch,
                 random.choice(address_types),
-                round(random.uniform(0.5, 1.0), 2),  # address_match_score
-                True if random.random() > 0.1 else False,  # is_address_match
-                order_ts  # created_at same as order_ts roughly
+                round(random.uniform(0.5, 1.0), 2),  
+                True if random.random() > 0.1 else False,  
+                order_ts  
             ))
 
     insert_query = """
@@ -321,19 +303,11 @@ def generate_orders(cur, clients_list):
         RETURNING order_id, client_id
     """
 
-    # To get IDs back efficiently, we might need to insert and then query,
-    # but since we need order_id for returns, let's insert and fetch last N.
-    # However, concurrent inserts make "last N" risky.
-    # Better approach for script: Insert all, then select all orders joined with clients to map them?
-    # Or simply insert and assume serial IDs are contiguous (risky in prod, ok for script if single user).
-
     execute_batch(cur, insert_query.replace("RETURNING order_id, client_id", ""), orders_data)
 
-    # Get all orders to map them
     cur.execute("SELECT order_id, client_id FROM orders")
     all_orders = cur.fetchall()
 
-    # Group by client
     for oid, cid in all_orders:
         if cid not in order_ids_map:
             order_ids_map[cid] = []
@@ -343,7 +317,6 @@ def generate_orders(cur, clients_list):
 
 
 def generate_related_data(cur, clients_list, order_map):
-    """Генерирует сессии, возвраты, тикеты, отзывы, чарджбэки."""
     print("Генерация связанных данных (возвраты, сессии, тикеты)...")
 
     sessions_data = []
@@ -353,46 +326,43 @@ def generate_related_data(cur, clients_list, order_map):
     chargebacks_data = []
 
     for client_id, _, _, _ in clients_list:
-        # 1. Sessions
         num_sessions = random.randint(1, 10)
         for _ in range(num_sessions):
             login_ts = fake.date_time_between(start_date='-1y', end_date='now')
             sessions_data.append((
                 client_id,
                 fake.ipv4(),
-                hashlib.md5(fake.user_agent().encode()).hexdigest(),  # device_id
-                fake.user_agent(),  # fingerprint proxy
-                random.random() < 0.05,  # is_emulator
+                hashlib.md5(fake.user_agent().encode()).hexdigest(),  
+                fake.user_agent(),  
+                random.random() < 0.05,  
                 fake.user_agent(),
                 login_ts,
-                random.random() < 0.2,  # is_new_device
-                login_ts - timedelta(hours=random.randint(1, 100)),  # first_seen
+                random.random() < 0.2,  
+                login_ts - timedelta(hours=random.randint(1, 100)),  
                 login_ts
             ))
 
-        # 2. Returns, Tickets, Reviews, Chargebacks based on orders
         if client_id in order_map:
             for order_id in order_map[client_id]:
-                # Return?
-                if random.random() < 0.2:  # 20% chance of return
+                if random.random() < 0.2:  
                     days_since = random.randint(1, 30)
                     ret_date = datetime.now() - timedelta(days=random.randint(0, 10))
                     returns_data.append((
                         order_id,
                         client_id,
-                        random.randint(0, 3),  # returns_last_30d
+                        random.randint(0, 3),  
                         round(random.uniform(0, 0.5), 2),
-                        random.randint(0, 60),  # days_since_last_return
+                        random.randint(0, 60),  
                         days_since,
                         random.choice(['courier', 'post', 'dropoff']),
-                        random.random() > 0.1,  # has_receipt
-                        random.random() < 0.1,  # tags_removed
-                        random.random() < 0.05,  # missing_components
+                        random.random() > 0.1,  
+                        random.random() < 0.1,  
+                        random.random() < 0.05,  
                         random.choice(['Defective', 'Wrong Size', 'Not as described', 'Changed mind']),
                         ret_date
                     ))
 
-                # Ticket?
+
                 if random.random() < 0.1:
                     has_threat = random.random() < 0.1
                     tickets_data.append((
@@ -400,15 +370,14 @@ def generate_related_data(cur, clients_list, order_map):
                         order_id,
                         fake.sentence(nb_words=6),
                         fake.text(max_nb_chars=200),
-                        round(random.uniform(-1.0, 1.0), 2),  # sentiment
+                        round(random.uniform(-1.0, 1.0), 2),  
                         has_threat,
-                        random.random() < 0.05,  # legal claim
-                        has_threat,  # threat_language
-                        random.random() < 0.05,  # legal_claim_threat
+                        random.random() < 0.05,  
+                        has_threat,  
+                        random.random() < 0.05,  
                         fake.date_time_between(start_date='-1y', end_date='now')
                     ))
 
-                # Review?
                 if random.random() < 0.3:
                     rating = random.randint(1, 5)
                     reviews_data.append((
@@ -416,12 +385,11 @@ def generate_related_data(cur, clients_list, order_map):
                         order_id,
                         rating,
                         fake.text(max_nb_chars=150),
-                        rating <= 2,  # is_negative
-                        round(random.uniform(0, 1), 4),  # similarity
+                        rating <= 2,  
+                        round(random.uniform(0, 1), 4),  
                         fake.date_time_between(start_date='-1y', end_date='now')
                     ))
 
-                # Chargeback?
                 if random.random() < 0.02:
                     chargebacks_data.append((
                         order_id,
@@ -433,7 +401,7 @@ def generate_related_data(cur, clients_list, order_map):
                         fake.date_time_between(start_date='-6m', end_date='now')
                     ))
 
-    # Batch Inserts
+
     if sessions_data:
         execute_batch(cur, """
             INSERT INTO client_sessions (client_id, ip_address, device_id, device_fingerprint, is_emulator, user_agent, login_timestamp, is_new_device, device_first_seen_at, created_at)
@@ -473,30 +441,21 @@ def main():
 
         print("Подключение к БД успешно.")
 
-        # 1. Create Tables
         print("Создание таблиц...")
         create_tables(cur)
         conn.commit()
 
-        # Clear existing data if re-running (optional, careful with CASCADE)
-        # cur.execute("TRUNCATE TABLE clients CASCADE;")
-        # conn.commit()
-
-        # 2. Generate Clients
         clients_list = generate_clients(cur, count=1000)
         conn.commit()
 
-        # 3. Generate Orders
         order_map = generate_orders(cur, clients_list)
         conn.commit()
 
-        # 4. Generate Related Data
         generate_related_data(cur, clients_list, order_map)
         conn.commit()
 
         print("Генерация данных завершена успешно!")
 
-        # Verification counts
         cur.execute("SELECT count(*) FROM clients")
         print(f"Клиентов: {cur.fetchone()[0]}")
         cur.execute("SELECT count(*) FROM orders")

@@ -91,7 +91,6 @@
     </style>
 </head>
 <body>
-    <!-- Навигация -->
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -109,7 +108,6 @@
         </div>
     </nav>
 
-        <!-- Основной контент -->
         <main class="main">
             <div class="container">
                 <div class="card result-card">
@@ -144,7 +142,6 @@
             </div>
         </main>
 
-        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn-Shield.</p>
@@ -153,7 +150,6 @@
     </div>
 
 <script>
-        // Получаем параметры из URL
         
         const urlParams = new URLSearchParams(window.location.search);
         const orderID = urlParams.get('order_id') || '—';
@@ -164,7 +160,6 @@
         const recommendation = urlParams.get('recommendation') || 'Нет рекомендации';
         const orderAmount = parseFloat(urlParams.get('order_amount')) || 0;
 
-        // Собираем факторы риска
         const topFactors = [];
         let i = 0;
         while (urlParams.get(`factor_${i}`)) {
@@ -172,23 +167,19 @@
             i++;
         }
 
-        // Вычисляем параметры для индикатора
         const riskPercent = Math.round(riskScore * 100);
         const strokeDashOffset = (1 - riskScore) * 283;
 
-        // Определяем иконку
         let iconPath = 'зеленый.svg';
         if (riskClass === 'medium') iconPath = 'желтый.svg';
         if (riskClass === 'high') iconPath = 'красный.svg';
 
-        // Обновляем DOM после загрузки страницы
         document.addEventListener('DOMContentLoaded', function() {
             const urlParams = new URLSearchParams(window.location.search);
             const riskScore = parseFloat(urlParams.get('risk_score')) || 0;
             const riskClass = urlParams.get('risk_class') || 'medium';
             const riskPercent = Math.round(riskScore * 100);
             
-            // 🔥 Теперь обновляем gauge (после объявления переменных!)
             const gaugeValue = document.querySelector('.gauge-value');
             if (gaugeValue) gaugeValue.textContent = `${riskPercent}%`;
             
@@ -197,13 +188,11 @@
                 gaugeFill.style.strokeDashoffset = (1 - riskScore) * 283;
                 gaugeFill.classList.add(riskClass);
             }
-            // Обновляем текст в карточке результата
             const resultCard = document.querySelector('.result-card');
             if (resultCard) {
                 resultCard.className = `card result-card ${riskClass}`;
             }
 
-            // Обновляем индикатор риска
             const riskBadge = document.querySelector('.risk-badge');
             if (riskBadge) {
                 riskBadge.className = `risk-badge ${riskClass}`;
@@ -211,21 +200,17 @@
                 if (img) img.src = `/static/svg/${iconPath}`;
                 const span = riskBadge.querySelector('span');
                 if (span) {
-                    // 🔥 FIX: сравниваем riskClass (англ.), а не riskLevel (рус.)
                     const levelText = riskClass === 'low' ? 'Низкий' : riskClass === 'medium' ? 'Средний' : 'Высокий';
                     span.textContent = `${levelText} риск`;
                 }
             }
 
-            // Обновляем рекомендацию
             const recEl = document.querySelector('.recommendation p');
             if (recEl) recEl.textContent = recommendation;
 
-            // Обновляем список факторов
             if (topFactors.length > 0) {
                 const factorsSection = document.querySelector('.factors');
                 if (!factorsSection) {
-                    // Создаем секцию факторов если её нет
                     const recSection = document.querySelector('.recommendation');
                     if (recSection) {
                         const factorsHtml = `
@@ -246,7 +231,6 @@
                 }
             }
 
-            // Сохраняем в историю
             saveToHistory();
         });
 
@@ -267,18 +251,14 @@
                 data: resultData
             };
 
-            // Получаем существующую историю
             let fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
 
-            // Добавляем новую запись в начало
             fraudHistory.unshift(historyItem);
 
-            // Храним только последние 100 записей
             if (fraudHistory.length > 100) {
                 fraudHistory = fraudHistory.slice(0, 100);
             }
 
-            // Сохраняем обратно
             localStorage.setItem('fraudHistory', JSON.stringify(fraudHistory));
             console.log('Проверка сохранена в историю');
         }

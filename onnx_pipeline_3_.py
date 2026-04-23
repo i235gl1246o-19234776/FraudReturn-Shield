@@ -14,21 +14,18 @@ from contextlib import contextmanager
 try:
     from feature_encoder import OneHotFeatureEncoder
 except ImportError:
-    print("⚠️ feature_encoder.py not found. Ensure it's in sys.path.")
+    print("feature_encoder.py not found. Ensure it's in sys.path.")
     warnings.filterwarnings('ignore')
 
-# ✅ Подавляем warning pandas о psycopg2
 warnings.filterwarnings('ignore', message='.*pandas only supports SQLAlchemy connectable.*', category=UserWarning)
 
-# =============================================================================
-# КОНФИГУРАЦИЯ
-# =============================================================================
+
 conn_params = {
-    'host': 'localhost',  # или IP-адрес сервера
-    'port': 5432,  # стандартный порт PostgreSQL
-    'database': 'fraud_return_db',  # имя базы данных
-    'user': 'postgres',  # имя пользователя
-    'password': 'OmegaBloody13'  # пароль
+    'host': 'localhost',  
+    'port': 5432,  
+    'database': 'fraud_return_db',  
+    'user': 'postgres',  
+    'password': 'OmegaBloody13'  
 }
 
 MODEL_DIR = "models/"
@@ -49,10 +46,6 @@ def get_db_connection():
     finally:
         conn.close()
 
-
-# =============================================================================
-# 1. SQL DATA EXTRACTORS
-# =============================================================================
 def get_transaction_features(return_id: int) -> pd.DataFrame:
     query = """
     SELECT
@@ -121,9 +114,6 @@ def get_ip_device_stats(client_id: int) -> Dict:
             "device_is_emulator": 0, "device_trust_score": 0.9, "ip_trust_score": 0.9}
 
 
-# =============================================================================
-# 2. PRODUCTION FEATURE ENGINEER (1:1 с обучением)
-# =============================================================================
 class ProductionFeatureEngineer:
     def __init__(self):
         self.categorical_features = ['category', 'claimed_reason', 'delivery_address_type']
@@ -205,9 +195,6 @@ def get_feature_columns(self) -> List[str]:
     return [c for c in self.pre_return_features if c not in self.exclude_cols]
 
 
-# =============================================================================
-# 3. INFERENCE SERVICE (CatBoost + Anomaly + Rules)
-# =============================================================================
 class OnnxFraudService:
     def __init__(self, model_dir: str = ""):
         global MODEL_DIR, ONNX_PATH, METADATA_PATH, ANOMALY_SCALER_PATH, ANOMALY_MODEL_PATH, OHE_ENCODER_PATH
@@ -222,7 +209,6 @@ class OnnxFraudService:
         print("✅ OnnxFraudService initialized")
 
     def _load_models(self):
-        """Загружает все модели и артефакты для инференса"""
         import os
 
         required_files = {
@@ -236,11 +222,11 @@ class OnnxFraudService:
         missing = [name for name, path in required_files.items() if not os.path.exists(path)]
         if missing:
             raise FileNotFoundError(
-                f"❌ Отсутствуют файлы моделей: {', '.join(missing)}\n"
-                f"💡 Запустите обучение или проверьте MODEL_DIR='{MODEL_DIR}'"
+                f"Отсутствуют файлы моделей: {', '.join(missing)}\n"
+                f"Запустите обучение или проверьте MODEL_DIR='{MODEL_DIR}'"
             )
 
-        print(f"📦 Загрузка моделей из {MODEL_DIR}...")
+        print(f"Загрузка моделей из {MODEL_DIR}...")
 
         with open(METADATA_PATH, 'r', encoding='utf-8') as f:
             self.metadata = json.load(f)
@@ -248,26 +234,25 @@ class OnnxFraudService:
         self.numeric_columns = self.metadata.get('numeric_columns', [])
         self.threshold = self.metadata.get('optimal_threshold', 0.65)
         self.anomaly_threshold = self.metadata.get('anomaly_threshold', -0.1)
-        print(f"   ✅ metadata.json: {len(self.feature_columns)} признаков")
+        print(f"   metadata.json: {len(self.feature_columns)} признаков")
 
         self.encoder = OneHotFeatureEncoder.load(OHE_ENCODER_PATH)
-        print(f"   ✅ ohe_encoder_v4.pkl: {len(self.encoder.cat_cols)} категориальных колонок")
+        print(f"   ohe_encoder_v4.pkl: {len(self.encoder.cat_cols)} категориальных колонок")
 
         self.scaler = joblib.load(ANOMALY_SCALER_PATH)
-        print(f"   ✅ scaler_v4.pkl: {len(self.scaler.mean_)} числовых признаков")
+        print(f"   scaler_v4.pkl: {len(self.scaler.mean_)} числовых признаков")
 
         self.iforest = joblib.load(ANOMALY_MODEL_PATH)
-        print(f"   ✅ anomaly_model_v4.pkl: {self.iforest.n_estimators} деревьев")
+        print(f"   anomaly_model_v4.pkl: {self.iforest.n_estimators} деревьев")
 
         from catboost import CatBoostClassifier
         self.pattern_model = CatBoostClassifier()
         self.pattern_model.load_model(required_files['pattern_model'])
-        print(f"   ✅ fraud_model_v4_27patterns.cbm: {self.pattern_model.tree_count_} деревьев")
+        print(f"   fraud_model_v4_27patterns.cbm: {self.pattern_model.tree_count_} деревьев")
 
-        print("✅ Все модели загружены успешно")
+        print("Все модели загружены успешно")
 
     def _calculate_rule_score(self, features: Dict) -> float:
-        """Rule-based скоринг (1:1 с обучением)"""
         score = 0.0
         if features.get('account_age_days', 365) < 7: score += 0.15
         if features.get('order_amount', 0) > 30000: score += 0.10
@@ -278,7 +263,6 @@ class OnnxFraudService:
         return min(score, 1.0)
 
     def _run_inference(self, features: Dict, return_id: int, order_id: int, client_id: int) -> Dict:
-        # 1. One-Hot Encoding (универсальный)
         if hasattr(self.encoder, 'transform_single'):
             encoded_dict = self.encoder.transform_single(features)
         else:
@@ -287,24 +271,20 @@ class OnnxFraudService:
         X_dict = {k: float(encoded_dict.get(k, 0.0)) for k in self.feature_columns}
         X_df = pd.DataFrame([X_dict]).reindex(columns=self.feature_columns, fill_value=0.0)
 
-        # 2. CatBoost predict_proba
         proba = self.pattern_model.predict_proba(X_df)[0]
         prob_fraud = float(proba[1])
 
-        # 3. ✅ FEATURE EXPLANATION (CatBoost SHAP Values - работает на всех версиях)
+
         top_contributions = []
         try:
             from catboost import Pool
             pool = Pool(X_df)
-            # Получаем SHAP-значения (вклад в логит)
             shap_vals = self.pattern_model.get_feature_importance(data=pool, type='ShapValues')
 
-            # shap_vals[0] имеет вид [contrib_1, contrib_2, ..., bias]
             row_vals = shap_vals[0]
             n_feats = len(self.feature_columns)
             contributions = {col: float(row_vals[i]) for i, col in enumerate(self.feature_columns[:n_feats])}
 
-            # Топ-5 по абсолютному влиянию
             top_5 = sorted(contributions.items(), key=lambda x: abs(x[1]), reverse=True)[:5]
             top_contributions = [
                 {
@@ -317,7 +297,6 @@ class OnnxFraudService:
         except Exception as e:
             print(f"⚠️ Объяснение пропущено: {e}")
 
-        # 4. Anomaly Detection
         if self.numeric_columns and all(col in X_df.columns for col in self.numeric_columns):
             X_scaled = self.scaler.transform(X_df[self.numeric_columns])
             anomaly_score = float(self.iforest.score_samples(X_scaled)[0])
@@ -325,10 +304,8 @@ class OnnxFraudService:
             anomaly_score = 0.0
         is_anomaly = anomaly_score < self.anomaly_threshold
 
-        # 5. Rule-based Score
         rule_score = self._calculate_rule_score(features)
 
-        # 6. Final Decision
         anomaly_risk = 1.0 if is_anomaly else 0.2
         combined_score = 0.6 * prob_fraud + 0.25 * rule_score + 0.15 * anomaly_risk
 
@@ -345,7 +322,7 @@ class OnnxFraudService:
             "is_anomaly": bool(is_anomaly),
             "combined_score": round(combined_score, 4),
             "decision": decision,
-            "top_features": top_contributions,  # ✅ Новое поле
+            "top_features": top_contributions,  
             "timestamp": datetime.now().isoformat()
         }
     def predict_for_return(self, return_id: int) -> Dict:
@@ -416,7 +393,7 @@ class OnnxFraudService:
             return []
 
         results, total = [], len(return_ids)
-        print(f"🚀 Обработка {total} возвратов (по одному)...")
+        print(f"Обработка {total} возвратов (по одному)...")
 
         for idx, rid in enumerate(return_ids, 1):
             try:
@@ -437,24 +414,18 @@ class OnnxFraudService:
 
                 if idx % 10 == 0 or idx == total:
                     pct = (idx / total) * 100
-                    print(f"⏳ [{idx}/{total}] {pct:.1f}% | return_id={rid} → {clean_res['decision']}")
+                    print(f"[{idx}/{total}] {pct:.1f}% | return_id={rid} → {clean_res['decision']}")
 
             except Exception as e:
-                print(f"⚠️ Ошибка на return_id {rid}: {e}")
+                print(f"Ошибка на return_id {rid}: {e}")
                 results.append({"return_id": rid, "error": str(e), "decision": "ERROR"})
                 continue
 
-        print(f"✅ Обработка завершена. Успешно: {len([r for r in results if 'error' not in r])}/{total}")
+        print(f"Обработка завершена. Успешно: {len([r for r in results if 'error' not in r])}/{total}")
         return results
 
-# =============================================================================
-# 4. УТИЛИТА РЕ-ЭКСПОРТА (skl2onnx, как вы указали)
-# =============================================================================
+
 def export_model_with_proba_sklearn(model_path: str, output_onnx_path: str):
-    """
-    Пересохраняет модель через skl2onnx с гарантированным predict_proba.
-    Используйте, если CatBoost export вернул классы вместо вероятностей.
-    """
     try:
         from skl2onnx import to_onnx
         import onnx
@@ -463,7 +434,6 @@ def export_model_with_proba_sklearn(model_path: str, output_onnx_path: str):
         model = CatBoostClassifier()
         model.load_model(model_path.replace('.onnx', '.cbm'))
 
-        # Заглушка для проверки схемы (CatBoost совместим с sklearn API)
         dummy_X = pd.DataFrame({col: [0.0] for col in [c for c in json.load(open(METADATA_PATH))['feature_columns']]})
 
         onx = to_onnx(model, dummy_X,
@@ -472,19 +442,13 @@ def export_model_with_proba_sklearn(model_path: str, output_onnx_path: str):
         with open(output_onnx_path, "wb") as f:
             f.write(onx.SerializeToString())
         onnx.checker.check_model(onnx.load(output_onnx_path))
-        print(f"✅ Модель пересохранена с predict_proba: {output_onnx_path}")
+        print(f"Модель пересохранена с predict_proba: {output_onnx_path}")
     except ImportError:
-        print("⚠️ Установите skl2onnx: pip install skl2onnx")
+        print("Установите skl2onnx: pip install skl2onnx")
     except Exception as e:
-        print(f"❌ Ошибка экспорта: {e}")
+        print(f"Ошибка экспорта: {e}")
 
 
-# =============================================================================
-# MAIN
-# =============================================================================
-# =============================================================================
-# MAIN
-# =============================================================================
 if __name__ == "__main__":
     service = OnnxFraudService()
 
@@ -510,29 +474,25 @@ if __name__ == "__main__":
 
     print("\n--- Process All Returns Sequentially ---")
     try:
-        # 1️⃣ Запуск пошаговой обработки
         all_results = service.process_all_returns_sequentially()
 
-        # 2️⃣ Отфильтровываем записи с ошибками (если нужны и ошибки — уберите фильтр)
         clean_results = [r for r in all_results if "error" not in r]
 
-        # 3️⃣ ✅ СОХРАНЕНИЕ В CSV
         if clean_results:
             output_csv = "fraud_predictions.csv"
             try:
-                # utf-8-sig добавляет BOM, чтобы Excel корректно отображал кириллицу
+
                 pd.DataFrame(clean_results).to_csv(output_csv, index=False, encoding="utf-8-sig")
-                print(f"💾 Успешно сохранено {len(clean_results)} записей в {output_csv}")
+                print(f"Успешно сохранено {len(clean_results)} записей в {output_csv}")
             except PermissionError:
-                # Если файл открыт в Excel → сохраняем с таймштампом
                 from datetime import datetime
 
                 ts = datetime.now().strftime("%Y%m%d_%H%M%S")
                 safe_csv = f"fraud_predictions_{ts}.csv"
                 pd.DataFrame(clean_results).to_csv(safe_csv, index=False, encoding="utf-8-sig")
-                print(f"⚠️ Файл {output_csv} был заблокирован. Сохранено как: {safe_csv}")
+                print(f"Файл {output_csv} был заблокирован. Сохранено как: {safe_csv}")
         else:
-            print("⚠️ Нет успешных результатов для сохранения")
+            print("Нет успешных результатов для сохранения")
 
     except Exception as e:
-        print(f"❌ Ошибка выполнения: {e}")
+        print(f"Ошибка выполнения: {e}")

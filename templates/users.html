@@ -1,5 +1,3 @@
-<!-- @ts-nocheck -->
-<!-- eslint-disable -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -9,7 +7,6 @@
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <style>
-        /* Карточки пользователей */
         .users-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
@@ -348,7 +345,6 @@
     </style>
 </head>
 <body>
-    <!-- Навигация -->
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -426,7 +422,6 @@
     }
 </style>
 
-        <!-- Hero -->
         <section class="hero">
             </div>
             <div class="container">
@@ -436,17 +431,14 @@
             </div>
         </section>
 
-        <!-- Основной контент -->
         <main class="main">
             <div class="container">
-                <!-- Поиск -->
                 <div class="search-bar">
                     <input type="text" id="userSearch" placeholder="Поиск по ID...">
                     <button onclick="searchUsers()">Найти</button>
                     <button class="btn btn-secondary" onclick="loadUsers(1)">Сбросить</button>
                 </div>
                 
-                <!-- Статистика -->
                 <div class="stats-grid" style="margin-bottom: 25px;">
                     <div class="stat-card">
                         <div class="stat-value" id="totalUsers">{{.Total}}</div>
@@ -466,7 +458,6 @@
                     </div>
                 </div>
                 
-                <!-- Сетка пользователей -->
                 <div class="users-grid" id="usersGrid">
                     {{range .Users}}
                     <div class="user-card {{.Status}}" onclick="openUserModal({{.ClientID}})">
@@ -500,7 +491,6 @@
                     {{end}}
                 </div>
                 
-                <!-- Пагинация -->
                 <div class="pagination" id="pagination">
                     <button id="prevBtn" onclick="loadUsers(currentPage - 1)" disabled>← Назад</button>
                     <span style="display:flex;align-items:center;padding:0 15px;font-weight:600;color:var(--gray-600)">Страница&nbsp; <span id="currentPageNum">1</span>&nbsp;из&nbsp;<span id="totalPagesNum">1</span></span>
@@ -509,7 +499,6 @@
             </div>
         </main>
 
-        <!-- Модальное окно деталей -->
         <div class="modal-overlay" id="userModal">
             <div class="modal">
                 <div class="modal-header">
@@ -522,7 +511,6 @@
             </div>
         </div>
 
-        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn Shield. Админ-панель</p>
@@ -531,7 +519,6 @@
     </div>
 
     <script>
-        // Глобальные переменные
 
         const serverData = {
             totalUsers: {{.Total}},
@@ -541,7 +528,6 @@
             initialPage: {{.Page}}
         };
 
-        // Безопасное экранирование для XSS
         function escapeHtml(text) {
             if (!text) return '';
             const div = document.createElement('div');
@@ -552,7 +538,6 @@
         let currentPage = 1;
         let totalPages = 1;
 
-        // Загрузка пользователей с пагинацией
         async function loadUsers(page = 1) {
             currentPage = page;
             const grid = document.getElementById('usersGrid');
@@ -595,7 +580,6 @@
             }
         }
 
-        // Обновление статистики
         function updateStats(users) {
             const active = users.filter(u => u.risk_level === 'active').length;
             const warning = users.filter(u => u.risk_level === 'warning').length;
@@ -607,7 +591,6 @@
             document.getElementById('highRiskCount').textContent = high;
         }
 
-        // Обновление пагинации
         function updatePagination(current, totalPages) {
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
@@ -620,13 +603,11 @@
             if (currentPageNum) currentPageNum.textContent = current;
             if (totalPagesNum) totalPagesNum.textContent = totalPages;
             
-            // Обновляем URL для навигации
             if (window.history.replaceState) {
                 window.history.replaceState({page: current}, '', `?page=${current}`);
             }
         }
 
-        // Поиск пользователей
         async function searchUsers() {
             const query = document.getElementById('userSearch').value.trim();
             if (!query) { loadUsers(1); return; }
@@ -662,7 +643,6 @@
             }
         }
 
-        // Открытие модального окна с деталями
         async function openUserModal(clientId) {
             const modal = document.getElementById('userModal');
             const content = document.getElementById('modalContent');
@@ -677,7 +657,6 @@
                 const data = await res.json();
                 const c = data.client;
                 
-                // Формируем безопасный HTML
                 const ordersHtml = data.recent_orders?.length 
                     ? `<table class="data-table">
                         <thead><tr><th>ID</th><th>Сумма</th><th>Товаров</th><th>Дата</th></tr></thead>
@@ -713,20 +692,16 @@
             }
         }
 
-        // Закрытие модального окна
         function closeUserModal() {
             document.getElementById('userModal').classList.remove('active');
         }
 
-        // Инициализация при загрузке
         document.addEventListener('DOMContentLoaded', () => {
-            // Устанавливаем начальную статистику из серверных данных
             document.getElementById('totalUsers').textContent = serverData.totalUsers;
             document.getElementById('activeCount').textContent = serverData.activeCount;
             document.getElementById('warningCount').textContent = serverData.warningCount;
             document.getElementById('highRiskCount').textContent = serverData.highRiskCount;
             
-            // Обработчики событий
             const modal = document.getElementById('userModal');
             if (modal) {
                 modal.addEventListener('click', (e) => {
@@ -741,7 +716,6 @@
                 });
             }
             
-            // Загружаем пользователей с текущей страницы из URL или сервера
             const urlParams = new URLSearchParams(window.location.search);
             const pageFromUrl = parseInt(urlParams.get('page')) || serverData.initialPage;
             loadUsers(pageFromUrl);

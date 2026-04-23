@@ -14,9 +14,7 @@ conn_params = {
     'password': 'OmegaBloody13'
 }
 
-# Defined lists as per your input
 categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Toys']
-# Added 'Food', 'Cosmetics', 'Sports' to match the logic in the original code which used specific categories for fraud patterns
 extended_categories = ['Electronics', 'Clothing', 'Home', 'Books', 'Toys', 'Food', 'Cosmetics', 'Sports', 'Garden']
 
 regions = ['Moscow', 'SPB', 'Siberia', 'South', 'FarEast']
@@ -26,9 +24,7 @@ address_types = ['home', 'office', 'pickup', 'post_office']
 class FraudDataGenerator:
     def __init__(self, seed=42):
         self.rng = np.random.default_rng(seed)
-        # Using English categories
         self.categories = extended_categories
-        # Translated reasons
         self.reasons = [
             'Size did not fit',
             'Defective',
@@ -38,7 +34,6 @@ class FraudDataGenerator:
         ]
 
     def generate_base_user(self):
-        """Generates a base user profile"""
         return {
             'user_id': str(uuid.uuid4()),
             'account_age_days': self.rng.integers(30, 365),
@@ -46,12 +41,11 @@ class FraudDataGenerator:
             'order_amount': round(self.rng.uniform(1000, 10000), 2),
             'device_id': str(uuid.uuid4()),
             'ip_address': f"{self.rng.integers(1, 255)}.{self.rng.integers(0, 255)}.{self.rng.integers(0, 255)}.{self.rng.integers(0, 255)}",
-            'registration_city': 'Moscow',  # Translated from Москва
+            'registration_city': 'Moscow',  
             'order_hour': self.rng.integers(8, 22),
             'category': self.rng.choice(self.categories),
             'days_to_return': self.rng.integers(3, 14),
             'claimed_reason': self.rng.choice(self.reasons),
-            # Neutral default values
             'is_fraud': False,
             'fraud_pattern': 'none',
             'wear_evidence_detected': 0,
@@ -92,7 +86,6 @@ class FraudDataGenerator:
         }
 
     def apply_pattern(self, base, pattern):
-        """Applies pattern logic to the base record"""
         if pattern == 'wardrobing':
             base.update({
                 'category': 'Clothing',
@@ -136,7 +129,7 @@ class FraudDataGenerator:
             base.update({
                 'receipt_provided': False,
                 'days_to_return': self.rng.integers(1, 3),
-                'claimed_reason': 'Lost receipt',  # Translated from 'Потерял чек'
+                'claimed_reason': 'Lost receipt',  
                 'is_fraud': True,
                 'fraud_pattern': 'receipt_fraud',
                 'support_ticket_count_30d': self.rng.integers(2, 5),
@@ -145,7 +138,7 @@ class FraudDataGenerator:
         elif pattern == 'employee_fraud':
             base.update({
                 'days_to_return': 0,
-                'claimed_reason': 'Warranty return',  # Translated from 'Возврат по гарантии'
+                'claimed_reason': 'Warranty return',  
                 'is_fraud': True,
                 'fraud_pattern': 'employee_fraud',
                 'warranty_doc_provided': 1,
@@ -156,7 +149,7 @@ class FraudDataGenerator:
         elif pattern == 'multi_channel_refund':
             base.update({
                 'days_to_return': self.rng.integers(1, 5),
-                'claimed_reason': 'Delivery issue',  # Translated from 'Проблема с доставкой'
+                'claimed_reason': 'Delivery issue',  
                 'is_fraud': True,
                 'fraud_pattern': 'multi_channel_refund',
                 'cross_channel_return': 1,
@@ -166,7 +159,7 @@ class FraudDataGenerator:
             })
         elif pattern == 'discount_fraud':
             base.update({
-                'claimed_reason': 'Found cheaper',  # Translated from 'Нашел дешевле'
+                'claimed_reason': 'Found cheaper',  
                 'is_fraud': True,
                 'fraud_pattern': 'discount_fraud',
                 'discount_percent': round(self.rng.uniform(25, 50), 2),
@@ -196,7 +189,7 @@ class FraudDataGenerator:
         elif pattern == 'bricking':
             base.update({
                 'category': 'Electronics',
-                'claimed_reason': 'Not working',  # Translated from 'Не работает'
+                'claimed_reason': 'Not working',  
                 'is_fraud': True,
                 'fraud_pattern': 'bricking',
                 'missing_components': self.rng.choice([True, False], p=[0.7, 0.3]),
@@ -220,7 +213,7 @@ class FraudDataGenerator:
             })
         elif pattern == 'multi_accounting':
             base.update({
-                'claimed_reason': 'First order',  # Translated from 'Первый заказ'
+                'claimed_reason': 'First order',  
                 'is_fraud': True,
                 'fraud_pattern': 'multi_accounting',
                 'accounts_per_ip': self.rng.integers(3, 6),
@@ -230,7 +223,6 @@ class FraudDataGenerator:
                 'order_hour': self.rng.choice([0, 1, 2, 3, 22, 23]),
                 'ip_velocity_24h': self.rng.integers(4, 10)
             })
-        # New patterns
         elif pattern == 'old_item_return':
             base.update({
                 'category': 'Clothing',
@@ -260,7 +252,7 @@ class FraudDataGenerator:
             })
         elif pattern == 'self_checkout_theft':
             base.update({
-                'claimed_reason': 'Checkout error',  # Translated from 'Ошибка кассы'
+                'claimed_reason': 'Checkout error',  
                 'is_fraud': True,
                 'fraud_pattern': 'self_checkout_theft',
                 'device_is_emulator': 1,
@@ -270,7 +262,7 @@ class FraudDataGenerator:
             })
         elif pattern == 'freezing_competitors':
             base.update({
-                'claimed_reason': 'Item not received',  # Translated from 'Не пришёл товар'
+                'claimed_reason': 'Item not received',  
                 'is_fraud': True,
                 'fraud_pattern': 'freezing_competitors',
                 'cross_channel_return': 1,
@@ -293,7 +285,7 @@ class FraudDataGenerator:
         elif pattern == 'perishable_fraud':
             base.update({
                 'category': self.rng.choice(['Food', 'Cosmetics']),
-                'claimed_reason': 'Spoiled item',  # Translated from 'Испорченный товар'
+                'claimed_reason': 'Spoiled item',  
                 'is_fraud': True,
                 'fraud_pattern': 'perishable_fraud',
                 'receipt_provided': False,
@@ -312,7 +304,6 @@ class FraudDataGenerator:
                 'refund_velocity_7d': 0
             })
         elif pattern == 'pvz_swap':
-            # PVZ usually refers to Pickup Point (Punkt Vydachi Zakazov)
             base.update({
                 'category': 'Clothing',
                 'claimed_reason': 'Size did not fit',
@@ -346,7 +337,7 @@ class FraudDataGenerator:
             })
         elif pattern == 'cashier_swap':
             base.update({
-                'claimed_reason': 'Wrong item',  # Translated from 'Не тот товар'
+                'claimed_reason': 'Wrong item',  
                 'is_fraud': True,
                 'fraud_pattern': 'cashier_swap',
                 'package_weight_vs_expected': round(self.rng.uniform(-0.6, -0.3), 2),
@@ -387,7 +378,6 @@ class FraudDataGenerator:
                 'refund_velocity_7d': self.rng.integers(3, 6)
             })
         else:
-            # Fallback for unknown patterns
             base.update({
                 'is_fraud': True,
                 'fraud_pattern': pattern,
@@ -397,7 +387,6 @@ class FraudDataGenerator:
         return base
 
     def generate_dataset(self, records_per_pattern=10):
-        """Generates the full dataset"""
         patterns = [
             'wardrobing', 'price_arbitrage', 'shipping_fraud', 'receipt_fraud',
             'employee_fraud', 'multi_channel_refund', 'discount_fraud', 'damage_fraud',
@@ -417,72 +406,65 @@ class FraudDataGenerator:
 
         return pd.DataFrame(data)
 
-
-# === EXECUTION ===
 if __name__ == "__main__":
     generator = FraudDataGenerator(seed=42)
 
-    # Generate 5 records per pattern (total ~130 records)
     df = generator.generate_dataset(records_per_pattern=5)
 
 
-    print(f"✅ Successfully created {len(df)} records.")
-    print("\n📊 Pattern distribution:")
+    print(f"Successfully created {len(df)} records.")
+    print("\nPattern distribution:")
     print(df['fraud_pattern'].value_counts())
 
-    # Connect to PostgreSQL and insert data
     conn = None
     try:
         conn = psycopg2.connect(**conn_params)
         cur = conn.cursor()
 
-        # Insert clients, orders, returns, sessions based on generated data
         client_inserts = []
         order_inserts = []
         return_inserts = []
         session_inserts = []
 
         for _, row in df.iterrows():
-            # Insert client
             client_id = len(client_inserts) + 1
             client_inserts.append((
                 row['account_age_days'],
                 row['total_orders'],
-                0,  # total_returns
-                0.0,  # global_return_rate
-                row['order_amount'],  # avg_order_amount
-                0.0,  # address_change_frequency
-                0,  # category_returns_count
+                0,  
+                0.0,  
+                row['order_amount'],  
+                0.0,  
+                0,  
                 row['registration_city'],
-                None,  # client_lat
-                None,  # client_lng
-                str(uuid.uuid4())[:64]  # phone_hash
+                None,  
+                None,  
+                str(uuid.uuid4())[:64]  
             ))
 
-            # Insert order
             order_timestamp = datetime.now() - timedelta(days=random.randint(0, 30), hours=row['order_hour'])
             order_inserts.append((
                 client_id,
                 row['order_amount'],
                 row['items_in_order'],
-                0.0,  # discount_amount
-                'card',  # payment_method
+                0.0, 
+                'card',  
                 order_timestamp,
-                0.0,  # amount_deviation
-                0,  # orders_last_30d
+                0.0,  
+                0,  
                 row['category'],
                 bool(row['category'] == 'Electronics'),
                 random.choice(regions),
-                0.0,  # region_risk_score
+                0.0,  
                 row['registration_city'],
-                None,  # delivery_lat
-                None,  # delivery_lng
-                None,  # payment_card_bin
-                None,  # card_issuing_country
-                False,  # card_country_mismatch
+                None,  
+                None,  
+                None,  
+                None,  
+                False,  
                 random.choice(address_types),
-                0.0,  # address_match_score
-                True,  # is_address_match
+                0.0,  
+                True,  
                 'completed'
             ))
 
@@ -500,21 +482,19 @@ if __name__ == "__main__":
                 'claimed_reason': row['claimed_reason']
             })
 
-            # Insert session
             session_inserts.append((
                 client_id,
                 row['ip_address'],
                 row['device_id'],
-                None,  # device_fingerprint
+                None, 
                 bool(row['device_is_emulator']),
-                None,  # user_agent
+                None,  
                 order_timestamp,
-                False,  # is_new_device
+                False,  
                 order_timestamp,
                 order_timestamp
             ))
 
-        # Insert clients
         if client_inserts:
             cur.execute("""
                 INSERT INTO clients (
@@ -540,7 +520,6 @@ if __name__ == "__main__":
             order_inserts_with_real_ids = []
             for i, order in enumerate(order_inserts):
                 if i < len(real_client_ids):
-                    # Replace the client_id (first element) with the real ID
                     order_with_real_id = list(order)
                     order_with_real_id[0] = real_client_ids[i]
                     order_inserts_with_real_ids.append(tuple(order_with_real_id))
@@ -556,7 +535,6 @@ if __name__ == "__main__":
                 ) VALUES %s
             """, order_inserts_with_real_ids)
 
-        # Insert returns
         if return_inserts:
             execute_values(cur, """
                 INSERT INTO returns (
@@ -566,7 +544,6 @@ if __name__ == "__main__":
                 ) VALUES %s
             """, return_inserts)
 
-        # Insert sessions
         if session_inserts:
             execute_values(cur, """
                 INSERT INTO client_sessions (
@@ -577,7 +554,7 @@ if __name__ == "__main__":
             """, session_inserts)
 
         conn.commit()
-        print(f"\n✅ Successfully inserted {len(df)} records into PostgreSQL database!")
+        print(f"\nSuccessfully inserted {len(df)} records into PostgreSQL database!")
         print(f"   - Clients: {len(client_inserts)}")
         print(f"   - Orders: {len(order_inserts)}")
         print(f"   - Returns: {len(return_inserts)}")
@@ -586,13 +563,12 @@ if __name__ == "__main__":
         cur.close()
 
     except Exception as e:
-        print(f"❌ Error: {e}")
+        print(f"Error: {e}")
         if conn:
             conn.rollback()
     finally:
         if conn:
             conn.close()
 
-    # Show sample data
     print("\n🔍 Sample of first 3 records (transposed for readability):")
     print(df.head(3).T)

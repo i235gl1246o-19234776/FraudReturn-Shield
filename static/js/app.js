@@ -4,24 +4,20 @@ document.addEventListener('DOMContentLoaded', () => {
     const photoInput = document.getElementById('productPhoto');
     const photoPreview = document.getElementById('photoPreview');
     
-    // Инициализация графиков
     if (typeof chartManager !== 'undefined') {
         chartManager.initShapChart('shapChart');
     }
     
-    // Предпросмотр фото
     if (photoInput) {
         photoInput.addEventListener('change', (e) => {
             const file = e.target.files[0];
             if (file) {
-                // Проверка размера
                 if (file.size > 5 * 1024 * 1024) {
                     showToast('Файл слишком большой (макс 5MB)', 'error');
                     photoInput.value = '';
                     return;
                 }
                 
-                // Предпросмотр
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     photoPreview.innerHTML = `
@@ -37,7 +33,6 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
         
-        // Drag & Drop
         const uploadArea = document.querySelector('.upload-area');
         if (uploadArea) {
             uploadArea.addEventListener('dragover', (e) => {
@@ -66,7 +61,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
     
-    // Отправка формы
     if (form) {
         form.addEventListener('submit', async (e) => {
             e.preventDefault();
@@ -77,7 +71,6 @@ document.addEventListener('DOMContentLoaded', () => {
             submitBtn.disabled = true;
             
             try {
-                // Сбор данных формы
                 const formData = new FormData(form);
                 const data = {
                     orderNumber: formData.get('orderNumber'),
@@ -97,13 +90,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     reason: formData.get('reason'),
                 };
                 
-                // Вызов API (или заглушка)
                 const result = await calculateRisk(data);
                 
-                // Отображение результата
                 displayResult(result);
                 
-                // Сохранение в историю
                 saveToHistory(data, result);
                 
                 showToast('Проверка завершена', 'success');
@@ -117,11 +107,9 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
-    // Анимации при скролле
     initScrollAnimations();
 });
 
-// Расчёт риска (заглушка для демонстрации)
 async function calculateRisk(data) {
     let score = 0.0;
     const factors = [];
@@ -186,7 +174,6 @@ async function calculateRisk(data) {
     };
 }
 
-// Отображение результата
 function displayResult(result) {
     const resultCard = document.getElementById('resultCard');
     const riskScore = document.getElementById('riskScore');
@@ -200,17 +187,14 @@ function displayResult(result) {
     resultCard.className = `card result-card ${result.riskClass}`;
     resultCard.scrollIntoView({ behavior: 'smooth' });
     
-    // Обновление gauge
     if (typeof chartManager !== 'undefined') {
         chartManager.updateGauge(result.risk_score);
     }
     
-    // Обновление текста
     if (riskText) riskText.textContent = result.riskLevel;
     if (recommendationText) recommendationText.textContent = result.recommendation;
     if (riskBadge) riskBadge.className = `info-badge ${result.riskClass}`;
     
-    // Обновление SHAP
     if (result.shap_values && result.shap_values.length > 0) {
         updateShapList(result.shap_values);
         if (typeof chartManager !== 'undefined') {
@@ -219,7 +203,6 @@ function displayResult(result) {
     }
 }
 
-// Обновление списка SHAP
 function updateShapList(shapValues) {
     const shapList = document.getElementById('shapList');
     if (!shapList) return;
@@ -238,7 +221,6 @@ function updateShapList(shapValues) {
     `).join('');
 }
 
-// Сохранение в историю
 function saveToHistory(data, result) {
     const history = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
     history.unshift({
@@ -247,7 +229,6 @@ function saveToHistory(data, result) {
         result
     });
     
-    // Храним последние 50 записей
     if (history.length > 50) {
         history.pop();
     }
@@ -255,7 +236,6 @@ function saveToHistory(data, result) {
     localStorage.setItem('fraudHistory', JSON.stringify(history));
 }
 
-// Сброс формы
 function resetForm() {
     const form = document.getElementById('fraudForm');
     const resultCard = document.getElementById('resultCard');
@@ -271,7 +251,6 @@ function resetForm() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// Решения
 function approveReturn() {
     saveDecision('approved');
     showToast('Возврат одобрен', 'success');
@@ -296,7 +275,6 @@ function saveDecision(decision) {
     }
 }
 
-// Уведомления
 function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
@@ -312,7 +290,6 @@ function showToast(message, type = 'success') {
     }, 3000);
 }
 
-// Анимации при скролле
 function initScrollAnimations() {
     const observer = new IntersectionObserver((entries) => {
         entries.forEach(entry => {
@@ -327,7 +304,6 @@ function initScrollAnimations() {
     });
 }
 
-// Загрузка настроек
 function loadSettings() {
     const settings = JSON.parse(localStorage.getItem('fraudSettings') || '{}');
     if (settings.greenThreshold) {
@@ -389,7 +365,6 @@ function loadStats() {
     }
 }
 
-// Инициализация при загрузке
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', loadSettings);
 } else {

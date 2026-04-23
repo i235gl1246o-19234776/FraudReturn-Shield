@@ -85,7 +85,6 @@
         </div>
     </nav>
 
-        <!-- Основной контент -->
         <main class="main">
             <div class="container">
                 <div class="card">
@@ -118,7 +117,6 @@
             </div>
         </main>
 
-        <!-- Footer -->
         <footer class="footer">
             <div class="container">
                 <p>© 2026 FraudReturn Shield. Учебный проект</p>
@@ -130,7 +128,6 @@
         function loadHistory() {
             const tbody = document.getElementById('historyTableBody');
 
-            // Загружаем из БД через API (если доступно)
             fetch('/api/history')
                 .then(res => res.json())
                 .then(data => {
@@ -141,7 +138,6 @@
                     }
                 })
                 .catch(() => {
-                    // Fallback на localStorage
                     const fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
                     if (fraudHistory.length === 0) {
                         showNoData();
@@ -189,10 +185,8 @@
 
         function clearHistory() {
             if (confirm('Очистить всю историю?')) {
-                // Очищаем localStorage
                 localStorage.removeItem('fraudHistory');
 
-                // Очищаем БД через API
                 fetch('/api/clear-history', { method: 'POST' })
                     .then(res => res.json())
                     .then(data => {
@@ -200,7 +194,6 @@
                         showToast('История очищена', 'success');
                     })
                     .catch(err => {
-                        // Даже если БД недоступна, localStorage уже очищен
                         loadHistory();
                         showToast('История очищена', 'success');
                     });

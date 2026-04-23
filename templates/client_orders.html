@@ -1,5 +1,4 @@
 
-<!-- client_orders.html - Страница заказов клиента -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -324,7 +323,6 @@
     </style>
 </head>
 <body>
-    <!-- Навигация -->
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -341,7 +339,6 @@
         </div>
     </nav>
 
-    <!-- Заголовок страницы -->
     <section class="page-header">
         </div>
         <div class="container">
@@ -353,9 +350,7 @@
         </div>
     </section>
 
-    <!-- Основной контент -->
     <div class="container">
-        <!-- Фильтры -->
         <div class="orders-filter">
             <select id="statusFilter" onchange="filterOrders()">
                 <option value="all">Все статусы</option>
@@ -368,14 +363,10 @@
             <input type="text" id="searchInput" placeholder="Поиск по ID заказа" onkeyup="searchOrders()">
         </div>
 
-        <!-- Список заказов -->
         <div id="orders-list">
-            <!-- Заказы будут загружены через JS -->
         </div>
 
-        <!-- Пагинация -->
         <div class="pagination" id="pagination">
-            <!-- Кнопки пагинации -->
         </div>
     </div>
 
@@ -404,7 +395,6 @@
                 .then(data => {
                     console.log('Загруженные заказы:', data);
                     if (data.orders && data.orders.length > 0) {
-                        // Преобразуем данные с сервера в формат для отображения
                         allOrders = data.orders.map(order => ({
                             id: order.order_id,
                             date: order.order_timestamp,

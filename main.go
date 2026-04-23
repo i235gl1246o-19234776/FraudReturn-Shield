@@ -25,12 +25,7 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-// ============================================
-// 📊 СТРУКТУРЫ ДАННЫХ
-// ============================================
-
 type FormData struct {
-	// === Основные поля из формы ===
 	OrderNumber       string  `json:"orderNumber"`
 	OrderAmount       float64 `json:"orderAmount"`
 	AccountAgeDays    int     `json:"accountAgeDays"`
@@ -54,14 +49,12 @@ type FormData struct {
 	TagsRemoved       bool    `json:"tagsRemoved"`
 	MissingComponents bool    `json:"missingComponents"`
 
-	// === Скрытые поля ===
 	DiscountPercent         float64 `json:"discountPercent"`
 	PromoCodeUsed           bool    `json:"promoCodeUsed"`
 	FirstOrderDiscountAbuse bool    `json:"firstOrderDiscountAbuse"`
 	ItemsInOrder            int     `json:"itemsInOrder"`
 	IsElectronics           bool    `json:"isElectronics"`
 
-	// === Риски и геолокация ===
 	PaymentMethodRisk        float64 `json:"paymentMethodRisk"`
 	ChargebackHistory90d     bool    `json:"chargebackHistory90d"`
 	CardBinCountryMismatch   bool    `json:"cardBinCountryMismatch"`
@@ -69,11 +62,9 @@ type FormData struct {
 	DeliveryAddressType      int     `json:"deliveryAddressType"`
 	DistanceFromRegistration float64 `json:"distanceFromRegistration"`
 
-	// === Время заказа ===
 	OrderHour      int  `json:"orderHour"`
 	OrderTimeNight bool `json:"orderTimeNight"`
 
-	// === IP/Device velocity ===
 	IPVelocity24h     int  `json:"ipVelocity24h"`
 	IPVelocity7d      int  `json:"ipVelocity7d"`
 	AccountsPerIP     int  `json:"accountsPerIP"`
@@ -81,11 +72,9 @@ type FormData struct {
 	AccountsPerDevice int  `json:"accountsPerDevice"`
 	DeviceIsEmulator  bool `json:"deviceIsEmulator"`
 
-	// === Trust scores ===
 	DeviceTrustScore float64 `json:"deviceTrustScore"`
 	IPTrustScore     float64 `json:"ipTrustScore"`
 
-	// === История и активность ===
 	AvgOrderAmount    float64 `json:"avgOrderAmount"`
 	ReturnRate30d     float64 `json:"returnRate30d"`
 	RefundVelocity7d  int     `json:"refundVelocity7d"`
@@ -93,17 +82,15 @@ type FormData struct {
 	SupportTickets30d int     `json:"supportTickets30d"`
 	ReviewCount30d    int     `json:"reviewCount30d"`
 
-	// === Контент и угрозы ===
 	NegativeReviewCluster  bool `json:"negativeReviewCluster"`
 	ThreatLanguageDetected bool `json:"threatLanguageDetected"`
 	LegalClaimThreat       bool `json:"legalClaimThreat"`
 }
 
-// FeatureExplanation — объяснение вклада признака от ML-модели
 type FeatureExplanation struct {
 	Feature      string  `json:"feature"`
 	Contribution float64 `json:"contribution"`
-	Effect       string  `json:"effect"` // "повышает риск" / "снижает риск"
+	Effect       string  `json:"effect"`
 	Label        string  `json:"label,omitempty"`
 }
 
@@ -113,8 +100,8 @@ type ResultData struct {
 	RiskLevel        string               `json:"riskLevel"`
 	RiskClass        string               `json:"riskClass"`
 	Recommendation   string               `json:"recommendation"`
-	TopFactors       []string             `json:"topFactors"`            // Текстовые факторы (для UI)
-	TopFeatures      []FeatureExplanation `json:"topFeatures,omitempty"` // ML-объяснения (для аналитики)
+	TopFactors       []string             `json:"topFactors"`
+	TopFeatures      []FeatureExplanation `json:"topFeatures,omitempty"`
 	StrokeDashOffset float64              `json:"strokeDashOffset"`
 	RiskPercent      int                  `json:"riskPercent"`
 	OrderID          int                  `json:"orderID"`
@@ -142,22 +129,16 @@ type User struct {
 	Role     string `json:"role"`
 }
 
-// Запрос на создание возврата
 type CreateReturnRequest struct {
 	OrderID       int    `json:"order_id"`
 	ClaimedReason string `json:"claimed_reason"`
 	Comment       string `json:"comment"`
 }
 
-// Глобальные переменные
 var (
 	pythonModelLoaded bool = false
 	db                *sql.DB
 )
-
-// ============================================
-// 🧠 МАППИНГ ПРИЗНАКОВ — ЧЕЛОВЕКОЧИТАЕМЫЕ МЕТКИ
-// ============================================
 
 var featureLabelMap = map[string]string{
 	"shipping_region_risk":            "Риск региона доставки",
@@ -199,22 +180,16 @@ var featureLabelMap = map[string]string{
 	"card_issuing_country":            "Страна эмитента карты",
 }
 
-// getFeatureLabel — получение человекочитаемой метки признака
 func getFeatureLabel(featureName string) string {
 	if label, ok := featureLabelMap[featureName]; ok {
 		return label
 	}
-	// Fallback: преобразуем snake_case в читаемый вид
 	words := strings.Split(featureName, "_")
 	for i := range words {
 		words[i] = strings.Title(words[i])
 	}
 	return strings.Join(words, " ")
 }
-
-// ============================================
-// 🔧 CORS УТИЛИТЫ
-// ============================================
 
 func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
@@ -240,10 +215,6 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 func applyJSONHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 }
-
-// ============================================
-// 🔐 АУТЕНТИФИКАЦИЯ
-// ============================================
 
 func getClientIDFromRequest(r *http.Request) (int, error) {
 	clientIDStr := r.URL.Query().Get("client_id")
@@ -321,10 +292,6 @@ func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 		next(w, r)
 	})
 }
-
-// ============================================
-// 🗄️ БАЗА ДАННЫХ
-// ============================================
 
 func initDatabase() error {
 	dbHost := getEnv("DB_HOST", "localhost")
@@ -707,15 +674,10 @@ func CloseDB() {
 	}
 }
 
-// ============================================
-// 📦 ЗАКАЗЫ — ПОЛНОСТЬЮ ИСПРАВЛЕННАЯ ВЕРСИЯ
-// ============================================
-
 func apiGetOrders(w http.ResponseWriter, r *http.Request) {
-	// ✅ Recovery + логирование паник
 	defer func() {
 		if rec := recover(); rec != nil {
-			log.Printf("❌ PANIC in apiGetOrders: %v", rec)
+			log.Printf("PANIC in apiGetOrders: %v", rec)
 			log.Printf("   Stack: %s", debug.Stack())
 			setCORSHeaders(w, r)
 			applyJSONHeaders(w)
@@ -741,7 +703,6 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("🔍 [apiGetOrders] client_id='%s', q='%s', path='%s'", clientID, query, r.URL.Path)
 
-	// ✅ Проверка: если clientID пустой — это ошибка вызова
 	if clientID == "" {
 		log.Printf("⚠️ client_id is empty in request")
 		w.WriteHeader(http.StatusBadRequest)
@@ -749,7 +710,6 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Преобразуем clientID в int для проверки
 	cid, err := strconv.Atoi(clientID)
 	if err != nil || cid <= 0 {
 		log.Printf("⚠️ Invalid client_id: '%s'", clientID)
@@ -758,7 +718,6 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// ✅ Вызываем функцию с логированием результата
 	orders, err := GetOrdersByClientID(clientID, query)
 	if err != nil {
 		log.Printf("❌ GetOrdersByClientID returned error: %v", err)
@@ -773,12 +732,10 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("✅ Found %d orders for client_id=%s", len(orders), clientID)
 
-	// ✅ Отправляем ответ
 	encoder := json.NewEncoder(w)
 	encoder.SetEscapeHTML(false)
 	if err := encoder.Encode(map[string]interface{}{"orders": orders}); err != nil {
 		log.Printf("❌ JSON encode error: %v", err)
-		// Пытаемся отправить ошибку, если заголовки ещё не ушли
 		if !strings.Contains(w.Header().Get("Content-Type"), "application/json") {
 			w.WriteHeader(http.StatusInternalServerError)
 			json.NewEncoder(w).Encode(map[string]interface{}{"error": "Failed to encode JSON"})
@@ -842,7 +799,6 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		var record DBRecord = make(DBRecord)
 		var ts time.Time
 
-		// Переменные в ТОЧНОМ порядке колонок SELECT
 		var orderID, clientID, itemsCount int
 		var orderAmount, amountDev sql.NullFloat64
 		var paymentMethod, prodCategory, claimedReason, returnChannel sql.NullString
@@ -851,16 +807,15 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 		err := rows.Scan(
 			&orderID, &clientID, &orderAmount, &itemsCount,
 			&paymentMethod, &ts, &amountDev,
-			&ordersLast30d, // ← критически важно: 8-я переменная
+			&ordersLast30d,
 			&prodCategory, &daysSincePurchase, &claimedReason, &returnChannel,
 		)
 		if err != nil {
-			log.Printf("❌ Scan error on row #%d: %v", rowNum, err)
+			log.Printf("Scan error on row #%d: %v", rowNum, err)
 			log.Printf("   Column types: order_id=int, client_id=int, order_amount=float, items_count=int, payment_method=string, order_timestamp=timestamp, amount_deviation=float, orders_last_30d=int, product_category=string, days_since_purchase=int, claimed_reason=string, return_channel=string")
 			return nil, fmt.Errorf("scan failed on row %d: %w", rowNum, err)
 		}
 
-		// Заполнение record
 		record["order_id"] = orderID
 		record["client_id"] = clientID
 		if orderAmount.Valid {
@@ -957,10 +912,6 @@ func GetRecentOrders(limit int) ([]DBRecord, error) {
 	return results, nil
 }
 
-// ============================================
-// 👥 ПОЛЬЗОВАТЕЛИ
-// ============================================
-
 func GetUsersList(page, limit int) ([]UserCard, int, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("база данных не подключена")
@@ -1027,7 +978,6 @@ func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error
 		return 0, 0, 0, fmt.Errorf("база данных не подключена")
 	}
 
-	// Исправлено: сравниваем с 0.2 и 0.5 как с долями (20% и 50%), а не с процентами
 	query := `
                 SELECT
                         COUNT(CASE WHEN global_return_rate IS NOT NULL AND global_return_rate <= 0.2 THEN 1 END) as active,
@@ -1170,10 +1120,6 @@ func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 	}
 	return returns, nil
 }
-
-// ============================================
-// 🔗 API HANDLERS — ПРОСТЫЕ
-// ============================================
 
 func apiGetClient(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
@@ -1435,10 +1381,6 @@ func apiClearHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 }
 
-// ============================================
-// 🔁 ВОЗВРАТЫ КЛИЕНТА
-// ============================================
-
 func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1585,10 +1527,6 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 		"message":   "Возврат успешно создан",
 	})
 }
-
-// ============================================
-// 📄 ОБРАБОТЧИКИ СТРАНИЦ
-// ============================================
 
 func loginPage(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("templates/login.html")
@@ -1795,10 +1733,6 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
-// ============================================
-// 🧮 ЛОГИКА РИСКА — ОБНОВЛЁННАЯ
-// ============================================
-
 func calculateRisk(f FormData) ResultData {
 	log.Printf("[DEBUG] FormData: %+v", f)
 
@@ -1824,7 +1758,6 @@ func calculateRisk(f FormData) ResultData {
 
 	level, class, recommendation := getRiskLevel(score)
 
-	// 🔥 Ключевое изменение: передаём нормализованные ML-факторы в getRiskFactors
 	normalizedFeatures := normalizeContributions(mlFeatures)
 	factors := getRiskFactors(f, normalizedFeatures)
 
@@ -1836,8 +1769,8 @@ func calculateRisk(f FormData) ResultData {
 		RiskLevel:        level,
 		RiskClass:        class,
 		Recommendation:   recommendation,
-		TopFactors:       factors,            // Текстовые факторы для UI
-		TopFeatures:      normalizedFeatures, // Нормализованные ML-объяснения для аналитики
+		TopFactors:       factors,
+		TopFeatures:      normalizedFeatures,
 		StrokeDashOffset: (1 - float64(score)) * 283,
 		RiskPercent:      int(float64(score) * 100),
 		OrderID:          f.OrderID,
@@ -1850,7 +1783,6 @@ func normalizeContributions(features []FeatureExplanation) []FeatureExplanation 
 		return features
 	}
 
-	// Берём абсолютные значения для оценки "важности"
 	type scoredFeat struct {
 		FeatureExplanation
 		absContribution float64
@@ -1870,13 +1802,10 @@ func normalizeContributions(features []FeatureExplanation) []FeatureExplanation 
 		return []FeatureExplanation{}
 	}
 
-	// Сортируем по убыванию важности
 	sort.Slice(scored, func(i, j int) bool {
 		return scored[i].absContribution > scored[j].absContribution
 	})
 
-	// Присваиваем "ранги" для отображения: топ-1 = 25%, топ-2 = 20%, и т.д.
-	// Это визуальная шкала, а не математический вклад!
 	visualWeights := []int{25, 20, 15, 12, 10, 8, 6, 5, 4, 3}
 
 	result := make([]FeatureExplanation, 0, len(scored))
@@ -1885,7 +1814,6 @@ func normalizeContributions(features []FeatureExplanation) []FeatureExplanation 
 			break
 		}
 		feat := sf.FeatureExplanation
-		// Создаём "визуальный" вклад для UI
 		feat.Contribution = float64(visualWeights[i]) / 100.0
 		result = append(result, feat)
 	}
@@ -1897,13 +1825,11 @@ func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
 	factors := []string{}
 	seen := make(map[string]bool)
 
-	// Маркеры важности для ML-факторов
 	mlMarkers := []string{"[!!!]", "[!!] ", "[!]  ", "[.]  "}
 
-	// === 1. ML-факторы (с маркерами важности) ===
 	mlCount := 0
 	for _, feat := range mlFeatures {
-		if mlCount >= 4 { // лимит топ-4 от модели
+		if mlCount >= 4 {
 			break
 		}
 		if feat.Effect == "повышает риск" && feat.Contribution > 0.03 {
@@ -1925,29 +1851,26 @@ func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
 		}
 	}
 
-	// === 2. Rule-based факторы — БЕЗ процентов, если есть ML-факторы ===
-	// (чтобы не вводить в заблуждение: эти +25% НЕ добавлялись к скору)
-	// Показываем их только если ML не дал достаточно факторов
 	if mlCount < 4 {
 		ruleFactors := getRuleBasedFactors(f)
 		for _, factor := range ruleFactors {
 			if len(factors) >= 7 {
 				break
 			}
-			// Убираем "(+Х%)" — оставляем только текст
+
 			clean := factor
 			if idx := strings.Index(factor, " ("); idx != -1 {
 				clean = factor[:idx]
 			}
 			if !seen[clean] {
-				factors = append(factors, "[~] "+clean) // нейтральный маркер
+				factors = append(factors, "[~] "+clean)
 				seen[clean] = true
 			}
 		}
 	}
 
 	if len(factors) == 0 {
-		factors = append(factors, "✅ Все параметры в норме")
+		factors = append(factors, "Все параметры в норме")
 	}
 	if len(factors) > 7 {
 		factors = factors[:7]
@@ -1956,8 +1879,6 @@ func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
 	return factors
 }
 
-// getRuleBasedFactors — вспомогательная функция с исходными правилами
-// Возвращает факторы в формате "Название (+Х%)" для единообразия с ML-факторами
 func getRuleBasedFactors(f FormData) []string {
 	factors := []string{}
 
@@ -1982,30 +1903,29 @@ func getRuleBasedFactors(f FormData) []string {
 	if f.AccountAgeDays < 30 {
 		factors = append(factors, "🆕 Новый аккаунт (+12%)")
 	}
-	// Исправлено: сравниваем с 30 (проценты), а не с 0.3
 	if f.ReturnRate > 30 {
 		factors = append(factors, "Высокий % возвратов у клиента (+18%)")
 	}
 	if f.OrderAmount > 30000 {
 		factors = append(factors, "Высокая сумма заказа (+10%)")
 	}
-	// Исправлено: сравниваем с 0.5 как с долей риска
+
 	if f.PaymentMethodRisk > 0.5 {
 		factors = append(factors, "Рискованный метод оплаты (+10%)")
 	}
-	// Исправлено: сравниваем с 0.5 как с долей риска
+
 	if f.ShippingRegionRisk > 0.5 {
 		factors = append(factors, "Рискованный регион доставки (+8%)")
 	}
-	// Исправлено: сравниваем с 500 км
+
 	if f.DistanceFromRegistration > 500 {
 		factors = append(factors, "Большое расстояние от регистрации (+7%)")
 	}
-	// Исправлено: сравниваем с 0.5 как с долей доверия
+
 	if f.DeviceTrustScore < 0.5 {
 		factors = append(factors, "Низкое доверие к устройству (+10%)")
 	}
-	// Исправлено: сравниваем с 0.5 как с долей доверия
+
 	if f.IPTrustScore < 0.5 {
 		factors = append(factors, "Низкое доверие к IP (+10%)")
 	}
@@ -2016,7 +1936,6 @@ func getRuleBasedFactors(f FormData) []string {
 		factors = append(factors, "Отсутствуют компоненты (+18%)")
 	}
 
-	// Сортируем по "весу" (извлекаем число из "+Х%")
 	sort.Slice(factors, func(i, j int) bool {
 		extractPct := func(s string) int {
 			start := strings.Index(s, "(+")
@@ -2045,28 +1964,26 @@ func enrichRiskFromDB(clientID int, baseScore float64) (float64, []string) {
 		return score, extraFactors
 	}
 
-	// Исправлено: сравниваем с 0.3 (30% как доля), а не с 30
 	if rate, ok := (*client)["global_return_rate"].(float64); ok && rate > 0.3 {
 		score += 0.15
 		extraFactors = append(extraFactors, "Высокий % возвратов у клиента")
 	}
-	// Исправлено: сравниваем с 30 днями
+
 	if age, ok := (*client)["account_age_days"].(int); ok && age < 30 {
 		score += 0.10
 		extraFactors = append(extraFactors, "Новый аккаунт")
 	}
-	// Исправлено: сравниваем с 10 возвратами
+
 	if total, ok := (*client)["total_returns"].(int); ok && total > 10 {
 		score += 0.08
 		extraFactors = append(extraFactors, "Много возвратов в истории")
 	}
-	// Исправлено: сравниваем с 2.0 как с частотой
+
 	if freq, ok := (*client)["address_change_frequency"].(float64); ok && freq > 2.0 {
 		score += 0.07
 		extraFactors = append(extraFactors, "Частая смена адресов")
 	}
 
-	// Нормализуем итоговый скор
 	if score > 1.0 {
 		score = 1.0
 	}
@@ -2219,10 +2136,6 @@ func calculateRiskFallback(f FormData) float32 {
 	return float32(score)
 }
 
-// ============================================
-// 🐍 PYTHON / FASTAPI ИНТЕГРАЦИЯ — ОБНОВЛЁННАЯ
-// ============================================
-
 var fastAPIURL = "http://localhost:8000"
 
 func callFastAPI(endpoint string, payload interface{}, result interface{}) error {
@@ -2346,7 +2259,6 @@ func loadModel(modelPath string) error {
 	return nil
 }
 
-// predictRiskWithFeatures — новая функция, возвращающая и скор, и топ-фичи
 func predictRiskWithFeatures(f FormData) (float32, []FeatureExplanation, error) {
 	payload := FastAPIFraudPayloadRequest{
 		ClientID: f.ClientID, OrderID: f.OrderID, ReturnID: 0,
@@ -2390,7 +2302,6 @@ func predictRiskWithFeatures(f FormData) (float32, []FeatureExplanation, error) 
 	return float32(score), resp.TopFeatures, nil
 }
 
-// predictRisk — обратная совместимость (вызывает новую функцию)
 func predictRisk(f FormData) (float32, error) {
 	score, _, err := predictRiskWithFeatures(f)
 	return score, err
@@ -2421,10 +2332,6 @@ func parseFloat(value string) float64 {
 func parseBool(value string) bool {
 	return value == "1" || value == "true" || value == "on" || value == "yes"
 }
-
-// ============================================
-// 💬 CHAT API
-// ============================================
 
 func handleChat(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
@@ -2482,10 +2389,6 @@ func callPythonModelForChat(message string) (string, error) {
 	}
 	return resp.Response, nil
 }
-
-// ============================================
-// 🔐 AUTH API
-// ============================================
 
 func apiLogin(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
@@ -2615,10 +2518,6 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"orders": orders})
 }
 
-// ============================================
-// 🧩 DB ENRICHMENT
-// ============================================
-
 func EnrichFromDB(f *FormData) error {
 	if db == nil || f.ClientID <= 0 || f.OrderID <= 0 {
 		return fmt.Errorf("БД не подключена или не указаны ClientID/OrderID")
@@ -2633,7 +2532,6 @@ func EnrichFromDB(f *FormData) error {
 		f.AccountAgeDays = accountAge
 		f.TotalOrders = totalOrders
 		if totalOrders > 0 {
-			// global_return_rate хранится как доля (0.18 = 18%), конвертируем в проценты для UI
 			f.ReturnRate = globalRate.Float64 * 100
 		}
 		if avgOrderAmt.Valid {
@@ -2744,7 +2642,6 @@ func EnrichFromDB(f *FormData) error {
 	return nil
 }
 
-// apiPredictFraudV4 — POST /api/predict-fraud-v4
 func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -3159,10 +3056,6 @@ func resultPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
-// ============================================
-// 🚀 MAIN
-// ============================================
-
 func main() {
 	pythonModelLoaded = false
 	go startFastAPIService()
@@ -3194,52 +3087,39 @@ func main() {
 		log.Fatalf("Директория static не найдена: %s", staticDir)
 	}
 
-	// ✅ 1. Статика — самый специфичный префикс
 	http.HandleFunc("/static/", serveStatic)
 
-	// ✅ 2. API-маршруты (БЕЗ авторизации или с лёгкой) — ДО "/"
-	//    Важно: точные пути регистрируем ДО префиксов!
-
-	// Auth API (без middleware)
 	http.HandleFunc("/api/login", apiLogin)
 	http.HandleFunc("/api/logout", apiLogout)
 
-	// Public API
 	http.HandleFunc("/api/stats", apiGetStats)
 	http.HandleFunc("/api/chat", handleChat)
 
-	// Client API — с authMiddleware (не requireAdmin!)
 	http.HandleFunc("/api/client/orders", authMiddleware(apiGetClientOrders))
 	http.HandleFunc("/api/client/returns", authMiddleware(apiClientReturnsHandler))
-	http.HandleFunc("/api/client/", authMiddleware(apiGetClient)) // префикс — в конце!
+	http.HandleFunc("/api/client/", authMiddleware(apiGetClient))
 
-	// Order API
-	http.HandleFunc("/api/order/", apiGetOrder)  // префикс
-	http.HandleFunc("/api/orders", apiGetOrders) // ТОЧНЫЙ путь — после префиксов!
+	http.HandleFunc("/api/order/", apiGetOrder)
+	http.HandleFunc("/api/orders", apiGetOrders)
 
-	// Users API
 	http.HandleFunc("/api/users", apiGetUsers)
 	http.HandleFunc("/api/users/", apiGetUserDetail)
 	http.HandleFunc("/api/search/users", apiSearchUsers)
 
-	// History API — только для админа
 	http.HandleFunc("/api/history", requireAdmin(apiGetHistory))
 	http.HandleFunc("/api/history/", requireAdmin(apiGetHistoryItem))
 	http.HandleFunc("/api/clear-history", requireAdmin(apiClearHistory))
 
-	// Fraud prediction & decisions — только для админа
 	http.HandleFunc("/api/predict-fraud-v4", requireAdmin(apiPredictFraudV4))
 	http.HandleFunc("/api/decision", requireAdmin(apiHandleDecision))
 	http.HandleFunc("/check/decision", requireAdmin(apiHandleDecisionAlias))
 
-	// ✅ 3. Страницы (с авторизацией)
 	http.HandleFunc("/login", loginPage)
 	http.HandleFunc("/result", requireAdmin(resultPage))
 	http.HandleFunc("/check", requireAdmin(checkHandler))
 	http.HandleFunc("/history", requireAdmin(historyPage))
 	http.HandleFunc("/users", requireAdmin(usersPage))
 
-	// Профили
 	http.HandleFunc("/admin/profile", requireAdmin(adminProfileHandler))
 	http.HandleFunc("/admin/chat", requireAdmin(adminChatHandler))
 	http.HandleFunc("/client/profile", authMiddleware(clientProfileHandler))
@@ -3247,19 +3127,17 @@ func main() {
 	http.HandleFunc("/client/returns", authMiddleware(clientReturnsHandler))
 	http.HandleFunc("/client/chat", authMiddleware(clientChatHandler))
 
-	// ✅ 4. Catch-all "/" — ПОСЛЕДНИМ!
 	http.HandleFunc("/", rootHandler)
 
 	port := getEnv("PORT", ":8083")
-	fmt.Printf("🛡️ FraudReturn Shield запущен на http://localhost%s\n", port)
-	fmt.Printf("🐍 FastAPI сервис запущен на http://localhost:8000\n")
+	fmt.Printf("FraudReturn Shield запущен на http://localhost%s\n", port)
+	fmt.Printf("FastAPI сервис запущен на http://localhost:8000\n")
 
 	if err := http.ListenAndServe(port, nil); err != nil {
-		log.Fatal("❌ Ошибка запуска сервера:", err)
+		log.Fatal("Ошибка запуска сервера:", err)
 	}
 }
 
-// ✅ Отдельная функция для статики — чище и безопаснее
 func serveStatic(w http.ResponseWriter, r *http.Request) {
 	relativePath := strings.TrimPrefix(r.URL.Path, "/static/")
 	path := filepath.Join(filepath.Join("static"), relativePath)
@@ -3269,7 +3147,6 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Установка Content-Type
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
 	case ".css":
@@ -3291,9 +3168,7 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
-// ✅ Root handler — только редиректы, без логики
 func rootHandler(w http.ResponseWriter, r *http.Request) {
-	// Исключаем попадание API-запросов сюда
 	if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/static/") {
 		http.NotFound(w, r)
 		return
@@ -3330,7 +3205,6 @@ func startFastAPIService() {
 		return
 	}
 
-	// Определяем доступный интерпретатор Python
 	pythonPath := "python3"
 	if _, err := exec.LookPath("python"); err == nil {
 		pythonPath = "python"
@@ -3340,7 +3214,6 @@ func startFastAPIService() {
 
 	scriptPath := filepath.Join(wd, "api.py")
 
-	// Проверяем наличие скрипта
 	if _, err := os.Stat(scriptPath); os.IsNotExist(err) {
 		log.Printf("[WARN] FastAPI скрипт не найден: %s", scriptPath)
 		return
@@ -3359,7 +3232,6 @@ func startFastAPIService() {
 		return
 	}
 
-	// Ждём завершения процесса в горутине
 	go func() {
 		if err := cmd.Wait(); err != nil {
 			log.Printf("[ERROR] FastAPI сервис завершился с ошибкой: %v", err)

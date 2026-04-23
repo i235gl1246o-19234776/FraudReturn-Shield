@@ -1,4 +1,3 @@
-<!-- client_returns.html - Страница возвратов клиента -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -368,7 +367,6 @@
     </style>
 </head>
 <body>
-    <!-- Навигация -->
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -385,7 +383,6 @@
         </div>
     </nav>
 
-    <!-- Заголовок страницы -->
     <section class="page-header">
         <div class="container">
             <h1 class="page-title">
@@ -396,9 +393,7 @@
         </div>
     </section>
 
-    <!-- Основной контент -->
     <div class="container">
-        <!-- Форма оформления возврата -->
         <div class="return-form-section">
             <h2 style="margin-bottom: 20px;">Оформить новый возврат</h2>
             <div id="createFormAlert"></div>
@@ -426,7 +421,6 @@
             </form>
         </div>
 
-        <!-- Результат fraud оценки (скрыт по умолчанию) -->
         <div id="fraudResultSection" style="display: none; background: white; border-radius: var(--radius-xl); padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-md);">
             <h2 style="margin-bottom: 20px;">Оценка Fraud-модели</h2>
             <div id="fraudResultContent"></div>
@@ -494,7 +488,6 @@
             return;
         }
 
-        // 🔥 Логирование для отладки
         const payload = {
             order_id: orderId,
             claimed_reason: claimed_reason,
@@ -531,13 +524,11 @@
                     body: JSON.stringify({ return_id: data.return_id })
                 })
                 .then(async res => {
-                    // Проверяем Content-Type перед парсингом
                     const contentType = res.headers.get('content-type');
                     if (!contentType || !contentType.includes('application/json')) {
-                        // Если не JSON — пробуем прочитать как текст для отладки
                         const text = await res.text().catch(() => '');
                         console.warn('Ожидался JSON, получено:', text.substring(0, 200));
-                        return { success: true }; // Игнорируем ошибку fraud-модели
+                        return { success: true }; 
                     }
                     if (!res.ok) {
                         console.warn('Fraud API вернул ошибку:', res.status);
@@ -553,7 +544,6 @@
                     document.getElementById('returnForm').reset();
                 })
                 .catch(err => {
-                    // Ловим ошибку парсинга JSON
                     if (err instanceof SyntaxError) {
                         console.warn('Fraud API вернул не-JSON, продолжаем без оценки');
                         showAlert('Возврат успешно оформлен!', 'success');
@@ -561,7 +551,6 @@
                         return;
                     }
                     console.error('Ошибка fraud-модели:', err);
-                    // Не прерываем поток — возврат всё равно создан
                     showAlert('Возврат оформлен (оценка риска недоступна)', 'success');
                     document.getElementById('returnForm').reset();
 });
