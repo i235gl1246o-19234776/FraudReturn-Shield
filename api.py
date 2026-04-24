@@ -16,10 +16,11 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
-from onnx_pipeline_3_ import OnnxFraudService, OneHotFeatureEncoder
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
+from onnx_pipeline_3_ import OnnxFraudService
+from test.feature_encoder import OneHotFeatureEncoder
 _executor = ThreadPoolExecutor(max_workers=4)
 
 _fraud_service: Optional[OnnxFraudService] = None

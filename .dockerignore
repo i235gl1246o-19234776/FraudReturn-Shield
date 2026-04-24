@@ -1,10 +1,7 @@
 # Git
 .git
 .gitignore
-
-# Documentation
-*.md
-docs/
+.gitattributes
 
 # Python
 __pycache__/
@@ -15,7 +12,6 @@ __pycache__/
 venv/
 .venv/
 env/
-.env
 *.egg-info/
 dist/
 build/
@@ -24,32 +20,30 @@ build/
 *.exe
 *.dll
 *.so
-*.dylib
 bin/
 pkg/
 
-# IDE / Editor
+# Docker
+.dockerignore
+docker-compose*.yml
+dockerfile*
+Dockerfile*
+
+# IDE
 .idea/
 .vscode/
 *.swp
 *.swo
-*~
 
 # OS
 .DS_Store
 Thumbs.db
 
-# Logs and temp
+# Logs & temp
 *.log
 logs/
 tmp/
 temp/
 
-# Docker (avoid recursive builds)
-Dockerfile.*
-docker-compose*.yml
-!.dockerignore
-
-# Test data
-test_data/
-*.test.*
+# 🚫 ИСКЛЮЧАЕМ папки, которые не нужны в образе:
+old_files/
