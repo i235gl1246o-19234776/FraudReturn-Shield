@@ -349,7 +349,7 @@ if __name__ == '__main__':
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 qa_path = os.path.join(script_dir, 'qa.json')
                 if not os.path.exists(qa_path):
-                    qa_path = '../qa.json'
+                    qa_path = '../other/qa.json'
             
             if not message.strip():
                 print(json.dumps({'response': 'Пожалуйста, задайте вопрос.'}))

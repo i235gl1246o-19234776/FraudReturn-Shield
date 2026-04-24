@@ -1,5 +1,3 @@
-
-
 import sys
 import asyncio
 import json
@@ -21,8 +19,6 @@ from concurrent.futures import ThreadPoolExecutor
 from onnx_pipeline_3_ import OnnxFraudService, OneHotFeatureEncoder
 import psycopg2
 from psycopg2.extras import RealDictCursor
-
-
 
 _executor = ThreadPoolExecutor(max_workers=4)
 
@@ -683,7 +679,7 @@ def chat_query(message: str, qa_path: Optional[str] = None, model_path: Optional
         if qa_path is None:
             qa_path = os.path.join(script_dir, 'qa.json')
             if not os.path.exists(qa_path):
-                qa_path = 'qa.json'
+                qa_path = 'other/qa.json'
 
         if os.path.exists(qa_path):
             _load_qa_data(qa_path)
