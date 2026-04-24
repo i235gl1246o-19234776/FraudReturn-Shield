@@ -1,0 +1,138 @@
+version: '3.8'
+
+services:
+  # ============================================================================
+  # Main Application: FraudReturn Shield (Go + Python)
+  # ============================================================================
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      # Build arguments for customization
+      args:
+        - BUILD_DATE=${BUILD_DATE:-$(date -u +'%Y-%m-%dT%H:%M:%SZ')}
+        - VCS_REF=${VCS_REF:-$(git rev-parse --short HEAD)}
+    container_name: fraudreturn-shield
+    ports:
+      # Host:Container
+      - "8083:8083"  # Go web interface
+      - "8000:8000"  # Python FastAPI ML service
+    environment:
+      # Application config
+      - PORT=:8083
+      - PYTHONUNBUFFERED=1
+      # Database connection (uses Docker network DNS)
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USER=postgres
+      - DB_PASSWORD=postgres
+      - DB_NAME=fraudreturn
+      # ML model path
+      - MODEL_PATH=./models/fraud_model_v4_27patterns.onnx
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      # Optional: mount models for development (hot-reload)
+      # - ./models:/app/models:ro
+      # Optional: logs persistence
+      - app_logs:/app/logs
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8083/api/stats"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - fraudreturn-network
+    # Resource limits for production stability
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
+
+  # ============================================================================
+  # PostgreSQL Database
+  # ============================================================================
+  db:
+    image: postgres:15-alpine
+    container_name: fraudreturn-db
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+      - POSTGRES_DB=fraudreturn
+      # Performance tuning for containers
+      - POSTGRES_INITDB_ARGS=--auth-host=scram-sha-256
+    volumes:
+      # Persistent data storage
+      - postgres_data:/var/lib/postgresql/data
+      # Optional: init scripts for schema migration
+      # - ./init-db:/docker-entrypoint-initdb.d:ro
+    ports:
+      # Expose for local development only (remove in production)
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d fraudreturn"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+    networks:
+      - fraudreturn-network
+    # Resource limits
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+
+  # ============================================================================
+  # Optional: pgAdmin for database management (development only)
+  # ============================================================================
+  # pgadmin:
+  #   image: dpage/pgadmin4:latest
+  #   container_name: fraudreturn-pgadmin
+  #   ports:
+  #     - "5050:80"
+  #   environment:
+  #     - PGADMIN_DEFAULT_EMAIL=admin@fraudreturn.local
+  #     - PGADMIN_DEFAULT_PASSWORD=admin
+  #     - PGADMIN_CONFIG_SERVER_MODE=False
+  #   volumes:
+  #     - pgadmin_data:/var/lib/pgadmin
+  #   depends_on:
+  #     - db
+  #   restart: unless-stopped
+  #   networks:
+  #     - fraudreturn-network
+  #   profiles:
+  #     - dev  # Run with: docker-compose --profile dev up
+
+# ==============================================================================
+# Volumes for persistent data
+# ==============================================================================
+volumes:
+  postgres_data:
+    driver: local
+  app_logs:
+    driver: local
+  # pgadmin_data:
+  #   driver: local
+
+# ==============================================================================
+# Networks for service isolation
+# ==============================================================================
+networks:
+  fraudreturn-network:
+    driver: bridge
+    # Optional: internal network for production (no external access)
+    # internal: true
