@@ -1,11 +1,41 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import sys
+import os
+
+
+# =============================================================================
+# FIX: Register custom classes BEFORE any pickle loading happens
+# =============================================================================
+def _register_pickle_classes():
+    """Регистрируем кастомные классы для совместимости с pickle"""
+    try:
+        # Импортируем модуль с классами
+        import onnx_pipeline_3_
+
+        # Регистрируем в __main__ для pickle
+        for cls_name in ['OneHotFeatureEncoder', 'CustomScaler', 'FeaturePipeline']:
+            if hasattr(onnx_pipeline_3_, cls_name):
+                setattr(sys.modules['__main__'], cls_name,
+                        getattr(onnx_pipeline_3_, cls_name))
+                setattr(sys.modules['builtins'], cls_name,  # на всякий случай
+                        getattr(onnx_pipeline_3_, cls_name))
+    except ImportError as e:
+        print(f"[WARN] Could not register pickle classes: {e}", file=sys.stderr)
+
+
+# Вызываем ДО всех остальных импортов!
+_register_pickle_classes()
+# =============================================================================
+
+# Дальше — обычные импорты
 import asyncio
 import json
-import os
 import re
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
+import sys
 
 import pandas as pd
 import numpy as np
@@ -18,6 +48,15 @@ from pydantic import BaseModel, Field
 from concurrent.futures import ThreadPoolExecutor
 import psycopg2
 from psycopg2.extras import RealDictCursor
+
+# FIX: Register custom classes for pickle compatibility
+import sys
+import onnx_pipeline_3_  # ваш модуль с классом
+
+# Делаем класс доступным в __main__ для pickle
+if hasattr(onnx_pipeline_3_, 'OneHotFeatureEncoder'):
+    setattr(sys.modules['__main__'], 'OneHotFeatureEncoder',
+            onnx_pipeline_3_.OneHotFeatureEncoder)
 
 from onnx_pipeline_3_ import OnnxFraudService
 from test.feature_encoder import OneHotFeatureEncoder

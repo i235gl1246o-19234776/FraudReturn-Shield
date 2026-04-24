@@ -1,89 +1,100 @@
-# Multi-stage Dockerfile for FraudReturn Shield (Go + Python FastAPI)
+# syntax=docker/dockerfile:1.4
+# ==============================================================================
+# Multi-stage Dockerfile: Go (frontend) + Python FastAPI (ML backend)
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
-# Stage 1: Build Go binary (static compilation)
+# Stage 1: Build Go binary (static, musl-compatible)
 # ------------------------------------------------------------------------------
 FROM golang:1.25-alpine AS go-builder
-
 WORKDIR /app
-
-RUN apk add --no-cache git ca-certificates
-
 COPY go.mod go.sum ./
 RUN go mod download
-
-COPY main.go ./
-COPY models ./models/
-COPY static ./static/
-COPY templates ./templates/
-
-# Статическая сборка Go (не зависит от GLIBC)
+COPY . .
 RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo \
-    -ldflags="-w -s" -o main .
+    -ldflags="-w -s -extldflags '-static'" \
+    -o bin/main .
 
 # ------------------------------------------------------------------------------
-# Stage 2: Python FastAPI ML service
+# Stage 2: Python ML service (dependencies + app)
 # ------------------------------------------------------------------------------
-FROM python:3.11-slim AS python-service
-
+FROM python:3.11-slim AS python-builder
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends gcc g++ \
+# Системные зависимости для сборки
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc g++ libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# ✅ Копируем ВСЕ Python-файлы и папки (кроме old_files и venv)
+# Кэшируем Python-зависимости
+COPY requirements.txt .
+RUN pip install --no-cache-dir --upgrade pip && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Копируем приложение
 COPY api.py onnx_pipeline_3_.py seed_data.py ./
 COPY models/ ./models/
 COPY test/ ./test/
 COPY other/ ./other/
-COPY requirements.txt /app/requirements.txt
 
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir -r /app/requirements.txt
+# ✅ FIX: Use patchelf instead of execstack (Debian trixie compatible)
+RUN apt-get update && apt-get install -y --no-install-recommends patchelf && \
+    find /usr/local/lib/python3.11/site-packages/onnxruntime -name "*.so" \
+        -exec patchelf --clear-execstack {} \; 2>/dev/null || true && \
+    apt-get remove -y patchelf && apt-get autoremove -y && \
+    rm -rf /var/lib/apt/lists/*
 
-# FIX: execstack для onnxruntime
-RUN apt-get update && apt-get install -y --no-install-recommends execstack \
-    && find /usr/local/lib/python3.11/site-packages/onnxruntime -name "*.so" -exec execstack -c {} \; 2>/dev/null || true \
-    && apt-get remove -y execstack && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 # ------------------------------------------------------------------------------
-# Stage 3: Final runtime image
+# Stage 3: Final minimal runtime image
 # ------------------------------------------------------------------------------
 FROM python:3.11-slim
+# Metadata
+ARG BUILD_DATE
+ARG VCS_REF
+LABEL org.opencontainers.image.created="${BUILD_DATE}" \
+      org.opencontainers.image.source="https://github.com/yourorg/fraudreturn-shield" \
+      org.opencontainers.image.revision="${VCS_REF}"
 
 WORKDIR /app
 
+# Минимальные системные зависимости
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates curl postgresql-client libpq5 \
+    ca-certificates curl postgresql-client libpq5 dumb-init \
     && rm -rf /var/lib/apt/lists/* && apt-get clean
 
-# Go-бинарник и статику
-COPY --from=go-builder /app/main ./main
-COPY --from=go-builder /app/models ./models/
-COPY --from=go-builder /app/static ./static/
-COPY --from=go-builder /app/templates ./templates/
+# Создаём не-привилегированного пользователя
+RUN useradd -m -u 1000 -s /bin/bash appuser
 
-# Всю Python-инсталляцию
-COPY --from=python-service /usr/local /usr/local
+# Копируем Go-бинарник и статику
+COPY --from=go-builder --chown=appuser:appuser /app/bin/main ./bin/main
 
-# ✅ ВСЕ файлы и папки приложения (кроме old_files и venv)
-COPY api.py onnx_pipeline_3_.py seed_data.py ./
-COPY models/ ./models/
-COPY test/ ./test/
-COPY other/ ./other/
-COPY static/ ./static/
-COPY templates/ ./templates/
+# Копируем Python-окружение ТОЛЬКО необходимое
+COPY --from=python-builder --chown=appuser:appuser \
+    /usr/local/lib/python3.11/site-packages /usr/local/lib/python3.11/site-packages
+COPY --from=python-builder --chown=appuser:appuser \
+    /usr/local/bin /usr/local/bin
 
-# Права и пользователь
-RUN useradd -m -u 1000 -s /bin/bash appuser && \
-    chown -R appuser:appuser /app && \
-    chmod +x ./main ./seed_data.py && \
-    find /app/test -name "*.py" -exec chmod +x {} \; 2>/dev/null || true
+# Копируем приложение
+COPY --chown=appuser:appuser \
+    api.py onnx_pipeline_3_.py seed_data.py entrypoint.sh ./
+COPY --chown=appuser:appuser \
+    models/ ./models/
+COPY --chown=appuser:appuser \
+    test/ ./test/
+COPY --chown=appuser:appuser \
+    other/ ./other/
+COPY --chown=appuser:appuser \
+    static/ ./static/
+COPY --chown=appuser:appuser \
+    templates/ ./templates/
+
+# Права на исполнение
+RUN chmod +x ./bin/main ./entrypoint.sh ./seed_data.py && \
+    find ./test -name "*.py" -exec chmod +x {} \; 2>/dev/null || true
 
 USER appuser
 
-EXPOSE 8083 8000
-
+# Environment variables
 ENV PORT=:8083 \
     PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
@@ -93,24 +104,15 @@ ENV PORT=:8083 \
     DB_USER=postgres \
     DB_PASSWORD=postgres \
     DB_NAME=fraudreturn \
-    MODEL_PATH=./models/fraud_model_v4_27patterns.onnx
+    MODEL_PATH=./models/fraud_model_v4_27patterns.onnx \
+    PYTHONPATH=/app
 
-HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+# Healthcheck: проверяем основной сервис (Go), ML-сервис проверяется косвенно
+HEALTHCHECK --interval=30s --timeout=10s --start-period=45s --retries=3 \
     CMD curl -f http://localhost:8083/api/stats || exit 1
 
-# INLINE CMD
-CMD ["sh", "-c", "\
-    echo '🚀 Initializing FraudReturn Shield...' && \
-    echo '⏳ Waiting for PostgreSQL...' && \
-    until pg_isready -h ${DB_HOST} -p ${DB_PORT} -U ${DB_USER} -d ${DB_NAME} 2>/dev/null; do \
-        echo '   ...retrying in 2s' && sleep 2; \
-    done && \
-    echo '✅ PostgreSQL is ready.' && \
-    echo '📦 Running seed script...' && \
-    python3 /app/seed_data.py && \
-    echo '🐍 Starting Python ML service on port 8000...' && \
-    python3 -m uvicorn api:app --host 0.0.0.0 --port 8000 --workers 1 & \
-    sleep 3 && \
-    echo '🔷 Starting Go web server on port ${PORT:-8083}...' && \
-    exec ./main \
-"]
+# Entrypoint с dumb-init для корректной обработки сигналов
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Запуск через entrypoint-скрипт
+CMD ["/app/entrypoint.sh"]
