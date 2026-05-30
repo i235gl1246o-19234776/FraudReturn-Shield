@@ -1,5 +1,5 @@
-# seed_data.py — Генерация демо-данных для FraudReturn Shield
-# Запускается автоматически при старте Docker-контейнера
+#seed_data.py — Генерация демо-данных для FraudReturn Shield
+#запускается автоматически при старте Docker-контейнера
 
 import sys
 import io
@@ -12,14 +12,14 @@ import random
 import math
 from datetime import datetime, timedelta
 
-# 🔧 Кодировка для корректного вывода кириллицы в Docker
+#кодировка для корректного вывода кириллицы в Docker
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
 sys.stdout.reconfigure(errors='replace')
 
 fake = Faker('ru_RU')
 
-# 🔑 Подключение из переменных окружения (Docker) или дефолтные значения (локально)
+#подключение из переменных окружения (Docker) или дефолтные значения (локально)
 DB_PARAMS = {
     'host': os.getenv('DB_HOST', 'localhost'),
     'port': int(os.getenv('DB_PORT', '5432')),

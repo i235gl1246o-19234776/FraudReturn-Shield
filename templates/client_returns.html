@@ -1,3 +1,4 @@
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы возвратов клиента-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,7 +7,11 @@
     <title>FraudReturn Shield — Возвраты</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    //подключение виджета чата с отложенной загрузкой
     <script src="/static/js/chat-widget.js" defer></script>
+
+    //стили навигации клиента: позиционирование, тени, состояния ссылок
     <style>
         .client-nav {
             background: white;
@@ -50,6 +55,7 @@
             color: white;
         }
 
+        //оформление заголовка страницы с градиентным фоном
         .page-header {
             background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 40px 0;
@@ -59,6 +65,7 @@
             overflow: hidden;
         }
 
+        //анимация иконки при наведении на заголовок
         .page-title img {
             width: 100px;
             height: 100px;
@@ -77,6 +84,7 @@
             font-size: 1rem;
         }
 
+        //оформление карточек возвратов с цветовыми индикаторами статуса
         .return-card {
             background: white;
             border-radius: var(--radius-xl);
@@ -92,18 +100,11 @@
             box-shadow: var(--shadow-lg);
         }
 
-        .return-card.approved {
-            border-left-color: var(--success);
-        }
+        .return-card.approved { border-left-color: var(--success); }
+        .return-card.rejected { border-left-color: var(--danger); }
+        .return-card.processing { border-left-color: var(--wb-purple); }
 
-        .return-card.rejected {
-            border-left-color: var(--danger);
-        }
-
-        .return-card.processing {
-            border-left-color: var(--wb-purple);
-        }
-
+        //шапка карточки возврата с идентификатором и статусом
         .return-header {
             display: flex;
             justify-content: space-between;
@@ -119,6 +120,7 @@
             color: var(--gray-800);
         }
 
+        //стили бейджей статуса с разными цветами для каждого состояния
         .return-status {
             padding: 6px 14px;
             border-radius: 20px;
@@ -126,31 +128,13 @@
             font-weight: 600;
         }
 
-        .return-status.pending {
-            background: var(--warning-bg);
-            color: var(--warning);
-        }
+        .return-status.pending { background: var(--warning-bg); color: var(--warning); }
+        .return-status.approved { background: var(--success-bg); color: var(--success); }
+        .return-status.rejected { background: var(--danger-bg); color: var(--danger); }
+        .return-status.processing { background: #e0e7ff; color: var(--wb-purple); }
+        .return-status.refunded { background: #d4edda; color: #155724; }
 
-        .return-status.approved {
-            background: var(--success-bg);
-            color: var(--success);
-        }
-
-        .return-status.rejected {
-            background: var(--danger-bg);
-            color: var(--danger);
-        }
-
-        .return-status.processing {
-            background: #e0e7ff;
-            color: var(--wb-purple);
-        }
-
-        .return-status.refunded {
-            background: #d4edda;
-            color: #155724;
-        }
-
+        //сетка деталей возврата с адаптивной разметкой
         .return-details {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -175,6 +159,7 @@
             color: var(--gray-800);
         }
 
+        //блок причины возврата с оформлением
         .return-reason {
             background: var(--gray-50);
             padding: 15px;
@@ -193,6 +178,7 @@
             color: var(--gray-800);
         }
 
+        //таймлайн статусов возврата с анимацией текущего шага
         .status-timeline {
             margin-top: 20px;
             padding-left: 20px;
@@ -216,10 +202,7 @@
             background: var(--gray-300);
         }
 
-        .status-step.completed::before {
-            background: var(--success);
-        }
-
+        .status-step.completed::before { background: var(--success); }
         .status-step.current::before {
             background: var(--warning);
             animation: pulse 2s infinite;
@@ -241,6 +224,7 @@
             color: var(--gray-500);
         }
 
+        //секция формы оформления возврата
         .return-form-section {
             background: white;
             border-radius: var(--radius-xl);
@@ -249,13 +233,10 @@
             box-shadow: var(--shadow-md);
         }
 
-        .return-form {
-            max-width: 600px;
-        }
+        .return-form { max-width: 600px; }
 
-        .form-group {
-            margin-bottom: 20px;
-        }
+        //оформление полей формы: отступы, границы, фокус-эффекты
+        .form-group { margin-bottom: 20px; }
 
         .form-group label {
             display: block;
@@ -288,6 +269,7 @@
             min-height: 100px;
         }
 
+        //стили кнопок с градиентами и анимацией при наведении
         .btn {
             padding: 12px 24px;
             border-radius: var(--radius);
@@ -302,10 +284,9 @@
             color: white;
         }
 
-        .btn-primary:hover {
-            background: var(--wb-dark);
-        }
+        .btn-primary:hover { background: var(--wb-dark); }
 
+        //кнопка выхода с инверсией цветов при наведении
         .logout-btn {
             padding: 10px 20px;
             background: white;
@@ -322,6 +303,7 @@
             color: white;
         }
 
+        //заглушка при отсутствии данных
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -337,15 +319,10 @@
             margin-bottom: 20px;
         }
 
-        .empty-state h3 {
-            color: var(--gray-700);
-            margin-bottom: 10px;
-        }
+        .empty-state h3 { color: var(--gray-700); margin-bottom: 10px; }
+        .empty-state p { color: var(--gray-500); }
 
-        .empty-state p {
-            color: var(--gray-500);
-        }
-
+        //стили уведомлений: успешные и ошибочные
         .alert {
             padding: 15px 20px;
             border-radius: var(--radius);
@@ -363,10 +340,11 @@
             color: var(--danger);
             border: 1px solid var(--danger);
         }
-
     </style>
 </head>
+
 <body>
+    //навигационная панель клиента с логотипом, ссылками и кнопкой выхода
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -383,6 +361,7 @@
         </div>
     </nav>
 
+    //заголовок страницы: название и описание функционала
     <section class="page-header">
         <div class="container">
             <h1 class="page-title">
@@ -393,7 +372,9 @@
         </div>
     </section>
 
+    //основной контент: форма оформления возврата и блок результатов fraud-модели
     <div class="container">
+        //секция формы: поля ID заказа, причина, комментарий и кнопка отправки
         <div class="return-form-section">
             <h2 style="margin-bottom: 20px;">Оформить новый возврат</h2>
             <div id="createFormAlert"></div>
@@ -421,18 +402,21 @@
             </form>
         </div>
 
+        //скрытый блок для отображения оценки fraud-модели после успешной отправки
         <div id="fraudResultSection" style="display: none; background: white; border-radius: var(--radius-xl); padding: 30px; margin-bottom: 30px; box-shadow: var(--shadow-md);">
             <h2 style="margin-bottom: 20px;">Оценка Fraud-модели</h2>
             <div id="fraudResultContent"></div>
         </div>
-
     </div>
 
+    //javascript-логика: обработка формы, запросы к API, отображение результатов
     <script>
+    //базовый URL API для всех запросов
     const API_BASE = 'http://localhost:8083';
     
     let currentUser = null;
 
+    //инициализация при загрузке DOM: проверка авторизации, автозаполнение ID заказа из URL
     document.addEventListener('DOMContentLoaded', function() {
         const storedUser = sessionStorage.getItem('user');
         if (storedUser) {
@@ -447,6 +431,7 @@
         }
     });
 
+    //функция преобразования кода статуса в читаемый текст
     function getStatusText(status) {
         const statusMap = {
             'pending': 'На рассмотрении',
@@ -458,6 +443,7 @@
         return statusMap[status] || status;
     }
 
+    //функция преобразования кода причины в читаемый текст
     function getReasonText(code) {
         const reasonMap = {
             'defect': 'Брак товара',
@@ -469,6 +455,7 @@
         return reasonMap[code] || code;
     }
 
+    //обработчик отправки формы: валидация, отправка возврата, запрос fraud-оценки
     document.getElementById('returnForm').addEventListener('submit', function(e) {
         e.preventDefault();
 
@@ -477,6 +464,7 @@
         const comment = document.getElementById('returnComment').value.trim();
         const submitBtn = document.getElementById('submitBtn');
 
+        //валидация обязательных полей
         if (!orderIdRaw || !claimed_reason) {
             showAlert('Пожалуйста, заполните обязательные поля', 'error');
             return;
@@ -488,6 +476,7 @@
             return;
         }
 
+        //формирование payload для отправки
         const payload = {
             order_id: orderId,
             claimed_reason: claimed_reason,
@@ -496,9 +485,11 @@
         console.log('📤 Отправка на бэкенд:', API_BASE + '/api/client/returns');
         console.log('📦 Payload:', payload);
 
+        //блокировка кнопки на время запроса
         submitBtn.disabled = true;
         submitBtn.textContent = 'Отправка...';
 
+        //отправка запроса на создание возврата
         fetch(`${API_BASE}/api/client/returns`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -517,6 +508,7 @@
         .then(data => {
             console.log('Данные от сервера:', data);
             if (data.success && data.return_id) {
+                //если возврат создан успешно — запрашиваем fraud-оценку
                 return fetch(`${API_BASE}/api/predict-fraud-v4`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
@@ -553,7 +545,7 @@
                     console.error('Ошибка fraud-модели:', err);
                     showAlert('Возврат оформлен (оценка риска недоступна)', 'success');
                     document.getElementById('returnForm').reset();
-});
+                });
             } else if (data.success) {
                 showAlert('Возврат успешно оформлен!', 'success');
                 document.getElementById('returnForm').reset();
@@ -571,6 +563,7 @@
         });
     });
 
+    //функция отображения результатов fraud-оценки с цветовой индикацией риска
     function displayFraudResult(fraudData) {
         const section = document.getElementById('fraudResultSection');
         const content = document.getElementById('fraudResultContent');
@@ -584,6 +577,7 @@
         const fraudPercent = Math.round((fraudData.probability_fraud || 0) * 100);
         let riskColor, riskBg, riskLevel, recommendation, riskIcon;
 
+        //определение цветов и текста в зависимости от процента риска
         if (fraudPercent < 30) {
             riskColor = 'var(--success)'; riskBg = 'var(--success-bg)'; riskLevel = 'Низкий';
             riskIcon = '/static/svg/галочка.svg';
@@ -598,6 +592,7 @@
             recommendation = `<img src="${riskIcon}" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 4px;"> Вам отклонят возврат`;
         }
 
+        //рендеринг карточек с метриками и рекомендацией
         content.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 20px;">
                 <div style="background: ${riskBg}; padding: 20px; border-radius: var(--radius); text-align: center;">
@@ -622,6 +617,7 @@
         section.style.display = 'block';
     }
 
+    //утилита отображения всплывающих уведомлений с авто-скрытием
     function showAlert(message, type) {
         const alertDiv = document.getElementById('createFormAlert');
         alertDiv.className = `alert alert-${type}`;
@@ -634,12 +630,14 @@
         }, 5000);
     }
 
+    //функция выхода: очистка сессии и редирект на страницу входа
     function logout() {
         sessionStorage.removeItem('user');
         fetch(`${API_BASE}/api/logout`, { method: 'POST', credentials: 'include' })
             .finally(() => { window.location.href = '/login'; });
     }
 
+    //инициализация виджета чата если он доступен
     document.addEventListener('DOMContentLoaded', () => {
         if (typeof ChatWidget !== 'undefined') {
             window.chatWidget = new ChatWidget();

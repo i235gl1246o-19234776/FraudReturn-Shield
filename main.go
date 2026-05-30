@@ -1,5 +1,4 @@
-package main
-
+//импорт стандартных библиотек для работы с буферами, контекстом, базой данных, кодированием, json, шаблонами, io, логированием, математикой, сетью, файловой системой, отладкой, сортировкой, строками и временем
 import (
 	"bytes"
 	"context"
@@ -21,10 +20,13 @@ import (
 	"strings"
 	"time"
 
+	//драйвер postgresql для работы с базой данных
 	_ "github.com/lib/pq"
+	//библиотека для хеширования паролей
 	"golang.org/x/crypto/bcrypt"
 )
 
+//структура для данных формы проверки возврата с полями о заказе, клиенте, товаре и параметрах риска
 type FormData struct {
 	OrderNumber       string  `json:"orderNumber"`
 	OrderAmount       float64 `json:"orderAmount"`
@@ -87,6 +89,7 @@ type FormData struct {
 	LegalClaimThreat       bool `json:"legalClaimThreat"`
 }
 
+//структура для объяснения вклада признаков в оценку риска
 type FeatureExplanation struct {
 	Feature      string  `json:"feature"`
 	Contribution float64 `json:"contribution"`
@@ -94,6 +97,7 @@ type FeatureExplanation struct {
 	Label        string  `json:"label,omitempty"`
 }
 
+//структура результата оценки риска, включающая исходные данные формы и рассчитанные метрики
 type ResultData struct {
 	FormData
 	RiskScore        float64              `json:"riskScore"`
@@ -108,8 +112,10 @@ type ResultData struct {
 	ClientID         int                  `json:"clientID"`
 }
 
+//тип для записей базы данных как мапа строк в интерфейсы
 type DBRecord map[string]interface{}
 
+//структура карточки пользователя для отображения в интерфейсе
 type UserCard struct {
 	ClientID         int     `json:"client_id"`
 	AccountAgeDays   int     `json:"account_age_days"`
@@ -122,6 +128,7 @@ type UserCard struct {
 	Status           string  `json:"status"`
 }
 
+//структура пользователя для авторизации с хешированным паролем
 type User struct {
 	ID       int    `json:"id"`
 	Login    string `json:"login"`
@@ -129,17 +136,20 @@ type User struct {
 	Role     string `json:"role"`
 }
 
+//структура запроса на создание возврата от клиента
 type CreateReturnRequest struct {
 	OrderID       int    `json:"order_id"`
 	ClaimedReason string `json:"claimed_reason"`
 	Comment       string `json:"comment"`
 }
 
+//глобальные переменные: флаг загрузки python-модели и подключение к базе данных
 var (
 	pythonModelLoaded bool = false
 	db                *sql.DB
 )
 
+//маппинг технических имен признаков на читаемые русские названия для отображения в интерфейсе
 var featureLabelMap = map[string]string{
 	"shipping_region_risk":            "Риск региона доставки",
 	"payment_method_risk":             "Риск метода оплаты",
@@ -180,6 +190,7 @@ var featureLabelMap = map[string]string{
 	"card_issuing_country":            "Страна эмитента карты",
 }
 
+//функция получения русскоязычной метки признака: поиск в маппинге или форматирование имени
 func getFeatureLabel(featureName string) string {
 	if label, ok := featureLabelMap[featureName]; ok {
 		return label
@@ -191,6 +202,7 @@ func getFeatureLabel(featureName string) string {
 	return strings.Join(words, " ")
 }
 
+//функция установки cors-заголовков для разрешения кросс-доменных запросов с проверкой разрешенных источников
 func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	origin := r.Header.Get("Origin")
 	allowedOrigins := []string{
@@ -212,10 +224,12 @@ func setCORSHeaders(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
 }
 
+//функция установки заголовка content-type для json-ответов
 func applyJSONHeaders(w http.ResponseWriter) {
 	w.Header().Set("Content-Type", "application/json")
 }
 
+//функция извлечения client_id из запроса: сначала из query-параметров, затем из куки пользователя
 func getClientIDFromRequest(r *http.Request) (int, error) {
 	clientIDStr := r.URL.Query().Get("client_id")
 
@@ -250,6 +264,7 @@ func getClientIDFromRequest(r *http.Request) (int, error) {
 	return clientID, nil
 }
 
+//middleware для проверки авторизации: извлечение пользователя из куки и добавление в контекст запроса
 func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		cookie, err := r.Cookie("user")
@@ -275,6 +290,7 @@ func authMiddleware(next http.HandlerFunc) http.HandlerFunc {
 	}
 }
 
+//middleware для проверки роли администратора: вложенная проверка после базовой авторизации
 func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	return authMiddleware(func(w http.ResponseWriter, r *http.Request) {
 		user, ok := r.Context().Value("user").(map[string]interface{})
@@ -293,6 +309,7 @@ func requireAdmin(next http.HandlerFunc) http.HandlerFunc {
 	})
 }
 
+//функция инициализации подключения к postgresql: чтение настроек из env и проверка соединения
 func initDatabase() error {
 	dbHost := getEnv("DB_HOST", "localhost")
 	dbPort := getEnv("DB_PORT", "5432")
@@ -317,6 +334,7 @@ func initDatabase() error {
 	return nil
 }
 
+//вспомогательная функция получения значения переменной окружения или дефолта
 func getEnv(key, defaultValue string) string {
 	if value := os.Getenv(key); value != "" {
 		return value
@@ -324,6 +342,7 @@ func getEnv(key, defaultValue string) string {
 	return defaultValue
 }
 
+//функция получения клиента по id из таблицы clients с обработкой null-значений
 func GetClientByID(clientID int) (*DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -368,6 +387,7 @@ func GetClientByID(clientID int) (*DBRecord, error) {
 	return &record, nil
 }
 
+//функция получения заказа по id с левым джойном таблицы returns для получения данных о возврате
 func GetOrderByID(orderID int) (*DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -433,6 +453,7 @@ WHERE o.order_id = $1`
 	return &record, nil
 }
 
+//функция получения списка последних возвратов с лимитом и джойнами с clients и orders
 func GetAllReturns(limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -500,6 +521,7 @@ func GetAllReturns(limit int) ([]DBRecord, error) {
 	return results, nil
 }
 
+//функция получения общей статистики системы: подсчет клиентов, заказов, возвратов и высокорисковых записей
 func GetStats() (map[string]interface{}, error) {
 	if db == nil {
 		return map[string]interface{}{
@@ -531,6 +553,7 @@ func GetStats() (map[string]interface{}, error) {
 	return stats, nil
 }
 
+//функция сохранения данных возврата в таблицу returns
 func SaveReturnToDB(form FormData) error {
 	if db == nil {
 		return fmt.Errorf("база данных не подключена")
@@ -559,6 +582,7 @@ func SaveReturnToDB(form FormData) error {
 	return err
 }
 
+//функция сохранения результата проверки в таблицу check_history с сериализацией топ-факторов в массив
 func SaveCheckHistory(result ResultData) error {
 	if db == nil {
 		return fmt.Errorf("база данных не подключена")
@@ -602,6 +626,7 @@ func SaveCheckHistory(result ResultData) error {
 	return err
 }
 
+//функция получения истории проверок с лимитом и сортировкой по дате
 func GetAllCheckHistory(limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -658,6 +683,7 @@ func GetAllCheckHistory(limit int) ([]DBRecord, error) {
 	return results, nil
 }
 
+//функция полной очистки таблицы check_history с перезапуском автоинкремента
 func ClearCheckHistory() error {
 	if db == nil {
 		return fmt.Errorf("база данных не подключена")
@@ -667,6 +693,7 @@ func ClearCheckHistory() error {
 	return err
 }
 
+//функция закрытия подключения к базе данных
 func CloseDB() {
 	if db != nil {
 		db.Close()
@@ -674,6 +701,7 @@ func CloseDB() {
 	}
 }
 
+//api-обработчик для получения заказов клиента с защитой от паник и логированием ошибок
 func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 	defer func() {
 		if rec := recover(); rec != nil {
@@ -744,6 +772,7 @@ func apiGetOrders(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//функция получения заказов клиента с опциональным поиском по order_id
 func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("database not connected")
@@ -857,6 +886,7 @@ func GetOrdersByClientID(clientID, query string) ([]DBRecord, error) {
 	return results, nil
 }
 
+//функция получения последних заказов с лимитом для отображения в интерфейсе
 func GetRecentOrders(limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -912,6 +942,7 @@ func GetRecentOrders(limit int) ([]DBRecord, error) {
 	return results, nil
 }
 
+//функция получения списка пользователей с пагинацией и расчетом уровня риска на основе процента возвратов
 func GetUsersList(page, limit int) ([]UserCard, int, error) {
 	if db == nil {
 		return nil, 0, fmt.Errorf("база данных не подключена")
@@ -973,6 +1004,7 @@ func GetUsersList(page, limit int) ([]UserCard, int, error) {
 	return users, total, nil
 }
 
+//функция получения статистики пользователей по уровням риска через условные агрегации
 func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error) {
 	if db == nil {
 		return 0, 0, 0, fmt.Errorf("база данных не подключена")
@@ -994,6 +1026,7 @@ func GetUserRiskStats() (activeCount, warningCount, highRiskCount int, err error
 	return activeCount, warningCount, highRiskCount, nil
 }
 
+//функция получения заказов конкретного пользователя с расчетом даты доставки
 func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -1064,6 +1097,7 @@ func GetUserOrders(clientID, limit int) ([]DBRecord, error) {
 	return orders, nil
 }
 
+//функция получения возвратов конкретного пользователя
 func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 	if db == nil {
 		return nil, fmt.Errorf("база данных не подключена")
@@ -1121,6 +1155,7 @@ func GetUserReturns(clientID, limit int) ([]DBRecord, error) {
 	return returns, nil
 }
 
+//api-обработчик для получения данных клиента по id
 func apiGetClient(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1149,6 +1184,7 @@ func apiGetClient(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(client)
 }
 
+//api-обработчик для получения данных заказа по id
 func apiGetOrder(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1177,6 +1213,7 @@ func apiGetOrder(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(order)
 }
 
+//api-обработчик для получения общей статистики системы
 func apiGetStats(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1197,6 +1234,7 @@ func apiGetStats(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(stats)
 }
 
+//api-обработчик для получения списка пользователей с пагинацией
 func apiGetUsers(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1241,6 +1279,7 @@ func apiGetUsers(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//api-обработчик для получения детальной информации о пользователе с последними заказами и возвратами
 func apiGetUserDetail(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1276,6 +1315,7 @@ func apiGetUserDetail(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//api-обработчик для поиска пользователей по id или query-параметру
 func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1337,6 +1377,7 @@ func apiSearchUsers(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"error": "User not found"})
 }
 
+//api-обработчик для получения истории проверок с лимитом
 func apiGetHistory(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1362,6 +1403,7 @@ func apiGetHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"checks": checks})
 }
 
+//api-обработчик для очистки истории проверок
 func apiClearHistory(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1381,6 +1423,7 @@ func apiClearHistory(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"status": "ok"})
 }
 
+//api-обработчик для работы с возвратами клиента: маршрутизация по методу запроса
 func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -1401,6 +1444,7 @@ func apiClientReturnsHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//api-обработчик для получения списка возвратов авторизованного клиента
 func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -1435,6 +1479,7 @@ func apiGetClientReturns(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true, "returns": returns})
 }
 
+//api-обработчик для создания нового возврата от клиента с валидацией и сохранением в БД
 func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 	if r.Method == http.MethodOptions {
 		w.WriteHeader(http.StatusOK)
@@ -1528,6 +1573,7 @@ func apiCreateClientReturn(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//обработчик страницы входа: рендер шаблона login.html
 func loginPage(w http.ResponseWriter, r *http.Request) {
 	tmpl, err := template.ParseFiles("templates/login.html")
 	if err != nil {
@@ -1537,6 +1583,7 @@ func loginPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
+//обработчики страниц клиентского интерфейса: рендер соответствующих шаблонов
 func clientProfileHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	tmpl, err := template.ParseFiles("templates/client_profile.html")
@@ -1587,6 +1634,7 @@ func adminChatHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, nil)
 }
 
+//обработчик страницы профиля администратора с передачей статистики в шаблон
 func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	stats, err := GetStats()
@@ -1604,6 +1652,7 @@ func adminProfileHandler(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
+//обработчик главной страницы с передачей статистики в шаблон
 func homePage(w http.ResponseWriter, r *http.Request) {
 	stats, err := GetStats()
 	if err != nil {
@@ -1619,6 +1668,7 @@ func homePage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
+//обработчик страницы проверки: рендер формы для get-запросов и обработка post-запросов с расчетом риска
 func checkHandler(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	if r.Method == http.MethodGet {
@@ -1685,6 +1735,7 @@ func checkHandler(w http.ResponseWriter, r *http.Request) {
 	http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 }
 
+//обработчик страницы истории с загрузкой данных из БД и передачей в шаблон
 func historyPage(w http.ResponseWriter, r *http.Request) {
 	checks, err := GetAllCheckHistory(50)
 	if err != nil {
@@ -1700,6 +1751,7 @@ func historyPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
+//обработчик страницы пользователей с пагинацией, статистикой и кастомными функциями для шаблона
 func usersPage(w http.ResponseWriter, r *http.Request) {
 	pageStr := r.URL.Query().Get("page")
 	page := 1
@@ -1733,6 +1785,7 @@ func usersPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
+//главная функция расчета риска: вызов ml-модели, фоллбэк на правила, обогащение из БД и формирование результата
 func calculateRisk(f FormData) ResultData {
 	log.Printf("[DEBUG] FormData: %+v", f)
 
@@ -1778,6 +1831,7 @@ func calculateRisk(f FormData) ResultData {
 	}
 }
 
+//функция нормализации вкладов признаков для визуализации: фильтрация, сортировка и присвоение визуальных весов
 func normalizeContributions(features []FeatureExplanation) []FeatureExplanation {
 	if len(features) == 0 {
 		return features
@@ -1821,6 +1875,7 @@ func normalizeContributions(features []FeatureExplanation) []FeatureExplanation 
 	return result
 }
 
+//функция формирования списка факторов риска: объединение ml-признаков и rule-based правил с лимитом на 7 элементов
 func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
 	factors := []string{}
 	seen := make(map[string]bool)
@@ -1879,6 +1934,7 @@ func getRiskFactors(f FormData, mlFeatures []FeatureExplanation) []string {
 	return factors
 }
 
+//функция получения факторов риска на основе эвристических правил с весами и сортировкой по значимости
 func getRuleBasedFactors(f FormData) []string {
 	factors := []string{}
 
@@ -1955,6 +2011,7 @@ func getRuleBasedFactors(f FormData) []string {
 	return factors
 }
 
+//функция обогащения оценки риска данными из БД клиента: корректировка скоринга на основе истории
 func enrichRiskFromDB(clientID int, baseScore float64) (float64, []string) {
 	extraFactors := []string{}
 	score := baseScore
@@ -1993,6 +2050,7 @@ func enrichRiskFromDB(clientID int, baseScore float64) (float64, []string) {
 	return score, extraFactors
 }
 
+//функция определения уровня риска и рекомендации на основе пороговых значений скоринга
 func getRiskLevel(score float32) (string, string, string) {
 	if score <= 0.30 {
 		return "Низкий", "low", "✅ Автоматическое одобрение возврата"
@@ -2002,6 +2060,7 @@ func getRiskLevel(score float32) (string, string, string) {
 	return "Высокий", "high", "❌ Требуется ручная верификация"
 }
 
+//функция подготовки признаков для ml-модели: нормализация, кодирование категорий и бинарных флагов
 func prepareFeatures(f FormData) []float32 {
 	features := make([]float32, 48)
 	features[0] = float32(f.AccountAgeDays) / 730.0
@@ -2070,6 +2129,7 @@ func prepareFeatures(f FormData) []float32 {
 	return features
 }
 
+//вспомогательная функция конвертации bool в float32 для подготовки признаков
 func b2f(b bool) float32 {
 	if b {
 		return 1.0
@@ -2077,6 +2137,7 @@ func b2f(b bool) float32 {
 	return 0.0
 }
 
+//функция расчета риска на основе эвристических правил: фоллбэк при недоступности ml-модели
 func calculateRiskFallback(f FormData) float32 {
 	score := 0.0
 	if !f.HasTag {
@@ -2136,8 +2197,10 @@ func calculateRiskFallback(f FormData) float32 {
 	return float32(score)
 }
 
+//url fastapi-сервиса для взаимодействия с python-моделями
 var fastAPIURL = "http://localhost:8000"
 
+//функция вызова fastapi-эндпоинтов: маршалинг запроса, отправка, обработка ответа
 func callFastAPI(endpoint string, payload interface{}, result interface{}) error {
 	url := fastAPIURL + endpoint
 	jsonData, err := json.Marshal(payload)
@@ -2168,6 +2231,7 @@ func callFastAPI(endpoint string, payload interface{}, result interface{}) error
 	return nil
 }
 
+//pydantic-модели для взаимодействия с fastapi: запросы и ответы для загрузки моделей, предсказаний и чата
 type FastAPILoadModelRequest struct {
 	ModelPath string `json:"model_path"`
 	ModelType string `json:"model_type"`
@@ -2243,6 +2307,7 @@ type FastAPIChatResponse struct {
 	Error    string `json:"error,omitempty"`
 }
 
+//функция загрузки fraud-модели через fastapi с обработкой ошибок
 func loadModel(modelPath string) error {
 	req := FastAPILoadModelRequest{ModelPath: modelPath, ModelType: "fraud"}
 	var resp FastAPILoadModelResponse
@@ -2259,6 +2324,7 @@ func loadModel(modelPath string) error {
 	return nil
 }
 
+//функция предсказания риска с получением топ-признаков через fastapi-эндпоинт
 func predictRiskWithFeatures(f FormData) (float32, []FeatureExplanation, error) {
 	payload := FastAPIFraudPayloadRequest{
 		ClientID: f.ClientID, OrderID: f.OrderID, ReturnID: 0,
@@ -2302,11 +2368,13 @@ func predictRiskWithFeatures(f FormData) (float32, []FeatureExplanation, error) 
 	return float32(score), resp.TopFeatures, nil
 }
 
+//обертка для predictRiskWithFeatures без возврата признаков
 func predictRisk(f FormData) (float32, error) {
 	score, _, err := predictRiskWithFeatures(f)
 	return score, err
 }
 
+//вспомогательные функции парсинга строковых значений в числовые и булевы типы
 func parseInt(value string) int {
 	if value == "" {
 		return 0
@@ -2333,6 +2401,7 @@ func parseBool(value string) bool {
 	return value == "1" || value == "true" || value == "on" || value == "yes"
 }
 
+//обработчик чата: прием сообщения, вызов python-модели и возврат ответа
 func handleChat(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2375,6 +2444,7 @@ func handleChat(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"response": response})
 }
 
+//функция вызова чат-модели через fastapi с обработкой ошибок и фоллбэк-ответом
 func callPythonModelForChat(message string) (string, error) {
 	req := FastAPIChatRequest{Message: message}
 	var resp FastAPIChatResponse
@@ -2390,6 +2460,7 @@ func callPythonModelForChat(message string) (string, error) {
 	return resp.Response, nil
 }
 
+//api-обработчик для авторизации: проверка логина/пароля, создание сессии в куки
 func apiLogin(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2439,7 +2510,6 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-
 	bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password))
 	if passwordHash != req.Password {
 		w.WriteHeader(http.StatusUnauthorized)
@@ -2459,6 +2529,7 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"user": userData})
 }
 
+//api-обработчик для выхода: удаление куки сессии
 func apiLogout(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2482,6 +2553,7 @@ func apiLogout(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"success": true})
 }
 
+//api-обработчик для получения заказов клиента с автоопределением client_id из куки или параметров
 func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2519,6 +2591,7 @@ func apiGetClientOrders(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]interface{}{"orders": orders})
 }
 
+//функция обогащения формы данными из БД: загрузка профиля клиента, заказа и расчет производных признаков
 func EnrichFromDB(f *FormData) error {
 	if db == nil || f.ClientID <= 0 || f.OrderID <= 0 {
 		return fmt.Errorf("БД не подключена или не указаны ClientID/OrderID")
@@ -2643,6 +2716,7 @@ func EnrichFromDB(f *FormData) error {
 	return nil
 }
 
+//api-обработчик для предсказания фрода v4 по return_id с запросом данных из БД и проксированием в fastapi
 func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2787,10 +2861,12 @@ func apiPredictFraudV4(w http.ResponseWriter, r *http.Request) {
 	w.Write(body)
 }
 
+//алиас обработчика для сохранения решения о проверке
 func apiHandleDecisionAlias(w http.ResponseWriter, r *http.Request) {
 	apiHandleDecision(w, r)
 }
 
+//api-обработчик для получения детали проверки по check_id
 func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2897,6 +2973,7 @@ func apiGetHistoryItem(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(record)
 }
 
+//api-обработчик для сохранения решения оператора о проверке: update или insert в check_history
 func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 	applyJSONHeaders(w)
@@ -2961,6 +3038,7 @@ func apiHandleDecision(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+//обработчик страницы результата: сбор параметров из query string и рендер шаблона result.html
 func resultPage(w http.ResponseWriter, r *http.Request) {
 	setCORSHeaders(w, r)
 
@@ -3057,6 +3135,7 @@ func resultPage(w http.ResponseWriter, r *http.Request) {
 	tmpl.Execute(w, data)
 }
 
+//точка входа приложения: инициализация, загрузка моделей, подключение к БД, регистрация маршрутов и запуск сервера
 func main() {
 	pythonModelLoaded = false
 	go startFastAPIService()
@@ -3139,6 +3218,7 @@ func main() {
 	}
 }
 
+//обработчик раздачи статических файлов с определением content-type по расширению
 func serveStatic(w http.ResponseWriter, r *http.Request) {
 	relativePath := strings.TrimPrefix(r.URL.Path, "/static/")
 	path := filepath.Join(filepath.Join("static"), relativePath)
@@ -3169,6 +3249,7 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, path)
 }
 
+//корневой обработчик: редирект на профиль в зависимости от роли пользователя из куки
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/static/") {
 		http.NotFound(w, r)
@@ -3199,6 +3280,7 @@ func rootHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+//функция запуска fastapi-сервиса как дочернего процесса python с мониторингом завершения
 func startFastAPIService() {
 	wd, err := os.Getwd()
 	if err != nil {

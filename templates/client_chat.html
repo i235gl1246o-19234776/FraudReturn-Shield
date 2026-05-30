@@ -1,4 +1,4 @@
-
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы чата клиента с AI-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -9,7 +9,9 @@
     <link rel="stylesheet" href="/static/css/chat-widget.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
+    //стилизация страницы чата: навигация, сообщения, индикаторы и анимации
     <style>
+        //навигация клиента: липкое позиционирование, тени, состояния ссылок
         .client-nav {
             background: white;
             padding: 12px 0;
@@ -52,6 +54,7 @@
             color: white;
         }
 
+        //заголовок страницы с градиентным фоном и анимацией иконки
         .page-header {
             background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 40px 0;
@@ -74,12 +77,12 @@
             filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.9));
         }
 
-
         .page-subtitle {
             opacity: 0.9;
             font-size: 1rem;
         }
 
+        //контейнер чата: фиксированная высота, прокрутка сообщений
         .chat-container {
             max-width: 800px;
             margin: 30px auto;
@@ -100,6 +103,7 @@
             background: var(--gray-50);
         }
 
+        //стили сообщений: анимация появления, выравнивание пользователя и AI
         .message {
             display: flex;
             margin-bottom: 20px;
@@ -111,14 +115,10 @@
             to { opacity: 1; transform: translateY(0); }
         }
 
-        .message.user {
-            justify-content: flex-end;
-        }
+        .message.user { justify-content: flex-end; }
+        .message.ai { justify-content: flex-start; }
 
-        .message.ai {
-            justify-content: flex-start;
-        }
-
+        //аватары сообщений с цветовыми индикаторами
         .message-avatar {
             width: 40px;
             height: 40px;
@@ -143,6 +143,7 @@
             margin-right: 10px;
         }
 
+        //контент сообщений с разными стилями для пользователя и AI
         .message-content {
             max-width: 70%;
             padding: 15px 20px;
@@ -174,6 +175,7 @@
             color: rgba(255,255,255,0.8);
         }
 
+        //область ввода сообщения: форма, поля, кнопка отправки
         .chat-input-area {
             padding: 20px;
             background: white;
@@ -213,20 +215,11 @@
             gap: 8px;
         }
 
-        .chat-input-form button:hover {
-            background: var(--wb-dark);
-        }
+        .chat-input-form button:hover { background: var(--wb-dark); }
+        .chat-input-form button:disabled { background: var(--gray-300); cursor: not-allowed; }
+        .chat-input-form button svg { width: 20px; height: 20px; }
 
-        .chat-input-form button:disabled {
-            background: var(--gray-300);
-            cursor: not-allowed;
-        }
-
-        .chat-input-form button svg {
-            width: 20px;
-            height: 20px;
-        }
-
+        //индикатор набора текста: анимированные точки
         .typing-indicator {
             display: flex;
             gap: 5px;
@@ -241,19 +234,15 @@
             animation: typing 1.4s infinite;
         }
 
-        .typing-indicator span:nth-child(2) {
-            animation-delay: 0.2s;
-        }
-
-        .typing-indicator span:nth-child(3) {
-            animation-delay: 0.4s;
-        }
+        .typing-indicator span:nth-child(2) { animation-delay: 0.2s; }
+        .typing-indicator span:nth-child(3) { animation-delay: 0.4s; }
 
         @keyframes typing {
             0%, 100% { transform: translateY(0); }
             50% { transform: translateY(-5px); }
         }
 
+        //быстрые вопросы: кнопки-подсказки для пользователя
         .quick-questions {
             display: flex;
             flex-wrap: wrap;
@@ -279,16 +268,11 @@
             background: var(--wb-purple);
             border-color: var(--wb-purple);
             color: white;
-        }
-
-        .quick-question-btn:hover {
-            background: var(--wb-purple);
-            color: white;
-            border-color: var(--wb-purple);
             transform: translateY(-1px);
             box-shadow: var(--shadow-sm);
         }
 
+        //кнопка выхода с инверсией цветов при наведении
         .logout-btn {
             padding: 10px 20px;
             background: white;
@@ -300,11 +284,9 @@
             transition: var(--transition-fast);
         }
 
-        .logout-btn:hover {
-            background: var(--wb-purple);
-            color: white;
-        }
+        .logout-btn:hover { background: var(--wb-purple); color: white; }
 
+        //заглушка при отсутствии сообщений в чате
         .empty-chat {
             display: flex;
             flex-direction: column;
@@ -316,23 +298,11 @@
             color: var(--gray-600);
         }
 
-        .empty-chat svg {
-            width: 80px;
-            height: 80px;
-            color: var(--gray-400);
-            margin-bottom: 20px;
-        }
+        .empty-chat svg { width: 80px; height: 80px; color: var(--gray-400); margin-bottom: 20px; }
+        .empty-chat h3 { color: var(--gray-700); margin-bottom: 10px; }
+        .empty-chat p { color: var(--gray-500); max-width: 400px; }
 
-        .empty-chat h3 {
-            color: var(--gray-700);
-            margin-bottom: 10px;
-        }
-
-        .empty-chat p {
-            color: var(--gray-500);
-            max-width: 400px;
-        }
-
+        //декоративный элемент щита с анимацией пульсации
         .shield-wrapper {
             width: 400px;
             height: 400px;
@@ -349,12 +319,12 @@
             transition: transform 0.3s ease;
         }
 
-        .shield-wrapper:hover .shield-svg {
-            transform: scale(1.25);
-        }
+        .shield-wrapper:hover .shield-svg { transform: scale(1.25); }
     </style>
 </head>
+
 <body>
+    //навигационная панель клиента: логотип, ссылки на разделы, кнопка выхода
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -371,6 +341,7 @@
         </div>
     </nav>
 
+    //заголовок страницы: название и описание функционала чата
     <section class="page-header">
         </div>
         <div class="container">
@@ -382,8 +353,10 @@
         </div>
     </section>
 
+    //основной контент: контейнер чата с быстрыми вопросами, сообщениями и полем ввода
     <div class="container">
         <div class="chat-container">
+            //блок быстрых вопросов: кнопки для отправки типовых запросов
             <div class="quick-questions">
                 <h4>Быстрые вопросы:</h4>
                 <div class="quick-questions-buttons">
@@ -398,6 +371,7 @@
                 </div>
             </div>
 
+            //контейнер для сообщений чата с заглушкой при пустом состоянии
             <div class="chat-messages" id="chatMessages">
                 <div class="empty-chat" id="emptyChat">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -408,6 +382,7 @@
                 </div>
             </div>
 
+            //форма ввода сообщения: текстовое поле и кнопка отправки
             <div class="chat-input-area">
                 <form class="chat-input-form" id="chatForm">
                     <input type="text" id="messageInput" placeholder="Введите ваш вопрос..." autocomplete="off">
@@ -423,10 +398,13 @@
         </div>
     </div>
 
+    //javascript-логика: обработка сообщений, запросы к API, рендеринг чата
     <script>
+        //глобальные переменные для хранения текущего пользователя и истории чата
         let currentUser = null;
         let chatHistory = [];
 
+        //функция получения ответа от AI: запрос к API с фоллбэком на демо-ответы
         async function getNeuralResponse(message) {
             try {
                 const response = await fetch('/api/chat', {
@@ -449,6 +427,7 @@
             }
         }
 
+        //инициализация при загрузке DOM: проверка авторизации и добавление приветственного сообщения
         document.addEventListener('DOMContentLoaded', async function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
@@ -459,16 +438,19 @@
             }
         });
 
+        //получение элементов интерфейса для работы с чатом
         const messageInput = document.getElementById('messageInput');
         const sendBtn = document.getElementById('sendBtn');
         const chatForm = document.getElementById('chatForm');
         const chatMessages = document.getElementById('chatMessages');
         const emptyChat = document.getElementById('emptyChat');
 
+        //активация кнопки отправки при вводе текста
         messageInput.addEventListener('input', function() {
             sendBtn.disabled = this.value.trim() === '';
         });
 
+        //отправка сообщения по нажатию Enter (без Shift)
         messageInput.addEventListener('keypress', function(e) {
             if (e.key === 'Enter' && !e.shiftKey) {
                 e.preventDefault();
@@ -478,11 +460,13 @@
             }
         });
 
+        //обработчик отправки формы
         chatForm.addEventListener('submit', function(e) {
             e.preventDefault();
             sendMessage();
         });
 
+        //функция добавления приветственного сообщения от AI с задержкой
         function addWelcomeMessage() {
             setTimeout(() => {
                 if (emptyChat) emptyChat.style.display = 'none';
@@ -490,12 +474,14 @@
             }, 500);
         }
 
+        //функция отправки быстрого вопроса: заполнение поля и вызов sendMessage
         function sendQuickQuestion(question) {
             messageInput.value = question;
             sendBtn.disabled = false;
             sendMessage();
         }
 
+        //основная функция отправки сообщения: очистка поля, показ индикатора, запрос к API
         function sendMessage() {
             const message = messageInput.value.trim();
             if (!message) return;
@@ -506,7 +492,6 @@
             if (emptyChat) emptyChat.style.display = 'none';
 
             addMessage('user', message);
-
             showTypingIndicator();
 
             getNeuralResponse(message).then(aiResponse => {
@@ -517,6 +502,7 @@
             });
         }
 
+        //функция демо-ответов при недоступности API: обработка ключевых слов
         function getDemoResponse(message) {
             const lowerMessage = message.toLowerCase();
 
@@ -543,6 +529,7 @@
             return `Спасибо за ваш вопрос! 🤔\n\nДля получения подробной информации рекомендую:\n• Проверить раздел «Заказы» для статуса заказа\n• Раздел «Возвраты» для оформления возврата\n\nИли опишите вашу проблему подробнее, и я постараюсь помочь!`;
         }
 
+        //функция добавления сообщения в чат: создание DOM-элементов и прокрутка
         function addMessage(type, content) {
             const messageDiv = document.createElement('div');
             messageDiv.className = `message ${type}`;
@@ -570,10 +557,10 @@
 
             messageDiv.appendChild(timeDiv);
             chatMessages.appendChild(messageDiv);
-
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        //функция показа индикатора набора текста: анимированные точки
         function showTypingIndicator() {
             const typingDiv = document.createElement('div');
             typingDiv.className = 'message ai';
@@ -590,10 +577,10 @@
             typingDiv.appendChild(avatar);
             typingDiv.appendChild(contentDiv);
             chatMessages.appendChild(typingDiv);
-
             chatMessages.scrollTop = chatMessages.scrollHeight;
         }
 
+        //функция скрытия индикатора набора текста
         function hideTypingIndicator() {
             const typingIndicator = document.getElementById('typingIndicator');
             if (typingIndicator) {
@@ -601,6 +588,7 @@
             }
         }
 
+        //функция выхода: очистка сессии и редирект на страницу входа
         function logout() {
             sessionStorage.removeItem('user');
             fetch('/api/logout', { method: 'POST' })
@@ -612,6 +600,7 @@
                 });
         }
 
+        //инициализация плавающей кнопки чата для быстрого доступа
         function initChatButton() {
             const chatBtn = document.createElement('button');
             chatBtn.className = 'chat-widget-btn';

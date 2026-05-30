@@ -1,4 +1,4 @@
-
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы профиля администратора-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,8 +7,13 @@
     <title>FraudReturn Shield — Профиль администратора</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    //подключение виджета чата с отложенной загрузкой
     <script src="/static/js/chat-widget.js" defer></script>
+
+    //стилизация страницы профиля администратора: навигация, хедер, карточки статистики и действий
     <style>
+        //навигация администратора: липкое позиционирование, тени, состояния ссылок
         .admin-nav {
             background: white;
             padding: 12px 0;
@@ -51,6 +56,7 @@
             color: white;
         }
 
+        //заголовок страницы администратора с градиентным фоном
         .admin-header {
             background: linear-gradient(135deg, #F90479, #7F30E3);
             padding: 60px 0;
@@ -61,6 +67,7 @@
             min-height: 300px;
         }
 
+        //аватар администратора с тенью и центрированием
         .admin-avatar {
             position: relative;
             z-index: 2;
@@ -86,6 +93,7 @@
             margin-bottom: 10px;
         }
 
+        //бейдж роли администратора с полупрозрачным фоном
         .admin-role {
             position: relative;
             z-index: 2;
@@ -97,6 +105,7 @@
             display: inline-block;
         }
 
+        //сетка карточек статистики с адаптивной разметкой
         .admin-stats {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -104,6 +113,7 @@
             margin: 30px 0;
         }
 
+        //карточки статистики с анимацией при наведении
         .admin-stat-card {
             background: white;
             border-radius: var(--radius-xl);
@@ -120,6 +130,7 @@
             box-shadow: var(--shadow-lg);
         }
 
+        //крупные числовые значения с градиентным текстом
         .admin-stat-value {
             font-size: 2.5rem;
             font-weight: 800;
@@ -136,6 +147,7 @@
             margin-top: 8px;
         }
 
+        //секция быстрых действий с сеткой карточек
         .admin-actions {
             background: white;
             border-radius: var(--radius-xl);
@@ -157,6 +169,7 @@
             gap: 15px;
         }
 
+        //карточки действий с иконками и анимацией при наведении
         .action-card {
             background: var(--gray-50);
             padding: 20px;
@@ -201,6 +214,7 @@
             opacity: 0.8;
         }
 
+        //кнопка выхода с инверсией цветов при наведении
         .logout-btn {
             padding: 10px 20px;
             background: white;
@@ -218,7 +232,9 @@
         }
     </style>
 </head>
+
 <body>
+    //навигационная панель администратора с логотипом, ссылками и кнопкой выхода
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -236,8 +252,8 @@
         </div>
     </nav>
 
+    //секция заголовка профиля: аватар, имя и роль администратора
     <section class="admin-header">
-
         <div class="container">
             <div class="admin-avatar" id="adminAvatar">A</div>
             <h1 class="admin-name" id="adminName">Администратор</h1>
@@ -245,8 +261,9 @@
         </div>
     </section>
 
-
+    //основной контент: карточки статистики и быстрые действия
     <div class="container">
+        //карточки статистики: рендеринг данных из Go-шаблона {{.Stats.*}}
         <div class="admin-stats">
             <div class="admin-stat-card">
                 <div class="admin-stat-value">{{.Stats.total_clients}}</div>
@@ -266,6 +283,7 @@
             </div>
         </div>
 
+        //секция быстрых действий: карточки-ссылки на основные функции администратора
         <div class="admin-actions">
             <h3>Быстрые действия</h3>
             <div class="action-grid">
@@ -305,9 +323,11 @@
         </div>
     </div>
 
+    //javascript-логика: загрузка профиля администратора и функция выхода
     <script>
         let currentAdmin = null;
 
+        //инициализация при загрузке DOM: проверка авторизации и загрузка данных профиля
         document.addEventListener('DOMContentLoaded', function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
@@ -318,6 +338,7 @@
             }
         });
 
+        //функция заполнения профиля данными из sessionStorage: имя и первая буква аватара
         function loadAdminProfile() {
             if (currentAdmin) {
                 document.getElementById('adminName').textContent = currentAdmin.login || 'Администратор';
@@ -325,6 +346,7 @@
             }
         }
 
+        //функция выхода: очистка sessionStorage и запрос на сервер для удаления куки
         function logout() {
             // Очищаем sessionStorage
             sessionStorage.removeItem('user');
@@ -340,6 +362,7 @@
         }
     </script>
 
-<script src="/static/js/shield-fix.js"></script>
+    //подключение скрипта для коррекции зума анимаций щита
+    <script src="/static/js/shield-fix.js"></script>
 </body>
 </html>

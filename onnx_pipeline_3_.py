@@ -1,3 +1,4 @@
+#импорт стандартных и сторонних библиотек для работы с данными, ml и бд
 import pandas as pd
 import numpy as np
 from datetime import timedelta
@@ -9,6 +10,7 @@ import psycopg2
 import os
 from contextlib import contextmanager
 
+#подавление предупреждений pandas и безопасный импорт кастомного энкодера признаков
 try:
     from test.feature_encoder import OneHotFeatureEncoder
 except ImportError:
@@ -17,7 +19,7 @@ except ImportError:
 
 warnings.filterwarnings('ignore', message='.*pandas only supports SQLAlchemy connectable.*', category=UserWarning)
 
-
+#параметры подключения к postgresql и пути к артефактам модели
 conn_params = {
     'host': 'localhost',  
     'port': 5432,  
@@ -34,7 +36,7 @@ ANOMALY_MODEL_PATH = os.path.join(MODEL_DIR, "anomaly_model_v4.pkl")
 OHE_ENCODER_PATH = os.path.join(MODEL_DIR, "ohe_encoder_v4.pkl")
 PREDICTIONS_CSV = os.path.join(MODEL_DIR, "fraud_predictions.csv")
 
-
+#контекстный менеджер для автоматического закрытия соединения с бд
 @contextmanager
 def get_db_connection():
     conn = psycopg2.connect(**conn_params)
@@ -44,6 +46,7 @@ def get_db_connection():
     finally:
         conn.close()
 
+#функции извлечения сырых данных из бд: признаки возврата, история клиента и статистика ip/устройств
 def get_transaction_features(return_id: int) -> pd.DataFrame:
     query = """
     SELECT
@@ -70,7 +73,6 @@ def get_transaction_features(return_id: int) -> pd.DataFrame:
     if df.empty: raise ValueError(f"Return ID {return_id} not found")
     return df
 
-
 def get_client_history(client_id: int, days_back: int = 90) -> pd.DataFrame:
     query = f"""
     SELECT o.order_id, o.order_timestamp, o.order_amount,
@@ -82,7 +84,6 @@ def get_client_history(client_id: int, days_back: int = 90) -> pd.DataFrame:
     """
     with get_db_connection() as conn:
         return pd.read_sql_query(query, conn, params=(client_id,))
-
 
 def get_ip_device_stats(client_id: int) -> Dict:
     query = """
@@ -111,8 +112,9 @@ def get_ip_device_stats(client_id: int) -> Dict:
     return {"ip_velocity_24h": 0, "ip_velocity_7d": 0, "accounts_per_ip": 1, "accounts_per_device": 1,
             "device_is_emulator": 0, "device_trust_score": 0.9, "ip_trust_score": 0.9}
 
-
+#класс инженерии признаков: фильтрация, расчет производных флагов и заполнение пропусков дефолтами
 class ProductionFeatureEngineer:
+    #инициализация списков категориальных признаков, исключаемых колонок и полного набора фичей
     def __init__(self):
         self.categorical_features = ['category', 'claimed_reason', 'delivery_address_type']
         self.exclude_cols = ['is_fraud', 'timestamp', 'fraud_pattern', 'registration_date',
@@ -136,6 +138,7 @@ class ProductionFeatureEngineer:
             'fast_return_flag', 'new_account_flag', 'tags_removed', 'missing_components', 'has_receipt'
         ]
 
+    #расчет производных признаков на основе истории и заполнение пропусков дефолтными значениями
     def prepare_features(self, raw_data: Dict, history_df: pd.DataFrame = None) -> Dict:
         features = raw_data.copy()
 
@@ -188,12 +191,13 @@ class ProductionFeatureEngineer:
                 features[k] = v
         return features
 
+    #возврат финального списка колонок для подачи в модель после фильтрации исключаемых
+    def get_feature_columns(self) -> List[str]:
+        return [c for c in self.pre_return_features if c not in self.exclude_cols]
 
-def get_feature_columns(self) -> List[str]:
-    return [c for c in self.pre_return_features if c not in self.exclude_cols]
-
-
+#главный сервис оркестрации: загрузка моделей, расчет скоринга и генерация прогнозов
 class OnnxFraudService:
+    #инициализация путей, создание экземпляра инженера признаков и вызов загрузки артефактов
     def __init__(self, model_dir: str = ""):
         global MODEL_DIR, ONNX_PATH, METADATA_PATH, ANOMALY_SCALER_PATH, ANOMALY_MODEL_PATH, OHE_ENCODER_PATH
         MODEL_DIR = model_dir
@@ -206,6 +210,7 @@ class OnnxFraudService:
         self.feature_engineer = ProductionFeatureEngineer()
         print("✅ OnnxFraudService initialized")
 
+    #загрузка метаданных, енкодера, скалера, модели аномалий и catboost с проверкой существования файлов
     def _load_models(self):
         import os
 
@@ -250,6 +255,7 @@ class OnnxFraudService:
 
         print("Все модели загружены успешно")
 
+    #расчет дополнительного скоринга на основе эвристических правил поведения
     def _calculate_rule_score(self, features: Dict) -> float:
         score = 0.0
         if features.get('account_age_days', 365) < 7: score += 0.15
@@ -260,6 +266,7 @@ class OnnxFraudService:
         if features.get('refund_velocity_30d', 0) >= 3: score += 0.15
         return min(score, 1.0)
 
+    #полный пайплайн инференса: кодирование, предсказание вероятности, shap-значения, детекция аномалий и финальное решение
     def _run_inference(self, features: Dict, return_id: int, order_id: int, client_id: int) -> Dict:
         if hasattr(self.encoder, 'transform_single'):
             encoded_dict = self.encoder.transform_single(features)
@@ -271,7 +278,6 @@ class OnnxFraudService:
 
         proba = self.pattern_model.predict_proba(X_df)[0]
         prob_fraud = float(proba[1])
-
 
         top_contributions = []
         try:
@@ -323,6 +329,8 @@ class OnnxFraudService:
             "top_features": top_contributions,  
             "timestamp": datetime.now().isoformat()
         }
+
+    #вызов предсказания по id возврата с загрузкой данных из бд
     def predict_for_return(self, return_id: int) -> Dict:
         tx_df = get_transaction_features(return_id)
         row = tx_df.iloc[0]
@@ -333,6 +341,7 @@ class OnnxFraudService:
         clean_features = self.feature_engineer.prepare_features(raw_dict, history_df)
         return self._run_inference(clean_features, return_id, int(row['order_id']), client_id)
 
+    #вызов предсказания по данным веб-формы с обогащением контекстом из бд
     def predict_from_web_payload(self, payload: Dict) -> Dict:
         client_id, order_id = payload.get("client_id"), payload.get("order_id")
         if not client_id or not order_id:
@@ -380,6 +389,7 @@ class OnnxFraudService:
         clean_features = self.feature_engineer.prepare_features(raw_data, history_df)
         return self._run_inference(clean_features, return_id, order_id, client_id)
 
+    #последовательная обработка списка возвратов с логированием прогресса и сохранением в csv
     def process_all_returns_sequentially(self, return_ids: List[int] = None) -> List[Dict]:
         if return_ids is None:
             with get_db_connection() as conn:
@@ -422,7 +432,7 @@ class OnnxFraudService:
         print(f"Обработка завершена. Успешно: {len([r for r in results if 'error' not in r])}/{total}")
         return results
 
-
+#функция конвертации обученной catboost модели в формат onnx с поддержкой predict_proba
 def export_model_with_proba_sklearn(model_path: str, output_onnx_path: str):
     try:
         from skl2onnx import to_onnx
@@ -446,7 +456,7 @@ def export_model_with_proba_sklearn(model_path: str, output_onnx_path: str):
     except Exception as e:
         print(f"Ошибка экспорта: {e}")
 
-
+#точка входа: запуск сервиса, тестовый запрос и пакетная обработка всех возвратов
 if __name__ == "__main__":
     service = OnnxFraudService()
 

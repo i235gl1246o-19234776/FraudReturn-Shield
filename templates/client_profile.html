@@ -1,3 +1,4 @@
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы профиля клиента-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,7 +7,10 @@
     <title>FraudReturn Shield — Профиль клиента</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    //стилизация страницы профиля: CSS-переменные, сброс стилей, адаптивная верстка и анимации щитов
     <style>
+        //CSS-переменные для консистентного оформления: цвета, тени, радиусы, переходы
         :root {
             --wb-purple: #7F30E3;
             --gray-50: #f8f9fa;
@@ -23,6 +27,7 @@
             --transition-fast: all 0.15s ease;
         }
 
+        //базовый сброс и настройка шрифтов, фона и высоты страницы
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -31,6 +36,7 @@
         }
         .container { max-width: 1200px; margin: 0 auto; padding: 0 20px; }
 
+        //слой с анимированными щитами на фоне: фиксированное позиционирование, отключение событий
         #shield-layer {
             position: fixed;
             top: 0; left: 0;
@@ -40,6 +46,7 @@
             overflow: hidden;
         }
 
+        //обертки щитов: абсолютное позиционирование по бокам экрана
         .shield-wrapper {
             position: absolute;
             top: 50%;
@@ -48,11 +55,13 @@
         .shield-wrapper.left { left: 40px; }
         .shield-wrapper.right { right: 40px; }
 
+        //анимация плавания щита вверх-вниз с поворотом
         .shield-anim-box {
             width: 100%; height: 100%;
             animation: float-shield 6s ease-in-out infinite;
         }
 
+        //стилизация изображения щита: прозрачность, тень, эффект при наведении
         .shield-anim-box img {
             width: 100%; height: 100%; object-fit: contain;
             opacity: 0.15;
@@ -67,8 +76,10 @@
             50% { transform: translateY(-15px) rotate(3deg); }
         }
 
+        //скрытие декоративных щитов на мобильных устройствах
         @media (max-width: 900px) { #shield-layer { display: none; } }
 
+        //навигация клиента: липкое позиционирование, тени, стили ссылок и кнопки выхода
         .client-nav {
             background: white; padding: 12px 0;
             border-bottom: 1px solid var(--gray-200);
@@ -84,6 +95,7 @@
         .logout-btn { padding: 10px 20px; background: white; color: var(--wb-purple); border: 2px solid var(--wb-purple); border-radius: var(--radius-lg); font-weight: 600; cursor: pointer; transition: var(--transition-fast); }
         .logout-btn:hover { background: var(--wb-purple); color: white; }
 
+        //заголовок профиля: градиентный фон, центрирование, аватар, имя и ID пользователя
         .profile-header {
             background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 60px 0; text-align: center; color: white;
@@ -97,6 +109,7 @@
         .profile-name { font-size: 2rem; font-weight: 800; margin-bottom: 10px; }
         .profile-id { opacity: 0.9; font-size: 1rem; }
 
+        //маркировочный текст в шапке: абсолютное позиционирование, анимация появления
         .header-marquee {
             position: absolute; top: 50%; left: 0; right: 0;
             transform: translateY(-50%); pointer-events: none; z-index: 1;
@@ -106,6 +119,7 @@
         .marquee-left { text-align: left; } .marquee-right { text-align: right; }
         .marquee-text.visible { opacity: 0.9; }
 
+        //основной контент: отступ сверху, сетка карточек-вкладок с градиентами и иконками
         .main-content { position: relative; z-index: 10; margin-top: 60px; }
         .tabs-large { display: grid; grid-template-columns: repeat(3, 1fr); gap: 40px; margin-bottom: 60px; }
         .tab-card {
@@ -122,6 +136,7 @@
         .tab-card-title { font-size: 2rem; font-weight: 800; margin-bottom: 15px; }
         .tab-card-desc { font-size: 1.3rem; opacity: 0.9; }
 
+        //плавающая кнопка чата: фиксированное позиционирование, круглая форма, анимация при наведении
         .chat-toggle {
             position: fixed; bottom: 30px; right: 30px; width: 60px; height: 60px;
             border-radius: 50%; background: var(--wb-purple); color: white; border: none;
@@ -132,8 +147,9 @@
         .chat-toggle svg { width: 28px; height: 28px; }
     </style>
 </head>
-<body>
 
+<body>
+    //навигационная панель клиента: логотип, ссылки на разделы, кнопка выхода
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -150,6 +166,7 @@
         </div>
     </nav>
 
+    //секция заголовка профиля: градиентный фон, аватар, имя, ID и анимированный текст
     <section class="profile-header">
         <div class="header-marquee">
             <span class="marquee-text marquee-left" id="marqueeLeft">Добро пожаловать!</span>
@@ -162,6 +179,7 @@
         </div>
     </section>
 
+    //основной контент: три карточки-вкладки для навигации по разделам клиента
     <div class="main-content">
         <div class="container">
             <div class="tabs-large">
@@ -184,8 +202,9 @@
         </div>
     </div>
 
-
+    //javascript-логика: коррекция зума для анимаций щитов, загрузка профиля, выход, циклический текст
     <script>
+        //коррекция масштабирования страницы для анимированных щитов: вычисление zoom и применение инверсного scale
         document.addEventListener("DOMContentLoaded", () => {
             const shieldL = document.getElementById('shieldL');
             const shieldR = document.getElementById('shieldR');
@@ -218,8 +237,10 @@
         });
     </script>
 
+    //логика работы профиля: загрузка данных пользователя, выход, циклическая смена текста в шапке
     <script>
         let currentUser = null;
+        //инициализация при загрузке DOM: проверка авторизации и загрузка данных профиля
         document.addEventListener('DOMContentLoaded', function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
@@ -227,6 +248,8 @@
                 loadUserProfile();
             } else { window.location.href = '/login'; }
         });
+
+        //функция заполнения профиля данными из sessionStorage: имя, ID, первая буква аватара
         function loadUserProfile() {
             if (currentUser) {
                 document.getElementById('userName').textContent = currentUser.login || 'Пользователь';
@@ -234,15 +257,22 @@
                 document.getElementById('userAvatar').textContent = (currentUser.login || 'U')[0].toUpperCase();
             }
         }
+
+        //функция выхода: очистка sessionStorage и запрос на сервер для удаления куки
         function logout() {
             sessionStorage.removeItem('user');
             fetch('/api/logout', { method: 'POST' }).then(() => window.location.href = '/login').catch(() => window.location.href = '/login');
         }
+
+        //функция перехода в чат (заглушка, если кнопка будет добавлена)
         function toggleChat() { window.location.href = '/client/chat'; }
         
+        //массивы текстов для левой и правой части маркировочной строки в шапке
         const leftTexts = ['Добро пожаловать!', 'Рады видеть вас снова!', 'Защита ваших покупок'];
         const rightTexts = ['Быстрые возвраты', 'AI помощник 24/7', 'Безопасные сделки'];
         let leftIndex = 0, rightIndex = 0, isLeftVisible = true, isRightVisible = false;
+
+        //функция циклической смены текста с анимацией появления/исчезновения каждые 6 секунд
         function cycleMarqueeText() {
             const leftEl = document.getElementById('marqueeLeft');
             const rightEl = document.getElementById('marqueeRight');
@@ -266,6 +296,8 @@
                 }, 1500);
             }
         }
+
+        //инициализация стартового текста и запуск цикла смены
         document.getElementById('marqueeLeft').textContent = leftTexts[0];
         document.getElementById('marqueeLeft').classList.add('visible');
         setInterval(cycleMarqueeText, 6000);

@@ -1,3 +1,4 @@
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы проверки возврата-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,6 +7,8 @@
     <title>Проверка — FraudReturn Shield</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    //стили для индикатора риска: круговая диаграмма с анимацией заполнения
     <style>
         .risk-gauge {
             display: flex;
@@ -33,6 +36,7 @@
             stroke-width: 8;
         }
 
+        //анимированная заливка шкалы риска с переходом цвета
         .gauge-fill {
             fill: none;
             stroke: var(--wb-purple);
@@ -57,6 +61,7 @@
             color: var(--text);
         }
 
+        //бейджи уровня риска с цветовыми индикаторами
         .risk-badge {
             display: flex;
             align-items: center;
@@ -71,6 +76,7 @@
         .risk-badge.medium { background: rgba(245, 158, 11, 0.15); color: #f59e0b; }
         .risk-badge.high { background: rgba(239, 68, 68, 0.15); color: var(--error); }
 
+        //стили навигации администратора
         .admin-nav {
             background: white;
             padding: 12px 0;
@@ -129,6 +135,7 @@
             color: white;
         }
 
+        //стили автодополнения для поиска клиентов и заказов
         .autocomplete-container { position: relative; }
         .autocomplete-dropdown {
             position: absolute; top: 100%; left: 0; right: 0;
@@ -156,33 +163,11 @@
             color: var(--success); font-size: 0.85rem; margin-left: 10px;
             animation: fadeIn 0.3s ease;
         }
-        .risk-gauge { display: flex; flex-direction: column; align-items: center; gap: 20px; padding: 20px 0; }
-        .gauge-circle { position: relative; width: 120px; height: 120px; }
-        .gauge-circle svg { width: 100%; height: 100%; transform: rotate(-90deg); }
-        .gauge-bg { fill: none; stroke: var(--gray-200); stroke-width: 8; }
-        .gauge-fill {
-            fill: none; stroke: var(--wb-purple); stroke-width: 8;
-            stroke-linecap: round; stroke-dasharray: 283; stroke-dashoffset: 283;
-            transition: stroke-dashoffset 0.8s ease-out, stroke 0.3s ease;
-        }
-        .gauge-fill.low { stroke: var(--success); }
-        .gauge-fill.medium { stroke: #f59e0b; }
-        .gauge-fill.high { stroke: var(--error); }
-        .gauge-value {
-            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
-            font-size: 1.5rem; font-weight: 800; color: var(--text);
-        }
-        .risk-badge {
-            display: flex; align-items: center; gap: 10px; padding: 10px 20px;
-            border-radius: var(--radius-lg); background: var(--gray-100); font-weight: 600;
-        }
-        .risk-badge.low { background: rgba(34,197,94,0.15); color: var(--success); }
-        .risk-badge.medium { background: rgba(245,158,11,0.15); color: #f59e0b; }
-        .risk-badge.high { background: rgba(239,68,68,0.15); color: var(--error); }
-
     </style>
 </head>
+
 <body>
+    //навигационная панель администратора с ссылками и кнопкой выхода
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -200,232 +185,251 @@
         </div>
     </nav>
 
-        <section class="hero">
-            </div>
-            <div class="container">
-                <div class="hero-badge">AI-Powered Fraud Detection v3.0</div>
-                <h1>Проверка возврата</h1>
-                <p>Заполните форму для оценки риска мошеннического возврата</p>
-            </div>
-        </section>
+    //герой-секция: заголовок и описание функционала проверки
+    <section class="hero">
+        </div>
+        <div class="container">
+            <div class="hero-badge">AI-Powered Fraud Detection v3.0</div>
+            <h1>Проверка возврата</h1>
+            <p>Заполните форму для оценки риска мошеннического возврата</p>
+        </div>
+    </section>
 
-        <main class="main">
-            <div class="container">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>Данные возврата</h2>
-                    </div>
-                    <div class="card-body">
-                        <form class="form" action="/check" method="POST" id="fraudForm">
-                            <div class="form-section">
-                                <h3>Идентификаторы</h3>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="clientID">ID клиента *</label>
-                                        <div class="autocomplete-container">
-                                            <input type="number" id="clientID" name="clientID" required placeholder="1" min="1" class="search-input" oninput="searchClients(this.value)">
-                                            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="11" cy="11" r="8"/>
-                                                <path d="m21 21-4.35-4.35"/>
-                                            </svg>
-                                            <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
-                                        </div>
-                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="orderID">ID заказа *</label>
-                                        <div class="autocomplete-container">
-                                            <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)">
-                                            <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                                <circle cx="11" cy="11" r="8"/>
-                                                <path d="m21 21-4.35-4.35"/>
-                                            </svg>
-                                            <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
-                                        </div>
-                                        <small style="color: var(--gray-500); margin-top: 5px; display: block;">ведите ID для автозаполнения</small>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-section">
-                                <h3>Данные клиента
-                                    <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="20 6 9 17 4 12"/>
-                                        </svg>
-                                        Заполнено из БД
-                                    </span>
-                                </h3>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="accountAgeDays">Возраст аккаунта (дни) *</label>
-                                        <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="totalOrders">Всего заказов *</label>
-                                        <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-section">
-                                <h3>Параметры заказа
-                                    <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
-                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <polyline points="20 6 9 17 4 12"/>
-                                        </svg>
-                                        Заполнено из БД
-                                    </span>
-                                </h3>
-                                <div class="form-row">
-                                    <div class="form-group">
-                                        <label for="category">Категория товара *</label>
-                                        <select id="category" name="category" required>
-                                            <option value="">Выберите категорию</option>
-                                            <option value="electronics">Электроника</option>
-                                            <option value="clothing">Одежда</option>
-                                            <option value="books">Книги</option>
-                                            <option value="toys">Игрушки</option>
-                                            <option value="home">Для дома</option>
-                                        </select>
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="orderAmount">Сумма заказа (₽) *</label>
-                                        <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" step="0.01">
-                                    </div>
-                                    <div class="form-group">
-                                        <label for="daysToReturn">Дней до возврата</label>
-                                        <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="form-section">
-                                <h3>Состояние товара</h3>
-                                <div class="checkbox-group">
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="hasTag" id="hasTag" checked>
-                                        <span>✓ Бирка на месте</span>
-                                    </label>
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
-                                        <span>✓ Чек предоставлен</span>
-                                    </label>
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="hasDamage" id="hasDamage">
-                                        <span>Есть повреждения</span>
-                                    </label>
-                                    <label class="checkbox">
-                                        <input type="checkbox" name="isUsed" id="isUsed">
-                                        <span>Есть следы использования</span>
-                                    </label>
-                                </div>
-                            </div>
-
-                            <div class="form-section">
-                                <h3>Причина возврата *</h3>
+    //основной контент: форма ввода данных и блок результатов
+    <main class="main">
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>Данные возврата</h2>
+                </div>
+                <div class="card-body">
+                    //форма отправки данных на сервер для анализа риска
+                    <form class="form" action="/check" method="POST" id="fraudForm">
+                        //секция идентификаторов: поиск клиента и заказа с автодополнением
+                        <div class="form-section">
+                            <h3>Идентификаторы</h3>
+                            <div class="form-row">
                                 <div class="form-group">
-                                    <select id="reason" name="reason" required>
-                                        <option value="">Выберите причину</option>
-                                        <option value="defect">Дефект / Брак</option>
-                                        <option value="size">Не подошел размер</option>
-                                        <option value="color">Не тот цвет</option>
-                                        <option value="quality">Некачественные материалы</option>
-                                        <option value="changed_mind">Передумал</option>
-                                        <option value="other">Другое</option>
+                                    <label for="clientID">ID клиента *</label>
+                                    <div class="autocomplete-container">
+                                        <input type="number" id="clientID" name="clientID" required placeholder="1" min="1" class="search-input" oninput="searchClients(this.value)">
+                                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"/>
+                                            <path d="m21 21-4.35-4.35"/>
+                                        </svg>
+                                        <div id="clientDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                    </div>
+                                    <small style="color: var(--gray-500); margin-top: 5px; display: block;">Введите ID для автозаполнения</small>
+                                </div>
+                                <div class="form-group">
+                                    <label for="orderID">ID заказа *</label>
+                                    <div class="autocomplete-container">
+                                        <input type="number" id="orderID" name="orderID" required placeholder="1" min="1" class="search-input" oninput="searchOrders(this.value)">
+                                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="11" cy="11" r="8"/>
+                                            <path d="m21 21-4.35-4.35"/>
+                                        </svg>
+                                        <div id="orderDropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                                    </div>
+                                    <small style="color: var(--gray-500); margin-top: 5px; display: block;">ведите ID для автозаполнения</small>
+                                </div>
+                            </div>
+                        </div>
+
+                        //секция данных клиента с индикатором автозаполнения из БД
+                        <div class="form-section">
+                            <h3>Данные клиента
+                                <span id="clientFillIndicator" class="auto-fill-indicator" style="display: none;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    Заполнено из БД
+                                </span>
+                            </h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="accountAgeDays">Возраст аккаунта (дни) *</label>
+                                    <input type="number" id="accountAgeDays" name="accountAgeDays" required placeholder="180" min="0">
+                                </div>
+                                <div class="form-group">
+                                    <label for="totalOrders">Всего заказов *</label>
+                                    <input type="number" id="totalOrders" name="totalOrders" required placeholder="25" min="0">
+                                </div>
+                            </div>
+                        </div>
+
+                        //секция параметров заказа с автозаполнением
+                        <div class="form-section">
+                            <h3>Параметры заказа
+                                <span id="orderFillIndicator" class="auto-fill-indicator" style="display: none;">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="20 6 9 17 4 12"/>
+                                    </svg>
+                                    Заполнено из БД
+                                </span>
+                            </h3>
+                            <div class="form-row">
+                                <div class="form-group">
+                                    <label for="category">Категория товара *</label>
+                                    <select id="category" name="category" required>
+                                        <option value="">Выберите категорию</option>
+                                        <option value="electronics">Электроника</option>
+                                        <option value="clothing">Одежда</option>
+                                        <option value="books">Книги</option>
+                                        <option value="toys">Игрушки</option>
+                                        <option value="home">Для дома</option>
                                     </select>
                                 </div>
-                            </div>
-
-                            <div style="display: flex; gap: 15px; margin-top: 25px;">
-                                <button type="submit" class="btn btn-primary" style="flex: 1;">
-                                    Оценить риск
-                                </button>
-                                <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
-                            </div>
-
-                            <input type="hidden" name="isWeekend" value="0">
-                            <input type="hidden" name="discountPercent" value="0">
-                            <input type="hidden" name="promoCodeUsed" value="0">
-                            <input type="hidden" name="firstOrderDiscountAbuse" value="0">
-                            <input type="hidden" name="paymentMethodRisk" value="0.2">
-                            <input type="hidden" name="chargebackHistory90d" value="0">
-                            <input type="hidden" name="cardBinCountryMismatch" value="0">
-                            <input type="hidden" name="shippingRegionRisk" value="0.2">
-                            <input type="hidden" name="deliveryAddressType" value="0">
-                            <input type="hidden" name="distanceFromRegistrationCity" value="50">
-                            <input type="hidden" name="orderHour" value="12">
-                            <input type="hidden" name="orderTimeNight" value="0">
-                            <input type="hidden" name="ipVelocity24h" value="2">
-                            <input type="hidden" name="ipVelocity7d" value="5">
-                            <input type="hidden" name="accountsPerIp" value="1">
-                            <input type="hidden" name="accountsPerPhone" value="1">
-                            <input type="hidden" name="accountsPerDevice" value="1">
-                            <input type="hidden" name="deviceIsEmulator" value="0">
-                            <input type="hidden" name="deviceTrustScore" value="0.75">
-                            <input type="hidden" name="ipTrustScore" value="0.75">
-                            <input type="hidden" name="avgOrderAmount" value="0">
-                            <input type="hidden" name="returnRate30d" value="0">
-                            <input type="hidden" name="refundVelocity7d" value="0">
-                            <input type="hidden" name="refundVelocity30d" value="1">
-                            <input type="hidden" name="supportTicketCount30d" value="1">
-                            <input type="hidden" name="reviewCount30d" value="2">
-                            <input type="hidden" name="negativeReviewCluster" value="0">
-                            <input type="hidden" name="threatLanguageDetected" value="0">
-                            <input type="hidden" name="legalClaimThreat" value="0">
-                            <input type="hidden" name="itemsInOrder" value="1">
-                            <input type="hidden" name="isElectronics" value="0">
-                        </form>
-                    </div>
-                </div>
-
-                <div id="resultCard" class="card result-card" style="display: none;">
-                    <div class="card-header">
-                        <h2>Результат анализа</h2>
-                    </div>
-                    <div class="card-body">
-                        <div class="risk-gauge">
-                            <div class="gauge-circle">
-                                <svg viewBox="0 0 100 100">
-                                    <circle class="gauge-bg" cx="50" cy="50" r="45"/>
-                                    <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="45"/>
-                                </svg>
-                                <div class="gauge-value" id="riskScore">0%</div>
-                            </div>
-                            <div class="risk-badge" id="riskBadge">
-                                <img src="/static/svg/зеленый.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;" id="riskIcon">
-                                <span id="riskText">Низкий риск</span>
+                                <div class="form-group">
+                                    <label for="orderAmount">Сумма заказа (₽) *</label>
+                                    <input type="number" id="orderAmount" name="orderAmount" required placeholder="5000" min="0" step="0.01">
+                                </div>
+                                <div class="form-group">
+                                    <label for="daysToReturn">Дней до возврата</label>
+                                    <input type="number" id="daysToReturn" name="daysToReturn" placeholder="14" min="0">
+                                </div>
                             </div>
                         </div>
-                        <div class="recommendation">
-                            <strong>Рекомендация</strong>
-                            <p id="recommendationText"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;"> Автоматическое одобрение возврата</p>
+
+                        //чекбоксы состояния товара
+                        <div class="form-section">
+                            <h3>Состояние товара</h3>
+                            <div class="checkbox-group">
+                                <label class="checkbox">
+                                    <input type="checkbox" name="hasTag" id="hasTag" checked>
+                                    <span>✓ Бирка на месте</span>
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="hasReceipt" id="hasReceipt" checked>
+                                    <span>✓ Чек предоставлен</span>
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="hasDamage" id="hasDamage">
+                                    <span>Есть повреждения</span>
+                                </label>
+                                <label class="checkbox">
+                                    <input type="checkbox" name="isUsed" id="isUsed">
+                                    <span>Есть следы использования</span>
+                                </label>
+                            </div>
                         </div>
-                        <div class="factors">
-                            <h3>Факторы риска</h3>
-                            <ul class="factor-list" id="shapList"></ul>
+
+                        //выбор причины возврата
+                        <div class="form-section">
+                            <h3>Причина возврата *</h3>
+                            <div class="form-group">
+                                <select id="reason" name="reason" required>
+                                    <option value="">Выберите причину</option>
+                                    <option value="defect">Дефект / Брак</option>
+                                    <option value="size">Не подошел размер</option>
+                                    <option value="color">Не тот цвет</option>
+                                    <option value="quality">Некачественные материалы</option>
+                                    <option value="changed_mind">Передумал</option>
+                                    <option value="other">Другое</option>
+                                </select>
+                            </div>
                         </div>
+
+                        //кнопки отправки и очистки формы
                         <div style="display: flex; gap: 15px; margin-top: 25px;">
-                            <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> Одобрить</button>
-                            <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;"><img src="/static/svg/знак внимания.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> На проверку</button>
-                            <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;"><img src="/static/svg/крест.svg" alt="" style="width: 18px; height: 40px; vertical-align: middle; margin-right: 8px;"> Отклонить</button>
+                            <button type="submit" class="btn btn-primary" style="flex: 1;">
+                                Оценить риск
+                            </button>
+                            <button type="button" class="btn btn-secondary" onclick="clearForm()">✕ Очистить</button>
                         </div>
+
+                        //скрытые поля с дефолтными значениями для параметров риска
+                        <input type="hidden" name="isWeekend" value="0">
+                        <input type="hidden" name="discountPercent" value="0">
+                        <input type="hidden" name="promoCodeUsed" value="0">
+                        <input type="hidden" name="firstOrderDiscountAbuse" value="0">
+                        <input type="hidden" name="paymentMethodRisk" value="0.2">
+                        <input type="hidden" name="chargebackHistory90d" value="0">
+                        <input type="hidden" name="cardBinCountryMismatch" value="0">
+                        <input type="hidden" name="shippingRegionRisk" value="0.2">
+                        <input type="hidden" name="deliveryAddressType" value="0">
+                        <input type="hidden" name="distanceFromRegistrationCity" value="50">
+                        <input type="hidden" name="orderHour" value="12">
+                        <input type="hidden" name="orderTimeNight" value="0">
+                        <input type="hidden" name="ipVelocity24h" value="2">
+                        <input type="hidden" name="ipVelocity7d" value="5">
+                        <input type="hidden" name="accountsPerIp" value="1">
+                        <input type="hidden" name="accountsPerPhone" value="1">
+                        <input type="hidden" name="accountsPerDevice" value="1">
+                        <input type="hidden" name="deviceIsEmulator" value="0">
+                        <input type="hidden" name="deviceTrustScore" value="0.75">
+                        <input type="hidden" name="ipTrustScore" value="0.75">
+                        <input type="hidden" name="avgOrderAmount" value="0">
+                        <input type="hidden" name="returnRate30d" value="0">
+                        <input type="hidden" name="refundVelocity7d" value="0">
+                        <input type="hidden" name="refundVelocity30d" value="1">
+                        <input type="hidden" name="supportTicketCount30d" value="1">
+                        <input type="hidden" name="reviewCount30d" value="2">
+                        <input type="hidden" name="negativeReviewCluster" value="0">
+                        <input type="hidden" name="threatLanguageDetected" value="0">
+                        <input type="hidden" name="legalClaimThreat" value="0">
+                        <input type="hidden" name="itemsInOrder" value="1">
+                        <input type="hidden" name="isElectronics" value="0">
+                    </form>
+                </div>
+            </div>
+
+            //скрытый блок результатов анализа риска
+            <div id="resultCard" class="card result-card" style="display: none;">
+                <div class="card-header">
+                    <h2>Результат анализа</h2>
+                </div>
+                <div class="card-body">
+                    //визуальный индикатор риска: круговая диаграмма
+                    <div class="risk-gauge">
+                        <div class="gauge-circle">
+                            <svg viewBox="0 0 100 100">
+                                <circle class="gauge-bg" cx="50" cy="50" r="45"/>
+                                <circle class="gauge-fill" id="gaugeFill" cx="50" cy="50" r="45"/>
+                            </svg>
+                            <div class="gauge-value" id="riskScore">0%</div>
+                        </div>
+                        <div class="risk-badge" id="riskBadge">
+                            <img src="/static/svg/зеленый.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;" id="riskIcon">
+                            <span id="riskText">Низкий риск</span>
+                        </div>
+                    </div>
+                    //текстовая рекомендация системы
+                    <div class="recommendation">
+                        <strong>Рекомендация</strong>
+                        <p id="recommendationText"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle;"> Автоматическое одобрение возврата</p>
+                    </div>
+                    //список факторов риска
+                    <div class="factors">
+                        <h3>Факторы риска</h3>
+                        <ul class="factor-list" id="shapList"></ul>
+                    </div>
+                    //кнопки действий: одобрить, на проверку, отклонить
+                    <div style="display: flex; gap: 15px; margin-top: 25px;">
+                        <button class="btn btn-secondary" onclick="approveReturn()" style="flex: 1;"><img src="/static/svg/галочка.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> Одобрить</button>
+                        <button class="btn btn-secondary" onclick="manualReview()" style="flex: 1;"><img src="/static/svg/знак внимания.svg" alt="" style="width: 40px; height: 40px; vertical-align: middle; margin-right: 8px;"> На проверку</button>
+                        <button class="btn btn-secondary" onclick="rejectReturn()" style="flex: 1;"><img src="/static/svg/крест.svg" alt="" style="width: 18px; height: 40px; vertical-align: middle; margin-right: 8px;"> Отклонить</button>
                     </div>
                 </div>
             </div>
-        </main>
+        </div>
+    </main>
 
-        <footer class="footer">
-            <div class="container">
-                <p>© 2026 FraudReturn Shield. Учебный проект</p>
-            </div>
-        </footer>
+    //футер страницы
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 FraudReturn Shield. Учебный проект</p>
+        </div>
+    </footer>
     </div>
 
+    //javascript-логика: обработка формы, автодополнение, загрузка данных из API
     <script>
+    //глобальные переменные для хранения выбранных ID клиента и заказа
     let selectedClientId = null;
     let selectedOrderId = null;
 
+    //обработчик отправки формы: сбор данных, валидация, отправка на сервер
    document.getElementById('fraudForm')?.addEventListener('submit', async function(e) {
     e.preventDefault();
     
@@ -433,11 +437,13 @@
     const formData = new FormData(form);
     const data = Object.fromEntries(formData.entries());
     
+    //преобразование чекбоксов в булевы значения
     data.hasTag = document.getElementById('hasTag')?.checked;
     data.hasReceipt = document.getElementById('hasReceipt')?.checked;
     data.hasDamage = document.getElementById('hasDamage')?.checked;
     data.isUsed = document.getElementById('isUsed')?.checked;
     
+    //парсинг числовых полей
     data.clientID = parseInt(data.clientID) || 0;
     data.orderID = parseInt(data.orderID) || 0;
     data.accountAgeDays = parseInt(data.accountAgeDays) || 0;
@@ -445,6 +451,7 @@
     data.orderAmount = parseFloat(data.orderAmount) || 0;
     data.daysToReturn = parseInt(data.daysToReturn) || 0;
     
+    //преобразование строковых флагов в булевы
     data.isWeekend = data.isWeekend === "1" || data.isWeekend === true;
     data.promoCodeUsed = data.promoCodeUsed === "1";
     data.firstOrderDiscountAbuse = data.firstOrderDiscountAbuse === "1";
@@ -457,6 +464,7 @@
     data.threatLanguageDetected = data.threatLanguageDetected === "1";
     data.legalClaimThreat = data.legalClaimThreat === "1";
     
+    //нормализация числовых полей: пустые значения -> 0
     const numericFields = [
         'discountPercent', 'paymentMethodRisk', 'deliveryAddressType',
         'distanceFromRegistrationCity', 'orderHour', 'ipVelocity24h',
@@ -477,6 +485,7 @@
     try {
         console.log('📤 Отправка:', data);
         
+        //отправка POST-запроса с JSON-данными на сервер
         const response = await fetch('/check', {
             method: 'POST',
             credentials: 'include', 
@@ -486,6 +495,7 @@
             body: JSON.stringify(data)
         });
         
+        //проверка типа контента ответа
         const contentType = response.headers.get('content-type');
         if (!contentType || !contentType.includes('application/json')) {
             const text = await response.text();
@@ -494,6 +504,7 @@
             return;
         }
         
+        //обработка успешного ответа: редирект на страницу результата
         if (response.ok) {
             const result = await response.json();
             console.log('Ответ:', result);
@@ -525,6 +536,7 @@
     }
 });
 
+    //функция поиска клиентов по ID с отображением результатов в выпадающем списке
     async function searchClients(query) {
         const dropdown = document.getElementById('clientDropdown');
         if (!query || query.length === 0) {
@@ -552,6 +564,7 @@
         }
     }
 
+    //функция выбора клиента из автодополнения: заполнение формы и загрузка данных
     async function selectClient(clientId) {
         selectedClientId = clientId;
         document.getElementById('clientID').value = clientId;
@@ -565,58 +578,59 @@
         showToast('Данные клиента загружены', 'success');
     }
 
-
-async function searchOrders(query, clientId = null) {
-    const dropdown = document.getElementById('orderDropdown');
-    if (clientId === null) clientId = selectedClientId;
-    if (!dropdown) {
-        console.error('orderDropdown не найден');
-        return;
-    }
-    
-    try {
-        const url = clientId
-            ? `/api/orders?client_id=${clientId}&q=${encodeURIComponent(query)}`
-            : `/api/orders?q=${encodeURIComponent(query)}`;
-            
-        const res = await fetch(url, {
-            credentials: 'include' 
-        });
-        
-        const contentType = res.headers.get('content-type');
-        if (!contentType || !contentType.includes('application/json')) {
-            const text = await res.text();
-            console.error('❌ Ожидался JSON, получен HTML:', text.substring(0, 200));
-            dropdown.innerHTML = '<div class="autocomplete-item" style="color:var(--error)">⚠️ Ошибка авторизации</div>';
-            dropdown.style.display = 'block';
+    //функция поиска заказов по ID или запросу с фильтрацией по клиенту
+    async function searchOrders(query, clientId = null) {
+        const dropdown = document.getElementById('orderDropdown');
+        if (clientId === null) clientId = selectedClientId;
+        if (!dropdown) {
+            console.error('orderDropdown не найден');
             return;
         }
         
-        if (res.ok) {
-            const data = await res.json();
-            if (data.orders && data.orders.length > 0) {
-                dropdown.innerHTML = data.orders.map(order => `
-                    <div class="autocomplete-item" onclick="selectOrder(${order.order_id})">
-                        <strong>Заказ #${order.order_id}</strong>
-                        <small>Сумма: ${order.order_amount?.toFixed(0) || 0} ₽ | Товаров: ${order.items_count || 0}</small>
-                    </div>
-                `).join('');
+        try {
+            const url = clientId
+                ? `/api/orders?client_id=${clientId}&q=${encodeURIComponent(query)}`
+                : `/api/orders?q=${encodeURIComponent(query)}`;
+                
+            const res = await fetch(url, {
+                credentials: 'include' 
+            });
+            
+            const contentType = res.headers.get('content-type');
+            if (!contentType || !contentType.includes('application/json')) {
+                const text = await res.text();
+                console.error('❌ Ожидался JSON, получен HTML:', text.substring(0, 200));
+                dropdown.innerHTML = '<div class="autocomplete-item" style="color:var(--error)">⚠️ Ошибка авторизации</div>';
                 dropdown.style.display = 'block';
-            } else {
-                dropdown.innerHTML = '<div class="autocomplete-item" style="color: var(--gray-500)">Заказы не найдены</div>';
-                dropdown.style.display = 'block';
+                return;
             }
-        } else {
+            
+            if (res.ok) {
+                const data = await res.json();
+                if (data.orders && data.orders.length > 0) {
+                    dropdown.innerHTML = data.orders.map(order => `
+                        <div class="autocomplete-item" onclick="selectOrder(${order.order_id})">
+                            <strong>Заказ #${order.order_id}</strong>
+                            <small>Сумма: ${order.order_amount?.toFixed(0) || 0} ₽ | Товаров: ${order.items_count || 0}</small>
+                        </div>
+                    `).join('');
+                    dropdown.style.display = 'block';
+                } else {
+                    dropdown.innerHTML = '<div class="autocomplete-item" style="color: var(--gray-500)">Заказы не найдены</div>';
+                    dropdown.style.display = 'block';
+                }
+            } else {
+                dropdown.style.display = 'none';
+            }
+        } catch (err) {
+            console.error('Ошибка поиска заказов:', err);
             dropdown.style.display = 'none';
+            dropdown.innerHTML = '<div class="autocomplete-item" style="color:var(--error)">⚠️ Ошибка загрузки</div>';
+            dropdown.style.display = 'block';
         }
-    } catch (err) {
-        console.error('❌ Ошибка поиска заказов:', err);
-        dropdown.style.display = 'none';
-        dropdown.innerHTML = '<div class="autocomplete-item" style="color:var(--error)">⚠️ Ошибка загрузки</div>';
-        dropdown.style.display = 'block';
     }
-}
 
+    //функция выбора заказа из автодополнения: заполнение полей формы
     async function selectOrder(orderId) {
         selectedOrderId = orderId;
         document.getElementById('orderID').value = orderId;
@@ -628,7 +642,7 @@ async function searchOrders(query, clientId = null) {
         showToast('Данные заказа загружены', 'success');
     }
 
-
+    //функция загрузки данных клиента из API и заполнение скрытых полей формы
     async function loadClientData(clientId) {
     try {
         const res = await fetch(`/api/client/${clientId}`);
@@ -673,7 +687,7 @@ async function searchOrders(query, clientId = null) {
     }
 }
 
-
+//вспомогательные функции безопасной установки значений чекбоксов и полей ввода
 function safeSetChecked(id, value) {
     const el = document.getElementById(id);
     if (el && el.type === 'checkbox') {
@@ -687,6 +701,8 @@ function safeSetValue(id, value) {
         el.value = value;
     }
 }
+
+//функция загрузки данных заказа и автозаполнение связанных полей формы
 async function loadOrderData(orderId) {
     try {
         const res = await fetch(`/api/order/${orderId}`);
@@ -742,25 +758,26 @@ async function loadOrderData(orderId) {
                 }
             }
 
+            if (order.has_receipt !== undefined) {
+                safeSetChecked('hasReceipt', order.has_receipt);
+            }
+            if (order.tags_removed !== undefined) {
+                safeSetChecked('hasTag', !order.tags_removed);
+            }
+            if (order.missing_components !== undefined) {
+                safeSetChecked('hasDamage', order.missing_components);
+            }
+
             if (order.return_channel) {
                 const channel = order.return_channel.toLowerCase();
                 if (channel.includes('courier')) {
-                    safeSetChecked('hasTag', true);
-                    safeSetChecked('hasReceipt', true);
-                    safeSetChecked('hasDamage', false);
                     safeSetChecked('isUsed', false);
                 }
                 if (channel.includes('post')) {
-                    safeSetChecked('hasTag', false);
-                    safeSetChecked('hasReceipt', true);
-                    safeSetChecked('hasDamage', false);
                     safeSetChecked('isUsed', false);
                 }
 
                 if (channel.includes('dropoff')) {
-                    safeSetChecked('hasTag', true);
-                    safeSetChecked('hasReceipt', true);
-                    safeSetChecked('hasDamage', false);
                     safeSetChecked('isUsed', false);
                 }
             }
@@ -806,6 +823,7 @@ async function loadOrderData(orderId) {
     }
 }
 
+    //вспомогательная функция установки значения скрытого поля формы
     function setHiddenField(name, value) {
         const field = document.querySelector(`input[name="${name}"]`);
         if (field && value !== undefined && value !== null) {
@@ -813,6 +831,7 @@ async function loadOrderData(orderId) {
         }
     }
 
+    //функция определения риска метода оплаты по строковому значению
     function getPaymentRisk(method) {
         if (!method) return 0.2;
         const m = method.toLowerCase();
@@ -821,7 +840,7 @@ async function loadOrderData(orderId) {
         return 0.2;
     }
 
-
+    //функция очистки формы с подтверждением и сбросом всех полей
     function clearForm() {
     if (confirm('Очистить все поля формы?')) {
         document.getElementById('fraudForm').reset();
@@ -839,6 +858,7 @@ async function loadOrderData(orderId) {
     }
 }
 
+    //утилита отображения toast-уведомлений с иконками и авто-скрытием
     function showToast(message, type = 'success') {
         const toast = document.createElement('div');
         toast.className = `toast ${type}`;
@@ -854,6 +874,7 @@ async function loadOrderData(orderId) {
         }, 3000);
     }
 
+    //инициализация обработчиков событий при загрузке DOM
     document.addEventListener('DOMContentLoaded', () => {
         const clientInput = document.getElementById('clientID');
         const clientDropdown = document.getElementById('clientDropdown');
@@ -893,6 +914,7 @@ async function loadOrderData(orderId) {
             });
         }
         
+        //закрытие выпадающих списков при клике вне контейнера
         document.addEventListener('click', (e) => {
             if (!e.target.closest('.autocomplete-container')) {
                 if (clientDropdown) clientDropdown.style.display = 'none';
@@ -923,6 +945,7 @@ async function loadOrderData(orderId) {
     });
 </script>
 
+//функция выхода: очистка сессии и редирект на страницу входа
 <script>
     function logout() {
         sessionStorage.removeItem('user');
@@ -936,6 +959,7 @@ async function loadOrderData(orderId) {
     }
 </script>
 
+//подключение скрипта для коррекции зума анимаций щита
 <script src="/static/js/shield-fix.js"></script>
 </body>
 </html>

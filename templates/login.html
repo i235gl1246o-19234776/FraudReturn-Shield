@@ -1,3 +1,4 @@
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы авторизации-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,6 +7,8 @@
     <title>FraudReturn Shield — Авторизация</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    //стили для страницы входа: анимированный градиентный фон и оформление контейнера
     <style>
         .login-page {
             min-height: 100vh;
@@ -17,12 +20,14 @@
             animation: gradientShift 15s ease infinite;
         }
 
+        //анимация плавного перехода градиента фона
         @keyframes gradientShift {
             0% { background-position: 0% 50%; }
             50% { background-position: 100% 50%; }
             100% { background-position: 0% 50%; }
         }
 
+        //оформление карточки формы входа с тенями и анимацией появления
         .login-container {
             background: white;
             padding: 50px;
@@ -33,6 +38,7 @@
             animation: fadeInUp 0.6s ease-out;
         }
 
+        //анимация плавного появления карточки снизу вверх
         @keyframes fadeInUp {
             from {
                 opacity: 0;
@@ -44,6 +50,7 @@
             }
         }
 
+        //оформление заголовка формы с логотипом и названием
         .login-header {
             text-align: center;
             margin-bottom: 40px;
@@ -76,6 +83,7 @@
             background-clip: text;
         }
 
+        //оформление полей формы: отступы, границы, фокус-эффекты
         .login-form .form-group {
             margin-bottom: 25px;
         }
@@ -105,6 +113,7 @@
             transform: translateY(-2px);
         }
 
+        //оформление кнопки входа с градиентом и анимацией при наведении
         .login-btn {
             width: 100%;
             padding: 16px;
@@ -124,6 +133,7 @@
             box-shadow: 0 12px 30px rgba(249, 4, 121, 0.6);
         }
 
+        //стили для блока ошибок авторизации
         .login-error {
             background: #fee2e2;
             color: #dc2626;
@@ -134,6 +144,7 @@
             display: none;
         }
 
+        //дополнительная информация и демо-учётные данные
         .login-info {
             margin-top: 30px;
             padding-top: 30px;
@@ -172,9 +183,12 @@
         }
     </style>
 </head>
+
 <body>
+    //контейнер страницы входа с центрированием контента
     <div class="login-page">
         <div class="login-container">
+            //заголовок формы: логотип, название системы и подсказка
             <div class="login-header">
                 <div class="login-logo">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -185,8 +199,10 @@
                 <p style="color: var(--gray-600);">Войдите в систему для продолжения</p>
             </div>
 
+            //блок для отображения ошибок авторизации
             <div id="error-message" class="login-error"></div>
 
+            //форма авторизации с полями логина и пароля
             <form class="login-form" id="loginForm">
                 <div class="form-group">
                     <label for="login">Логин</label>
@@ -204,7 +220,9 @@
         </div>
     </div>
 
+    //javascript-логика обработки формы авторизации и перенаправления пользователя
     <script>
+        //обработчик отправки формы: предотвращение перезагрузки, сбор данных, запрос к api
         document.getElementById('loginForm').addEventListener('submit', async function(e) {
             e.preventDefault();
 
@@ -213,6 +231,7 @@
             const errorDiv = document.getElementById('error-message');
 
             try {
+                //отправка post-запроса с учётными данными на сервер
                 const response = await fetch('/api/login', {
                     method: 'POST',
                     headers: {
@@ -223,6 +242,7 @@
 
                 const data = await response.json();
 
+                //обработка успешной авторизации: сохранение пользователя и редирект по роли
                 if (response.ok) {
                     sessionStorage.setItem('user', JSON.stringify(data.user));
 
@@ -232,10 +252,12 @@
                         window.location.href = '/client/profile';
                     }
                 } else {
+                    //отображение ошибки при неверных учётных данных
                     errorDiv.textContent = data.error || 'Неверный логин или пароль';
                     errorDiv.style.display = 'block';
                 }
             } catch (err) {
+                //обработка сетевых ошибок и недоступности сервера
                 errorDiv.textContent = 'Ошибка подключения к серверу';
                 errorDiv.style.display = 'block';
             }

@@ -1,4 +1,4 @@
-
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы заказов клиента-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -7,8 +7,13 @@
     <title>FraudReturn Shield — Мои заказы</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    //подключение виджета чата с отложенной загрузкой
     <script src="/static/js/chat-widget.js" defer></script>
+
+    //стилизация страницы заказов: навигация, фильтры, карточки и анимации
     <style>
+        //навигация клиента: липкое позиционирование, тени, состояния ссылок
         .client-nav {
             background: white;
             padding: 12px 0;
@@ -51,6 +56,7 @@
             color: white;
         }
 
+        //заголовок страницы с градиентным фоном
         .page-header {
             background: linear-gradient(135deg, #7F30E3, #F90479);
             padding: 40px 0;
@@ -60,6 +66,7 @@
             overflow: hidden;
         }
 
+        //анимация иконки при наведении на заголовок
         .page-title img {
             width: 100px;
             height: 100px;
@@ -72,6 +79,7 @@
             transform: scale(1.2);
         }
 
+        //разные цвета свечения для иконок на разных страницах
         .orders-page .page-title:hover img {
             filter: drop-shadow(0 0 20px rgba(255, 165, 0, 0.7));
         }
@@ -108,6 +116,7 @@
             font-size: 1rem;
         }
 
+        //панель фильтров заказов: поиск и выбор статуса
         .orders-filter {
             background: white;
             padding: 20px;
@@ -137,6 +146,7 @@
             border-color: var(--wb-purple);
         }
 
+        //карточка заказа с цветным индикатором статуса слева
         .order-card {
             background: white;
             border-radius: var(--radius-xl);
@@ -152,6 +162,7 @@
             box-shadow: var(--shadow-lg);
         }
 
+        //шапка карточки: идентификатор заказа и бейдж статуса
         .order-header {
             display: flex;
             justify-content: space-between;
@@ -167,6 +178,7 @@
             color: var(--gray-800);
         }
 
+        //стили бейджей статуса для разных состояний заказа
         .order-status {
             padding: 6px 14px;
             border-radius: 20px;
@@ -174,31 +186,13 @@
             font-weight: 600;
         }
 
-        .order-status.completed {
-            background: var(--success-bg);
-            color: var(--success);
-        }
+        .order-status.completed { background: var(--success-bg); color: var(--success); }
+        .order-status.pending { background: var(--warning-bg); color: var(--warning); }
+        .order-status.returned { background: var(--danger-bg); color: var(--danger); }
+        .order-status.processing { background: #e0e7ff; color: var(--wb-purple); }
+        .order-status.cancelled { background: var(--gray-200); color: var(--gray-600); }
 
-        .order-status.pending {
-            background: var(--warning-bg);
-            color: var(--warning);
-        }
-
-        .order-status.returned {
-            background: var(--danger-bg);
-            color: var(--danger);
-        }
-
-        .order-status.processing {
-            background: #e0e7ff;
-            color: var(--wb-purple);
-        }
-
-        .order-status.cancelled {
-            background: var(--gray-200);
-            color: var(--gray-600);
-        }
-
+        //сетка деталей заказа с адаптивной разметкой
         .order-details {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
@@ -222,6 +216,7 @@
             color: var(--gray-800);
         }
 
+        //кнопки действий: просмотр деталей и оформление возврата
         .order-actions {
             display: flex;
             gap: 10px;
@@ -230,6 +225,7 @@
             border-top: 1px solid var(--gray-100);
         }
 
+        //стили кнопок с анимацией при наведении
         .btn {
             padding: 10px 20px;
             border-radius: var(--radius);
@@ -244,19 +240,16 @@
             color: white;
         }
 
-        .btn-primary:hover {
-            background: var(--wb-dark);
-        }
+        .btn-primary:hover { background: var(--wb-dark); }
 
         .btn-secondary {
             background: var(--gray-200);
             color: var(--gray-700);
         }
 
-        .btn-secondary:hover {
-            background: var(--gray-300);
-        }
+        .btn-secondary:hover { background: var(--gray-300); }
 
+        //кнопка выхода с инверсией цветов при наведении
         .logout-btn {
             padding: 10px 20px;
             background: white;
@@ -273,6 +266,7 @@
             color: white;
         }
 
+        //заглушка при отсутствии заказов
         .empty-state {
             text-align: center;
             padding: 60px 20px;
@@ -288,15 +282,10 @@
             margin-bottom: 20px;
         }
 
-        .empty-state h3 {
-            color: var(--gray-700);
-            margin-bottom: 10px;
-        }
+        .empty-state h3 { color: var(--gray-700); margin-bottom: 10px; }
+        .empty-state p { color: var(--gray-500); }
 
-        .empty-state p {
-            color: var(--gray-500);
-        }
-
+        //пагинация: кнопки навигации по страницам
         .pagination {
             display: flex;
             justify-content: center;
@@ -319,10 +308,11 @@
             border-color: var(--wb-purple);
             color: white;
         }
-
     </style>
 </head>
+
 <body>
+    //навигационная панель клиента: логотип, ссылки на разделы, кнопка выхода
     <nav class="client-nav">
         <div class="container">
             <a href="/client/profile" class="nav-logo">
@@ -339,6 +329,7 @@
         </div>
     </nav>
 
+    //заголовок страницы: название и описание функционала
     <section class="page-header">
         </div>
         <div class="container">
@@ -350,7 +341,9 @@
         </div>
     </section>
 
+    //основной контент: фильтры, список заказов и пагинация
     <div class="container">
+        //панель фильтров: выбор статуса и поиск по ID
         <div class="orders-filter">
             <select id="statusFilter" onchange="filterOrders()">
                 <option value="all">Все статусы</option>
@@ -363,18 +356,23 @@
             <input type="text" id="searchInput" placeholder="Поиск по ID заказа" onkeyup="searchOrders()">
         </div>
 
+        //контейнер для рендеринга списка заказов
         <div id="orders-list">
         </div>
 
+        //контейнер для кнопок пагинации
         <div class="pagination" id="pagination">
         </div>
     </div>
 
+    //javascript-логика: загрузка, фильтрация, поиск и отображение заказов
     <script>
+        //глобальные переменные для хранения данных пользователя и заказов
         let currentUser = null;
         let allOrders = [];
         let filteredOrders = [];
 
+        //инициализация при загрузке DOM: проверка авторизации и загрузка заказов
         document.addEventListener('DOMContentLoaded', function() {
             const storedUser = sessionStorage.getItem('user');
             if (storedUser) {
@@ -385,6 +383,7 @@
             }
         });
 
+        //функция загрузки заказов через API с обработкой ошибок
         function loadOrders() {
             if (!currentUser) {
                 console.error('Пользователь не авторизован');
@@ -395,6 +394,7 @@
                 .then(data => {
                     console.log('Загруженные заказы:', data);
                     if (data.orders && data.orders.length > 0) {
+                        //маппинг данных заказа в удобный формат для рендеринга
                         allOrders = data.orders.map(order => ({
                             id: order.order_id,
                             date: order.order_timestamp,
@@ -421,6 +421,7 @@
                 });
         }
 
+        //функция преобразования кода статуса в читаемый текст
         function getStatusText(status) {
             const statusMap = {
                 'completed': 'Завершён',
@@ -432,6 +433,7 @@
             return statusMap[status] || status;
         }
 
+        //функция рендеринга списка заказов: генерация HTML-карточек
         function renderOrders(orders) {
             const ordersList = document.getElementById('orders-list');
 
@@ -482,6 +484,7 @@
             `).join('');
         }
 
+        //функция фильтрации заказов по статусу
         function filterOrders() {
             const status = document.getElementById('statusFilter').value;
             if (status === 'all') {
@@ -492,6 +495,7 @@
             renderOrders(filteredOrders);
         }
 
+        //функция поиска заказов по ID
         function searchOrders() {
             const query = document.getElementById('searchInput').value.toLowerCase();
             if (query === '') {
@@ -504,10 +508,12 @@
             renderOrders(filteredOrders);
         }
 
+        //функция открытия модального окна с деталями заказа
         function viewOrderDetails(orderId) {
             const order = allOrders.find(o => o.id === orderId);
             if (!order) return;
 
+            //создание модального окна динамически
             const modal = document.createElement('div');
             modal.className = 'modal-overlay';
             modal.style.cssText = `
@@ -580,10 +586,12 @@
             document.body.appendChild(modal);
         }
 
+        //функция перехода на страницу оформления возврата для выбранного заказа
         function initiateReturn(orderId) {
             window.location.href = `/client/returns?order=${orderId}`;
         }
 
+        //функция выхода: очистка сессии и редирект на страницу входа
         function logout() {
             sessionStorage.removeItem('user');
             fetch('/api/logout', { method: 'POST' })
@@ -595,6 +603,7 @@
                 });
         }
 
+        //инициализация виджета чата если он доступен
         document.addEventListener('DOMContentLoaded', () => {
             window.chatWidget = new ChatWidget();
         });

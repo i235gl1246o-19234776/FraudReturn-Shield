@@ -1,42 +1,31 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+#импорт стандартных библиотек и настройка окружения
 import sys
 import os
 
-
-# =============================================================================
-# FIX: Register custom classes BEFORE any pickle loading happens
-# =============================================================================
+#регистрация кастомных классов для совместимости с pickle при загрузке моделей
 def _register_pickle_classes():
     """Регистрируем кастомные классы для совместимости с pickle"""
     try:
-        # Импортируем модуль с классами
         import onnx_pipeline_3_
-
-        # Регистрируем в __main__ для pickle
         for cls_name in ['OneHotFeatureEncoder', 'CustomScaler', 'FeaturePipeline']:
             if hasattr(onnx_pipeline_3_, cls_name):
-                setattr(sys.modules['__main__'], cls_name,
-                        getattr(onnx_pipeline_3_, cls_name))
-                setattr(sys.modules['builtins'], cls_name,  # на всякий случай
-                        getattr(onnx_pipeline_3_, cls_name))
+                setattr(sys.modules['__main__'], cls_name, getattr(onnx_pipeline_3_, cls_name))
+                setattr(sys.modules['builtins'], cls_name, getattr(onnx_pipeline_3_, cls_name))
     except ImportError as e:
         print(f"[WARN] Could not register pickle classes: {e}", file=sys.stderr)
 
-
-# Вызываем ДО всех остальных импортов!
+#вызов регистрации ДО импорта моделей
 _register_pickle_classes()
-# =============================================================================
 
-# Дальше — обычные импорты
+#импорт сторонних библиотек для асинхронности, работы с данными, ML и FastAPI
 import asyncio
 import json
 import re
 from typing import Dict, List, Optional, Any
 from datetime import datetime, timedelta
 from contextlib import asynccontextmanager
-import sys
-
 import pandas as pd
 import numpy as np
 import onnxruntime as ort
@@ -49,53 +38,41 @@ from concurrent.futures import ThreadPoolExecutor
 import psycopg2
 from psycopg2.extras import RealDictCursor
 
-# FIX: Register custom classes for pickle compatibility
-import sys
-import onnx_pipeline_3_  # ваш модуль с классом
-
-# Делаем класс доступным в __main__ для pickle
-if hasattr(onnx_pipeline_3_, 'OneHotFeatureEncoder'):
-    setattr(sys.modules['__main__'], 'OneHotFeatureEncoder',
-            onnx_pipeline_3_.OneHotFeatureEncoder)
-
+#импорт сервиса фрода и енкодера признаков из внешнего модуля
 from onnx_pipeline_3_ import OnnxFraudService
 from test.feature_encoder import OneHotFeatureEncoder
+
+#глобальные переменные: пул потоков, сессии моделей, данные чата и BM25
 _executor = ThreadPoolExecutor(max_workers=4)
-
 _fraud_service: Optional[OnnxFraudService] = None
-
 _fraud_session = None
 _fraud_input_name = None
-
 _chat_session = None
 _chat_tokenizer = None
 _chat_input_names = None
-
 _qa_data = None
 _qa_embeddings = None
 _bm25_index = None
 _qa_question_tokens = None
 _qa_answer_tokens = None
 
-
+#вспомогательная функция логирования в stderr
 def _log(msg: str):
     print(msg, file=sys.stderr)
 
-
+#pydantic-модели для строгой валидации входных признаков фрода
 class FraudFeatures(BaseModel):
     account_age_days: int = 0
     total_purchases: int = 0
     total_returns: int = 0
     customer_return_rate: float = 0.0
     avg_order_amount: float = 0.0
-
     order_amount: float = 0.0
     items_in_order: int = 1
     discount_percent: float = 0.0
     payment_method_risk: float = 0.3
     amount_deviation: float = 0.0
     orders_last_30d: int = 0
-
     return_rate_30d: float = 0.0
     refund_velocity_30d: int = 0
     days_since_last_return: int = 999
@@ -105,19 +82,15 @@ class FraudFeatures(BaseModel):
     tags_removed: int = 0
     missing_components: int = 0
     return_channel: str = "online"
-
     order_hour: int = 12
-
     high_value_flag: int = 0
     order_time_night: int = 0
     fast_return_flag: int = 0
     new_account_flag: int = 0
     first_order_discount_abuse: int = 0
-
     category: str = "Электроника"
     is_electronics: int = 1
     claimed_reason: str = "Брак"
-
     ip_velocity_24h: int = 0
     ip_velocity_7d: int = 0
     accounts_per_ip: int = 1
@@ -126,7 +99,6 @@ class FraudFeatures(BaseModel):
     device_is_emulator: int = 0
     device_trust_score: float = 0.85
     ip_trust_score: float = 0.80
-
     address_match: int = 1
     device_new: int = 0
     promo_code_used: int = 0
@@ -143,7 +115,7 @@ class FraudFeatures(BaseModel):
     threat_language_detected: int = 0
     legal_claim_threat: int = 0
 
-
+#классы ответов для API эндпоинтов: предсказание фрода, чат, загрузка моделей
 class FraudPredictionResponse(BaseModel):
     success: bool
     score: Optional[float] = None
@@ -151,24 +123,22 @@ class FraudPredictionResponse(BaseModel):
     risk_level: Optional[str] = None
     recommendation: Optional[str] = None
 
-
 class ChatRequest(BaseModel):
     message: str
-
 
 class ChatResponse(BaseModel):
     response: str
     error: Optional[str] = None
 
-
 class LoadModelRequest(BaseModel):
     model_path: str
-    model_type: str = "fraud"  
-    use_v4: bool = True  
+    model_type: str = "fraud"
+    use_v4: bool = True
 
 class FraudV4PredictionRequest(BaseModel):
     return_id: int = Field(..., description="ID возврата в БД")
 
+#полный payload для предсказания фрода с расширенными полями
 class FraudPayloadRequest(BaseModel):
     client_id: int = Field(..., description="ID клиента")
     order_id: int = Field(..., description="ID заказа")
@@ -212,6 +182,7 @@ class FraudPayloadRequest(BaseModel):
     has_wear: bool = False
     return_reason: str = "Не подошел размер"
 
+#расширенный ответ предсказания фрода v4 с детальной информацией
 class FraudV4PredictionResponse(BaseModel):
     success: bool
     return_id: Optional[int] = None
@@ -230,12 +201,13 @@ class LoadModelResponse(BaseModel):
     success: bool
     error: Optional[str] = None
 
-
+#функции загрузки моделей: v4 через OnnxFraudService и легаси через onnxruntime/catboost
 def load_fraud_model_v4(onnx_path: str, metadata_path: str,
                         anomaly_scaler_path: str, anomaly_model_path: str,
                         db_connection_string: Optional[str] = None) -> Dict[str, Any]:
     global _fraud_service
     try:
+        #проверка существования всех необходимых файлов моделей
         if not os.path.exists(onnx_path):
             return {'success': False, 'error': f'ONNX file not found: {onnx_path}'}
         if not os.path.exists(metadata_path):
@@ -244,23 +216,21 @@ def load_fraud_model_v4(onnx_path: str, metadata_path: str,
             return {'success': False, 'error': f'Anomaly scaler not found: {anomaly_scaler_path}'}
         if not os.path.exists(anomaly_model_path):
             return {'success': False, 'error': f'Anomaly model not found: {anomaly_model_path}'}
-
+        #инициализация сервиса фрода
         base_dir = os.path.dirname(onnx_path) or 'models'
         _fraud_service = OnnxFraudService(model_dir=base_dir)
-
         _log(f"[INFO] Fraud v4 model loaded via OnnxFraudService: {onnx_path}")
         return {'success': True}
     except Exception as e:
         _log(f"[ERROR] Fraud v4 load: {str(e)}")
         return {'success': False, 'error': str(e)}
 
-
 def load_fraud_model_legacy(model_path: str) -> Dict[str, Any]:
     global _fraud_session, _fraud_input_name
     try:
         if not os.path.exists(model_path):
             return {'success': False, 'error': f'File not found: {model_path}'}
-
+        #загрузка catboost модели если расширение .cbm
         if model_path.endswith('.cbm'):
             import catboost
             _fraud_session = catboost.CatBoostClassifier()
@@ -268,15 +238,16 @@ def load_fraud_model_legacy(model_path: str) -> Dict[str, Any]:
             _fraud_input_name = 'cbm_native'
             _log(f"[INFO] Fraud CatBoost model loaded (CBM): {model_path}")
         else:
+            #загрузка onnx модели через onnxruntime
             _fraud_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
             _fraud_input_name = _fraud_session.get_inputs()[0].name
             _log(f"[INFO] Fraud ONNX model loaded: {model_path}")
-
         return {'success': True}
     except Exception as e:
         _log(f"[ERROR] Fraud legacy load: {str(e)}")
         return {'success': False, 'error': str(e)}
 
+#выбор стратегии загрузки модели с проверкой на git-lfs заглушки
 def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     if use_v4 and model_path.endswith('.onnx'):
         try:
@@ -287,12 +258,10 @@ def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
                     return load_fraud_model_legacy(model_path.replace('.onnx', '.cbm'))
         except Exception:
             pass
-        
         base_dir = os.path.dirname(model_path) or 'models'
         metadata_path = os.path.join(base_dir, 'metadata_v4_27patterns.json')
         anomaly_scaler_path = os.path.join(base_dir, 'scaler_v4.pkl')
         anomaly_model_path = os.path.join(base_dir, 'anomaly_model_v4.pkl')
-
         return load_fraud_model_v4(
             onnx_path=model_path,
             metadata_path=metadata_path,
@@ -302,17 +271,16 @@ def load_fraud_model(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     else:
         return load_fraud_model_legacy(model_path)
 
-
-
+#асинхронная обертка для загрузки моделей без блокировки event loop
 async def load_fraud_model_async(model_path: str, use_v4: bool = True) -> Dict[str, Any]:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, load_fraud_model, model_path, use_v4)
 
+#синхронные функции инференса: предсказание из payload и по return_id
 def predict_fraud_from_payload(payload: Dict[str, Any]) -> Dict[str, Any]:
     global _fraud_service
     if _fraud_service is None:
         return {'success': False, 'error': 'Fraud v4 model not loaded'}
-
     try:
         result = _fraud_service.predict_from_web_payload(payload)
         return {'success': True, **result}
@@ -324,7 +292,6 @@ def predict_fraud_v4(return_id: int) -> Dict[str, Any]:
     global _fraud_service
     if _fraud_service is None:
         return {'success': False, 'error': 'Fraud v4 model not loaded'}
-
     try:
         result = _fraud_service.predict_for_return(return_id)
         return {'success': True, **result}
@@ -332,14 +299,15 @@ def predict_fraud_v4(return_id: int) -> Dict[str, Any]:
         _log(f"[ERROR] Fraud v4 predict: {str(e)}")
         return {'success': False, 'error': str(e)}
 
+#основная функция предсказания с фоллбэком на легаси модель если v4 недоступен
 def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
     global _fraud_session, _fraud_input_name, _fraud_service
-
+    #попытка использовать v4 сервис
     if _fraud_service is not None:
         try:
+            #конвертация features в payload формат
             payload = {
-                "client_id": 0,  
-                "order_id": 0,   
+                "client_id": 0, "order_id": 0,
                 "account_age_days": features.account_age_days,
                 "total_orders": features.total_purchases,
                 "total_returns": features.total_returns,
@@ -405,12 +373,12 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
         except Exception as e:
             _log(f"[ERROR] Fraud v4 predict from features: {str(e)}")
             return FraudPredictionResponse(success=False, score=None, error=str(e))
-
+    #фоллбэк на легаси модель
     if _fraud_session is None and _fraud_service is None:
         return FraudPredictionResponse(success=False, score=None, error='Model not loaded')
-
     if _fraud_session is not None:
         try:
+            #подготовка списка признаков для onnx
             feature_list = [
                 float(features.account_age_days),
                 float(features.total_purchases),
@@ -461,10 +429,9 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
                 float(features.threat_language_detected),
                 float(features.legal_claim_threat),
             ]
-
             input_data = np.array(feature_list, dtype=np.float32).reshape(1, -1)
             outputs = _fraud_session.run(None, {_fraud_input_name: input_data})
-
+            #извлечение скоринга из выходов модели
             score = None
             if len(outputs) >= 2:
                 prob_map = outputs[1][0]
@@ -474,9 +441,8 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
                     score = float(prob_map[1]) if len(prob_map) > 1 else float(prob_map[0])
             elif len(outputs) >= 1:
                 score = float(outputs[0][0][1]) if outputs[0].shape[-1] >= 2 else float(outputs[0][0][0])
-
             final_score = max(0.0, min(1.0, score)) if score is not None else 0.0
-
+            #определение уровня риска и рекомендации
             if final_score >= 0.7:
                 risk_level = "HIGH"
                 recommendation = "Отклонить возврат. Высокий риск мошенничества."
@@ -486,7 +452,6 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
             else:
                 risk_level = "LOW"
                 recommendation = "Одобрить возврат. Низкий риск."
-
             return FraudPredictionResponse(
                 success=True,
                 score=final_score,
@@ -496,39 +461,35 @@ def predict_fraud(features: FraudFeatures) -> FraudPredictionResponse:
         except Exception as e:
             _log(f"[ERROR] Fraud legacy predict: {str(e)}")
             return FraudPredictionResponse(success=False, score=None, error=str(e))
-
     return FraudPredictionResponse(
         success=False,
         score=None,
         error='No model available'
     )
 
+#асинхронная обертка для выполнения инференса в фоновом потоке
 async def predict_fraud_async(features: FraudFeatures) -> FraudPredictionResponse:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, predict_fraud, features)
 
-
+#вспомогательные функции для чата: предобработка текста и инициализация моделей
 def _preprocess_text(text: str) -> List[str]:
     return re.findall(r'[\wа-яё]+', text.lower())
-
 
 def _init_chat_model(model_path: str, tokenizer_dir: Optional[str] = None) -> bool:
     global _chat_session, _chat_tokenizer, _chat_input_names
     try:
         tok_dir = tokenizer_dir or os.path.dirname(model_path)
         tok_path = os.path.join(tok_dir, 'tokenizer.json')
-
         if not os.path.exists(tok_path):
             if os.path.exists('models/tokenizer.json'):
                 tok_path = 'models/tokenizer.json'
             else:
                 raise FileNotFoundError(f"Tokenizer not found at: {tok_path} or current dir")
-
         _chat_tokenizer = Tokenizer.from_file(tok_path)
         pad_id = _chat_tokenizer.token_to_id('[PAD]') or 0
         _chat_tokenizer.enable_padding(pad_id=pad_id)
         _chat_tokenizer.enable_truncation(max_length=128)
-
         _chat_session = ort.InferenceSession(model_path, providers=['CPUExecutionProvider'])
         _chat_input_names = [i.name for i in _chat_session.get_inputs()]
         _log(f"[CHAT] Model ready. Inputs: {_chat_input_names}")
@@ -537,58 +498,42 @@ def _init_chat_model(model_path: str, tokenizer_dir: Optional[str] = None) -> bo
         _log(f"[ERROR] Chat init: {e}")
         return False
 
-
+#получение векторных эмбеддингов текста через усреднение последнего скрытого слоя
 def _get_embedding(text: str) -> np.ndarray:
     global _chat_tokenizer, _chat_session, _chat_input_names
-
     if _chat_tokenizer is None or _chat_session is None:
         raise RuntimeError("Chat models not initialized")
-
     encoded = _chat_tokenizer.encode(text)
     input_ids = np.array([encoded.ids], dtype=np.int64)
     attention_mask = np.array([encoded.attention_mask], dtype=np.int64)
-
     model_inputs = {
         _chat_input_names[0]: input_ids,
         'attention_mask': attention_mask,
     }
-
     if 'token_type_ids' in _chat_input_names:
         token_type_ids = np.zeros_like(input_ids, dtype=np.int64)
         model_inputs['token_type_ids'] = token_type_ids
-
     outputs = _chat_session.run(None, model_inputs)
     last_hidden = outputs[0][0]
-
     mask = np.array(encoded.attention_mask)[:, None].astype(np.float32)
     sum_embeddings = np.sum(last_hidden * mask, axis=0)
     count_embeddings = np.sum(mask) + 1e-9
     pooled = sum_embeddings / count_embeddings
-
     norm = np.linalg.norm(pooled)
     if norm > 0:
         pooled = pooled / norm
-
     return pooled
 
-
+#загрузка qa базы, построение bm25 индекса и вычисление эмбеддингов ответов
 def _load_qa_data(qa_path: str) -> bool:
     global _qa_data, _qa_embeddings, _bm25_index, _qa_question_tokens, _qa_answer_tokens
-
     try:
         with open(qa_path, 'r', encoding='utf-8-sig') as f:
             _qa_data = json.load(f)
-
         if not _qa_data:
             raise ValueError("QA file is empty")
-
-        questions = []
-        answers = []
-
-        for item in _qa_data:
-            questions.append(item.get('question', ''))
-            answers.append(item.get('answer', ''))
-
+        questions = [item.get('question', '') for item in _qa_data]
+        answers = [item.get('answer', '') for item in _qa_data]
         _log("[QA] Computing embeddings...")
         if _chat_session is not None:
             try:
@@ -598,27 +543,19 @@ def _load_qa_data(qa_path: str) -> bool:
                 _qa_embeddings = None
         else:
             _qa_embeddings = None
-
         def tokenize(t: str) -> List[str]:
             return _preprocess_text(t)
-
         _qa_question_tokens = [tokenize(q) for q in questions]
         _qa_answer_tokens = [tokenize(a) for a in answers]
-
-        combined_corpus = []
-        for i in range(len(_qa_data)):
-            combined_tokens = _qa_question_tokens[i] + _qa_answer_tokens[i]
-            combined_corpus.append(combined_tokens)
-
+        combined_corpus = [q + a for q, a in zip(_qa_question_tokens, _qa_answer_tokens)]
         _bm25_index = BM25Okapi(combined_corpus)
-
         _log(f"[QA] Loaded {len(_qa_data)} Q&A pairs (BM25 index built on Q+A)")
         return True
     except Exception as e:
         _log(f"[ERROR] QA load: {e}")
         return False
 
-
+#дефолтные ответы для чата при отсутствии данных или неудачном поиске
 def _chat_fallback(message: str) -> str:
     msg_lower = message.lower().strip()
     if any(w in msg_lower for w in ['привет', 'здравствуй']):
@@ -629,20 +566,16 @@ def _chat_fallback(message: str) -> str:
         return "Я могу найти ответ в базе знаний. Попробуйте спросить конкретнее, например: 'Как формируется накладная?'"
     return "Я специализируюсь на оценке риска возвратов и документации. Спросите о факторах риска или процедурах."
 
-
+#гибридный поиск с комбинированием косинусной схожести и bm25 весов
 def _hybrid_search(query: str, top_k: int = 5) -> str:
     global _qa_data, _qa_embeddings, _bm25_index, _qa_question_tokens
-
     if not _qa_data:
         return _chat_fallback(query)
-
     query_tokens = _preprocess_text(query)
     if not query_tokens:
         return "Пожалуйста, задайте вопрос словами."
-
     semantic_scores = np.zeros(len(_qa_data))
     use_semantic = False
-
     if _chat_session is not None and _qa_embeddings is not None:
         try:
             query_emb = _get_embedding(query)
@@ -650,83 +583,63 @@ def _hybrid_search(query: str, top_k: int = 5) -> str:
             use_semantic = True
         except Exception as e:
             _log(f"[SEARCH] Semantic search error: {e}")
-
     bm25_scores = _bm25_index.get_scores(query_tokens)
-
     final_scores = np.zeros(len(_qa_data))
-
     if use_semantic:
         max_bm25 = np.max(bm25_scores) if np.max(bm25_scores) > 0 else 1.0
         norm_bm25 = bm25_scores / (max_bm25 + 1e-6)
         final_scores = 0.6 * semantic_scores + 0.4 * norm_bm25
     else:
         final_scores = bm25_scores
-
     top_indices = final_scores.argsort()[-top_k:][::-1]
-
     _log(f"[SEARCH] 🔍 Query: '{query}'")
     for i, idx in enumerate(top_indices):
         q_text = _qa_data[idx].get('question', '')[:60]
         s_score = semantic_scores[idx] if use_semantic else 0.0
         b_score = bm25_scores[idx]
         _log(f"[SEARCH] Top-{i+1}: sem={s_score:.3f}, bm25={b_score:.3f} | Q: {q_text}...")
-
     SEMANTIC_THRESHOLD = 0.65
     BM25_THRESHOLD = 5.0
-
     best_candidate = None
     best_score = -1.0
-
     for idx in top_indices:
         score = final_scores[idx]
         sem_val = semantic_scores[idx] if use_semantic else 0.0
         bm25_val = bm25_scores[idx]
-
         candidate_quality = 0.0
-
         if sem_val >= SEMANTIC_THRESHOLD:
             candidate_quality = sem_val + 0.1
         elif bm25_val >= BM25_THRESHOLD:
             candidate_quality = 0.5 + (bm25_val / 20.0)
         elif sem_val >= 0.4 and bm25_val >= 2.0:
             candidate_quality = sem_val * 0.7 + (bm25_val / 20.0) * 0.3
-
         if candidate_quality > best_score:
             best_score = candidate_quality
             best_candidate = _qa_data[idx].get('answer', '')
-
     if best_candidate and best_score > 0.4:
         return best_candidate
-
     if len(top_indices) > 0 and bm25_scores[top_indices[0]] >= 3.0:
         idx = top_indices[0]
         _log(f"[SEARCH] ⚠️ Using weak BM25 match")
         return _qa_data[idx].get('answer', '')
-
     _log(f"[SEARCH] ❌ No good match found (best_score={best_score:.3f})")
     return "🤷‍♂️ Не нашёл точного ответа. Попробуйте переформулировать вопрос, используя ключевые слова из документации (например: 'штраф', 'накладная', 'акт')."
 
-
+#основные функции обработки запросов чата и асинхронная обертка
 def chat_query(message: str, qa_path: Optional[str] = None, model_path: Optional[str] = None) -> str:
     global _chat_session, _qa_data
-
     script_dir = os.path.dirname(os.path.abspath(__file__))
-
     if model_path and _chat_session is None:
         _init_chat_model(model_path)
-
     if _qa_data is None:
         if qa_path is None:
             qa_path = os.path.join(script_dir, 'qa.json')
             if not os.path.exists(qa_path):
                 qa_path = 'other/qa.json'
-
         if os.path.exists(qa_path):
             _load_qa_data(qa_path)
-
     if _qa_data is None:
         return _chat_fallback(message)
-
     try:
         response = _hybrid_search(message)
         return response
@@ -736,21 +649,18 @@ def chat_query(message: str, qa_path: Optional[str] = None, model_path: Optional
         traceback.print_exc(file=sys.stderr)
         return _chat_fallback(message)
 
-
-
 async def chat_query_async(message: str, qa_path: Optional[str] = None, model_path: Optional[str] = None) -> str:
     loop = asyncio.get_event_loop()
     return await loop.run_in_executor(_executor, chat_query, message, qa_path, model_path)
 
+#управление жизненным циклом fastapi и автозагрузка моделей при старте
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _log("[INFO] Starting FraudReturn Shield API...")
-
     onnx_path = "models/fraud_model_v4_27patterns.onnx"
     metadata_path = "models/metadata_v4_27patterns.json"
     anomaly_scaler_path = "models/scaler_v4.pkl"
     anomaly_model_path = "models/anomaly_model_v4.pkl"
-
     if os.path.exists(onnx_path) and os.path.exists(metadata_path) and \
        os.path.exists(anomaly_scaler_path) and os.path.exists(anomaly_model_path):
         _log(f"[INFO] Auto-loading Fraud v4 model: {onnx_path}")
@@ -759,7 +669,7 @@ async def lifespan(app: FastAPI):
             metadata_path=metadata_path,
             anomaly_scaler_path=anomaly_scaler_path,
             anomaly_model_path=anomaly_model_path,
-            db_connection_string=None  
+            db_connection_string=None
         )
         if result['success']:
             _log("[INFO] ✅ Fraud v4 model loaded successfully at startup")
@@ -767,11 +677,10 @@ async def lifespan(app: FastAPI):
             _log(f"[WARNING] ⚠️  Fraud v4 model load failed at startup: {result.get('error')}")
     else:
         _log("[WARNING] ⚠️  Model files not found, skipping auto-load")
-
     yield
     _log("[INFO] Shutting down FraudReturn Shield API...")
 
-
+#инициализация fastapi приложения и привязка lifespan менеджера
 app = FastAPI(
     title="FraudReturn Shield API",
     description="API для оценки риска мошеннических возвратов и чат-помощник",
@@ -779,6 +688,7 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+#настройка cors middleware для разрешения кросс-доменных запросов
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -787,6 +697,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+#api эндпоинты для предсказаний и работы с базой данных
 @app.post("/api/predict-fraud-payload", response_model=FraudV4PredictionResponse)
 async def api_predict_fraud_payload(request: FraudPayloadRequest):
     global _fraud_service
@@ -795,13 +706,10 @@ async def api_predict_fraud_payload(request: FraudPayloadRequest):
             success=False,
             error='Fraud v4 model not loaded. Call /api/load-models first with fraud_model_v4_27patterns.onnx'
         )
-
     try:
         payload = request.model_dump()
-
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(_executor, predict_fraud_from_payload, payload)
-
         if result.get('success'):
             return FraudV4PredictionResponse(
                 success=True,
@@ -822,7 +730,7 @@ async def api_predict_fraud_payload(request: FraudPayloadRequest):
         _log(f"[ERROR] API predict fraud payload: {str(e)}")
         return FraudV4PredictionResponse(success=False, error=str(e))
 
-
+#эндпоинты получения клиента, заказов и деталей заказа из postgres
 @app.get("/api/client/{client_id}")
 async def get_client(client_id: int):
     conn = None
@@ -843,7 +751,6 @@ async def get_client(client_id: int):
         """, (client_id,))
         client = cur.fetchone()
         cur.close()
-
         if client:
             return {
                 "client_id": client['client_id'],
@@ -862,7 +769,6 @@ async def get_client(client_id: int):
         if conn:
             conn.close()
 
-
 @app.get("/api/orders")
 async def get_orders(client_id: int = None, q: str = ""):
     conn = None
@@ -875,7 +781,6 @@ async def get_orders(client_id: int = None, q: str = ""):
             password='OmegaBloody13'
         )
         cur = conn.cursor(cursor_factory=RealDictCursor)
-
         if client_id:
             cur.execute("""
                 SELECT order_id, client_id, order_amount, items_count,
@@ -903,10 +808,8 @@ async def get_orders(client_id: int = None, q: str = ""):
                     ORDER BY order_timestamp DESC
                     LIMIT 50
                 """)
-
         orders = cur.fetchall()
         cur.close()
-
         return {
             "orders": [
                 {
@@ -926,7 +829,6 @@ async def get_orders(client_id: int = None, q: str = ""):
     finally:
         if conn:
             conn.close()
-
 
 @app.get("/api/order/{order_id}")
 async def get_order(order_id: int):
@@ -949,7 +851,6 @@ async def get_order(order_id: int):
         """, (order_id,))
         order = cur.fetchone()
         cur.close()
-
         if order:
             return {
                 "order_id": order['order_id'],
@@ -971,6 +872,7 @@ async def get_order(order_id: int):
         if conn:
             conn.close()
 
+#системные эндпоинты: корень, health check, загрузка моделей
 @app.get("/")
 async def root():
     return {
@@ -987,7 +889,6 @@ async def root():
         }
     }
 
-
 @app.get("/health")
 async def health_check():
     return {
@@ -996,7 +897,6 @@ async def health_check():
         "chat_model_loaded": _chat_session is not None,
         "qa_data_loaded": _qa_data is not None
     }
-
 
 @app.post("/api/load-models", response_model=LoadModelResponse)
 async def api_load_model(request: LoadModelRequest):
@@ -1009,7 +909,7 @@ async def api_load_model(request: LoadModelRequest):
     else:
         return LoadModelResponse(success=False, error=f"Unknown models type: {request.model_type}")
 
-
+#эндпоинты предсказания фрода и чата с асинхронной обработкой
 @app.post("/api/predict-fraud", response_model=FraudPredictionResponse)
 async def api_predict_fraud(features: FraudFeatures):
     return await predict_fraud_async(features)
@@ -1022,11 +922,9 @@ async def api_predict_fraud_v4(request: FraudV4PredictionRequest):
             success=False,
             error='Fraud v4 model not loaded. Call /api/load-models first with fraud_model_v4_27patterns.onnx'
         )
-
     try:
         loop = asyncio.get_event_loop()
         result = await loop.run_in_executor(_executor, predict_fraud_v4, request.return_id)
-
         if result.get('success'):
             return FraudV4PredictionResponse(
                 success=True,
@@ -1047,16 +945,15 @@ async def api_predict_fraud_v4(request: FraudV4PredictionRequest):
         _log(f"[ERROR] API predict fraud v4: {str(e)}")
         return FraudV4PredictionResponse(success=False, error=str(e))
 
-
+#обработчик чата с валидацией пустого сообщения и запуском асинхронного поиска
 @app.post("/api/chat", response_model=ChatResponse)
 async def api_chat(request: ChatRequest):
     if not request.message.strip():
         return ChatResponse(response="Пожалуйста, задайте вопрос.", error=None)
-
     response = await chat_query_async(request.message)
     return ChatResponse(response=response, error=None)
 
-
+#точка входа для запуска uvicorn сервера на всех интерфейсах
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

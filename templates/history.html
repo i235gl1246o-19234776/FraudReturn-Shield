@@ -1,3 +1,4 @@
+<!--подключение мета-тегов, шрифтов и базовых стилей для страницы истории-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,7 +7,10 @@
     <title>История — FraudReturn Shield</title>
     <link rel="stylesheet" href="/static/css/style.css">
 
+    //подключение шрифтов Inter для консистентного оформления интерфейса
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    //стили навигационной панели администратора: позиционирование, тени, состояния ссылок
     <style>
         .admin-nav {
             background: white;
@@ -50,6 +54,7 @@
             color: white;
         }
 
+        //оформление кнопки выхода с инверсией цветов при наведении
         .logout-btn {
             padding: 10px 20px;
             background: white;
@@ -67,7 +72,9 @@
         }
     </style>
 </head>
+
 <body>
+    //навигационная панель администратора с логотипом, ссылками и кнопкой выхода
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -85,46 +92,52 @@
         </div>
     </nav>
 
-        <main class="main">
-            <div class="container">
-                <div class="card">
-                    <div class="card-header">
-                        <h2>История возвратов</h2>
-                        <button class="btn btn-secondary btn-sm" onclick="clearHistory()">Очистить</button>
-                    </div>
-                    <div class="card-body">
-                        <table class="history-table">
-                            <thead>
-                                <tr>
-                                    <th>Дата</th>
-                                    <th>Заказ</th>
-                                    <th>Клиент</th>
-                                    <th>Сумма</th>
-                                    <th>Риск</th>
-                                    <th>Решение</th>
-                                </tr>
-                            </thead>
-                            <tbody id="historyTableBody">
-                                <tr>
-                                    <td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">
-                                        Нет данных в истории
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+    //основной контент: карточка с таблицей истории проверок возвратов
+    <main class="main">
+        <div class="container">
+            <div class="card">
+                <div class="card-header">
+                    <h2>История возвратов</h2>
+                    <button class="btn btn-secondary btn-sm" onclick="clearHistory()">Очистить</button>
+                </div>
+                <div class="card-body">
+                    //таблица с колонками: дата, заказ, клиент, сумма, уровень риска, рекомендация
+                    <table class="history-table">
+                        <thead>
+                            <tr>
+                                <th>Дата</th>
+                                <th>Заказ</th>
+                                <th>Клиент</th>
+                                <th>Сумма</th>
+                                <th>Риск</th>
+                                <th>Решение</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historyTableBody">
+                            //заглушка при отсутствии данных
+                            <tr>
+                                <td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">
+                                    Нет данных в истории
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
-        </main>
+        </div>
+    </main>
 
-        <footer class="footer">
-            <div class="container">
-                <p>© 2026 FraudReturn Shield. Учебный проект</p>
-            </div>
-        </footer>
+    //футер страницы с информацией об авторских правах
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 FraudReturn Shield. Учебный проект</p>
+        </div>
+    </footer>
     </div>
 
+    //javascript-логика: загрузка, рендеринг и управление историей проверок
     <script>
+        //функция загрузки истории: запрос к api с фоллбэком на localStorage
         function loadHistory() {
             const tbody = document.getElementById('historyTableBody');
 
@@ -138,11 +151,13 @@
                     }
                 })
                 .catch(() => {
+                    //фоллбэк: чтение из localStorage если api недоступен
                     const fraudHistory = JSON.parse(localStorage.getItem('fraudHistory') || '[]');
                     if (fraudHistory.length === 0) {
                         showNoData();
                         return;
                     }
+                    //конвертация формата legacy-данных в актуальный
                     const legacyData = fraudHistory.map(item => ({
                         check_id: item.data.orderID,
                         order_id: item.data.orderID,
@@ -158,6 +173,7 @@
                 });
         }
 
+        //функция рендеринга строк таблицы истории с форматированием дат, сумм и бейджей риска
         function renderHistory(checks) {
             const tbody = document.getElementById('historyTableBody');
             tbody.innerHTML = checks.map(item => {
@@ -178,11 +194,13 @@
             }).join('');
         }
 
+        //функция отображения заглушки при отсутствии записей в истории
         function showNoData() {
             const tbody = document.getElementById('historyTableBody');
             tbody.innerHTML = '<tr><td colspan="6" style="text-align: center; color: var(--gray-500); padding: 40px;">Нет данных в истории</td></tr>';
         }
 
+        //функция очистки истории: подтверждение, удаление из localStorage и запрос к api
         function clearHistory() {
             if (confirm('Очистить всю историю?')) {
                 localStorage.removeItem('fraudHistory');
@@ -200,6 +218,7 @@
             }
         }
 
+        //утилита отображения toast-уведомлений с иконками и авто-скрытием
         function showToast(message, type = 'success') {
             const toast = document.createElement('div');
             toast.className = `toast ${type}`;
@@ -212,11 +231,12 @@
             }, 3000);
         }
 
+        //инициализация загрузки истории при готовности DOM
         document.addEventListener('DOMContentLoaded', loadHistory);
     </script>
 
-
-<script>
+    //функция выхода: очистка сессии и редирект на страницу входа
+    <script>
     function logout() {
         sessionStorage.removeItem('user');
         fetch('/api/logout', { method: 'POST' })

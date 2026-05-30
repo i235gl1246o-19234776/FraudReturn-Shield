@@ -1,3 +1,4 @@
+<!--подключение мета-тегов и внешних ресурсов: шрифты и базовые стили-->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
@@ -6,6 +7,8 @@
     <title>Пользователи — FraudReturn Shield</title>
     <link rel="stylesheet" href="/static/css/style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+    //стили для сетки карточек пользователей с адаптивной разметкой и визуальными эффектами
     <style>
         .users-grid {
             display: grid;
@@ -16,10 +19,12 @@
             z-index: 1; 
         }
 
+        //варианты оформления карточек в зависимости от уровня риска пользователя
         .user-card.warning { border-left-color: var(--warning); }
         .user-card.high { border-left-color: var(--danger); }
         .user-card.blocked { border-left-color: var(--gray-400); opacity: 0.7; }
         
+        //оформление шапки карточки с идентификатором и бейджем статуса
         .user-header {
             display: flex;
             justify-content: space-between;
@@ -34,6 +39,7 @@
             color: var(--gray-800);
         }
 
+        //стили бейджей статуса с градиентами и тенями
         .user-badge {
             padding: 6px 14px;
             border-radius: 20px;
@@ -43,7 +49,6 @@
             letter-spacing: 0.5px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.1);
         }
-
         .user-badge.active { 
             background: linear-gradient(135deg, #10b981, #059669); 
             color: white; 
@@ -57,6 +62,7 @@
             color: white; 
         }
         
+        //сетка статистических показателей внутри карточки
         .user-stats {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -72,11 +78,13 @@
             border: 1px solid #e5e7eb;
         }
 
+        //эффекты при наведении на статистический элемент
         .stat-item:hover {
             transform: scale(1.05);
             box-shadow: 0 8px 20px rgba(99, 102, 241, 0.15);
         }
 
+        //оформление крупных числовых значений статистики с градиентным текстом
         .stat-value {
             font-size: 3rem;
             font-weight: 800;
@@ -93,6 +101,7 @@
             font-size: 0.95rem;
         }
 
+        //метаданные пользователя: возраст аккаунта и последняя активность
         .user-meta {
             font-size: 0.85rem;
             color: var(--gray-600);
@@ -100,7 +109,7 @@
         }
         .user-meta strong { color: var(--gray-800); }
         
-        /* Поиск и фильтры */
+        //оформление панели поиска с полями ввода и кнопками
         .search-bar {
             background: white;
             padding: 20px;
@@ -124,6 +133,7 @@
             outline: none;
         }
 
+        //выпадающий список автодополнения для поиска
         .search-autocomplete {
             position: absolute;
             top: 100%;
@@ -134,11 +144,12 @@
             border-radius: 12px;
             max-height: 300px;
             overflow-y: auto;
-            z-index: 1000;  /* 🔥 Добавить */
+            z-index: 1000;
             box-shadow: 0 10px 40px rgba(0,0,0,0.15);
             margin-top: 4px;
         }
 
+        //сетка карточек общей статистики по пользователям
         .stats-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -162,8 +173,7 @@
             box-shadow: 0 12px 40px rgba(99, 102, 241, 0.15);
         }
 
-
-
+        //стили кнопок в панели поиска с градиентами и анимацией
         .search-bar button {
             padding: 14px 28px;
             background: linear-gradient(135deg, var(--primary), var(--primary-dark));
@@ -180,7 +190,7 @@
             box-shadow: 0 8px 20px rgba(99, 102, 241, 0.4);
         }
         
-        /* Пагинация */
+        //пагинация: кнопки навигации и индикатор текущей страницы
         .pagination {
             display: flex;
             justify-content: center;
@@ -207,7 +217,7 @@
             cursor: not-allowed;
         }
         
-        /* Модальное окно */
+        //модальное окно для детальной информации о пользователе
         .modal-overlay {
             display: none;
             position: fixed;
@@ -245,6 +255,7 @@
         }
         .modal-close:hover { color: var(--gray-800); }
         
+        //заголовки секций внутри модального окна
         .section-title {
             font-size: 1rem;
             font-weight: 600;
@@ -254,6 +265,8 @@
             align-items: center;
             gap: 8px;
         }
+
+        //таблица с данными заказов пользователя
         .data-table {
             width: 100%;
             border-collapse: collapse;
@@ -272,7 +285,7 @@
         }
         .data-table tr:hover { background: var(--gray-50); }
         
-        /* Анимации */
+        //анимации появления элементов: плавное появление и подъём
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
@@ -289,6 +302,7 @@
             }
         }
 
+        //применение анимации к карточкам пользователей с задержкой для каскадного эффекта
         .users-grid > div {
             animation: fadeInUp 0.6s ease-out forwards;
         }
@@ -300,6 +314,7 @@
         .users-grid > div:nth-child(5) { animation-delay: 0.5s; }
         .users-grid > div:nth-child(6) { animation-delay: 0.6s; }
 
+        //скелетон-загрузка: анимированный градиент для индикации загрузки
         .loading-skeleton {
             background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
             background-size: 200% 100%;
@@ -313,6 +328,7 @@
             100% { background-position: -200% 0; }
         }
 
+        //основные стили карточки пользователя с градиентным фоном и интерактивными эффектами
         .user-card {
             background: linear-gradient(135deg, #ffffff 0%, #f8f9ff 100%);
             border: 2px solid transparent;
@@ -344,7 +360,9 @@
         }
     </style>
 </head>
+
 <body>
+    //навигационная панель администратора с логотипом, ссылками и кнопкой выхода
     <nav class="admin-nav">
         <div class="container">
             <a href="/admin/profile" class="nav-logo">
@@ -362,162 +380,171 @@
         </div>
     </nav>
 
-<style>
-    .admin-nav {
-        background: white;
-        padding: 12px 0;
-        border-bottom: 1px solid var(--gray-200);
-        position: sticky;
-        top: 0;
-        z-index: 1000;
-        box-shadow: var(--shadow);
-    }
+    //дополнительные стили навигации: позиционирование, тени и состояния ссылок
+    <style>
+        .admin-nav {
+            background: white;
+            padding: 12px 0;
+            border-bottom: 1px solid var(--gray-200);
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: var(--shadow);
+        }
 
-    .admin-nav .container {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-    }
+        .admin-nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
 
-    .admin-nav-links {
-        display: flex;
-        list-style: none;
-        gap: 8px;
-    }
+        .admin-nav-links {
+            display: flex;
+            list-style: none;
+            gap: 8px;
+        }
 
-    .admin-nav-links a {
-        text-decoration: none;
-        color: var(--gray-600);
-        font-weight: 600;
-        padding: 10px 20px;
-        border-radius: var(--radius-lg);
-        transition: var(--transition-fast);
-    }
+        .admin-nav-links a {
+            text-decoration: none;
+            color: var(--gray-600);
+            font-weight: 600;
+            padding: 10px 20px;
+            border-radius: var(--radius-lg);
+            transition: var(--transition-fast);
+        }
 
-    .admin-nav-links a:hover,
-    .admin-nav-links a.active {
-        color: var(--wb-purple);
-        background: var(--gray-100);
-    }
+        .admin-nav-links a:hover,
+        .admin-nav-links a.active {
+            color: var(--wb-purple);
+            background: var(--gray-100);
+        }
 
-    .admin-nav-links a.active {
-        background: var(--wb-purple);
-        color: white;
-    }
+        .admin-nav-links a.active {
+            background: var(--wb-purple);
+            color: white;
+        }
 
-    .logout-btn {
-        padding: 10px 20px;
-        background: white;
-        color: #667eea;
-        border: 2px solid #667eea;
-        border-radius: var(--radius-lg);
-        font-weight: 600;
-        cursor: pointer;
-        transition: var(--transition-fast);
-    }
+        .logout-btn {
+            padding: 10px 20px;
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            border-radius: var(--radius-lg);
+            font-weight: 600;
+            cursor: pointer;
+            transition: var(--transition-fast);
+        }
 
-    .logout-btn:hover {
-        background: #667eea;
-        color: white;
-    }
-</style>
+        .logout-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+    </style>
 
-        <section class="hero">
+    //герой-секция: заголовок страницы и описание функционала управления пользователями
+    <section class="hero">
+        </div>
+        <div class="container">
+            <div class="hero-badge">Админ-панель</div>
+            <h1>Управление пользователями</h1>
+            <p>Мониторинг, поиск и анализ поведения клиентов</p>
+        </div>
+    </section>
+
+    //основной контент: панель поиска, статистика, сетка пользователей и пагинация
+    <main class="main">
+        <div class="container">
+            <div class="search-bar">
+                <input type="text" id="userSearch" placeholder="Поиск по ID...">
+                <button onclick="searchUsers()">Найти</button>
+                <button class="btn btn-secondary" onclick="loadUsers(1)">Сбросить</button>
             </div>
-            <div class="container">
-                <div class="hero-badge">Админ-панель</div>
-                <h1>Управление пользователями</h1>
-                <p>Мониторинг, поиск и анализ поведения клиентов</p>
-            </div>
-        </section>
-
-        <main class="main">
-            <div class="container">
-                <div class="search-bar">
-                    <input type="text" id="userSearch" placeholder="Поиск по ID...">
-                    <button onclick="searchUsers()">Найти</button>
-                    <button class="btn btn-secondary" onclick="loadUsers(1)">Сбросить</button>
+            
+            //карточки общей статистики: общее число, активные, под наблюдением, высокий риск
+            <div class="stats-grid" style="margin-bottom: 25px;">
+                <div class="stat-card">
+                    <div class="stat-value" id="totalUsers">{{.Total}}</div>
+                    <div class="stat-label">Всего пользователей</div>
                 </div>
-                
-                <div class="stats-grid" style="margin-bottom: 25px;">
-                    <div class="stat-card">
-                        <div class="stat-value" id="totalUsers">{{.Total}}</div>
-                        <div class="stat-label">Всего пользователей</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="activeCount">{{.ActiveCount}}</div>
-                        <div class="stat-label">Активные</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="warningCount">{{.WarningCount}}</div>
-                        <div class="stat-label">Под наблюдением</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="highRiskCount">{{.HighRiskCount}}</div>
-                        <div class="stat-label">Высокий риск</div>
-                    </div>
+                <div class="stat-card">
+                    <div class="stat-value" id="activeCount">{{.ActiveCount}}</div>
+                    <div class="stat-label">Активные</div>
                 </div>
-                
-                <div class="users-grid" id="usersGrid">
-                    {{range .Users}}
-                    <div class="user-card {{.Status}}" onclick="openUserModal({{.ClientID}})">
-                        <div class="user-header">
-                            <span class="user-id">#{{.ClientID}}</span>
-                            <span class="user-badge {{.RiskLevel}}">{{.RiskLevel}}</span>
-                        </div>
-                        <div class="user-stats">
-                            <div class="stat-item">
-                                <div class="stat-value">{{.TotalOrders}}</div>
-                                <div class="stat-label">Заказов</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">{{.TotalReturns}}</div>
-                                <div class="stat-label">Возвратов</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">{{printf "%.1f" .GlobalReturnRate}}%</div>
-                                <div class="stat-label">% возвратов</div>
-                            </div>
-                            <div class="stat-item">
-                                <div class="stat-value">{{printf "%.0f" .AvgOrderAmount}}₽</div>
-                                <div class="stat-label">Средний чек</div>
-                            </div>
-                        </div>
-                        <div class="user-meta">
-                            <div><strong>Возраст:</strong> {{.AccountAgeDays}} дней</div>
-                            <div><strong>Последняя активность:</strong> {{.LastActivity}}</div>
-                        </div>
-                    </div>
-                    {{end}}
+                <div class="stat-card">
+                    <div class="stat-value" id="warningCount">{{.WarningCount}}</div>
+                    <div class="stat-label">Под наблюдением</div>
                 </div>
-                
-                <div class="pagination" id="pagination">
-                    <button id="prevBtn" onclick="loadUsers(currentPage - 1)" disabled>← Назад</button>
-                    <span style="display:flex;align-items:center;padding:0 15px;font-weight:600;color:var(--gray-600)">Страница&nbsp; <span id="currentPageNum">1</span>&nbsp;из&nbsp;<span id="totalPagesNum">1</span></span>
-                    <button id="nextBtn" onclick="loadUsers(currentPage + 1)" disabled>Вперёд →</button>
+                <div class="stat-card">
+                    <div class="stat-value" id="highRiskCount">{{.HighRiskCount}}</div>
+                    <div class="stat-label">Высокий риск</div>
                 </div>
             </div>
-        </main>
-
-        <div class="modal-overlay" id="userModal">
-            <div class="modal">
-                <div class="modal-header">
-                    <h3 id="modalTitle">Пользователь #—</h3>
-                    <button class="modal-close" onclick="closeUserModal()">×</button>
+            
+            //сетка карточек пользователей: рендеринг через шаблонизатор Go с подстановкой данных
+            <div class="users-grid" id="usersGrid">
+                {{range .Users}}
+                <div class="user-card {{.Status}}" onclick="openUserModal({{.ClientID}})">
+                    <div class="user-header">
+                        <span class="user-id">#{{.ClientID}}</span>
+                        <span class="user-badge {{.RiskLevel}}">{{.RiskLevel}}</span>
+                    </div>
+                    <div class="user-stats">
+                        <div class="stat-item">
+                            <div class="stat-value">{{.TotalOrders}}</div>
+                            <div class="stat-label">Заказов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{{.TotalReturns}}</div>
+                            <div class="stat-label">Возвратов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{{printf "%.1f" .GlobalReturnRate}}%</div>
+                            <div class="stat-label">% возвратов</div>
+                        </div>
+                        <div class="stat-item">
+                            <div class="stat-value">{{printf "%.0f" .AvgOrderAmount}}₽</div>
+                            <div class="stat-label">Средний чек</div>
+                        </div>
+                    </div>
+                    <div class="user-meta">
+                        <div><strong>Возраст:</strong> {{.AccountAgeDays}} дней</div>
+                        <div><strong>Последняя активность:</strong> {{.LastActivity}}</div>
+                    </div>
                 </div>
-                <div class="modal-body" id="modalContent">
-                    <p style="text-align:center;color:var(--gray-500)">Загрузка данных...</p>
-                </div>
+                {{end}}
+            </div>
+            
+            //элементы пагинации: кнопки навигации и индикатор текущей страницы
+            <div class="pagination" id="pagination">
+                <button id="prevBtn" onclick="loadUsers(currentPage - 1)" disabled>← Назад</button>
+                <span style="display:flex;align-items:center;padding:0 15px;font-weight:600;color:var(--gray-600)">Страница&nbsp; <span id="currentPageNum">1</span>&nbsp;из&nbsp;<span id="totalPagesNum">1</span></span>
+                <button id="nextBtn" onclick="loadUsers(currentPage + 1)" disabled>Вперёд →</button>
             </div>
         </div>
+    </main>
 
-        <footer class="footer">
-            <div class="container">
-                <p>© 2026 FraudReturn Shield. Админ-панель</p>
+    //модальное окно для отображения детальной информации о выбранном пользователе
+    <div class="modal-overlay" id="userModal">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Пользователь #—</h3>
+                <button class="modal-close" onclick="closeUserModal()">×</button>
             </div>
-        </footer>
+            <div class="modal-body" id="modalContent">
+                <p style="text-align:center;color:var(--gray-500)">Загрузка данных...</p>
+            </div>
+        </div>
     </div>
 
+    //футер страницы с информацией об авторских правах
+    <footer class="footer">
+        <div class="container">
+            <p>© 2026 FraudReturn Shield. Админ-панель</p>
+        </div>
+    </footer>
+    </div>
+
+    //javascript-логика: инициализация данных с сервера, утилита экранирования HTML
     <script>
 
         const serverData = {
@@ -535,9 +562,11 @@
             return div.innerHTML;
         }
         
+        //переменные состояния для пагинации: текущая страница и общее число страниц
         let currentPage = 1;
         let totalPages = 1;
 
+        //асинхронная функция загрузки списка пользователей с сервера по номеру страницы
         async function loadUsers(page = 1) {
             currentPage = page;
             const grid = document.getElementById('usersGrid');
@@ -552,6 +581,7 @@
                     return;
                 }
                 
+                //рендеринг карточек пользователей с экранированием данных и привязкой обработчиков
                 grid.innerHTML = data.users.map(u => `
                     <div class="user-card ${escapeHtml(u.risk_level)}" onclick="openUserModal(${u.client_id})">
                         <div class="user-header">
@@ -580,6 +610,7 @@
             }
         }
 
+        //функция обновления статистических карточек на основе массива пользователей
         function updateStats(users) {
             const active = users.filter(u => u.risk_level === 'active').length;
             const warning = users.filter(u => u.risk_level === 'warning').length;
@@ -591,6 +622,7 @@
             document.getElementById('highRiskCount').textContent = high;
         }
 
+        //обновление состояния кнопок пагинации и синхронизация с URL через history API
         function updatePagination(current, totalPages) {
             const prevBtn = document.getElementById('prevBtn');
             const nextBtn = document.getElementById('nextBtn');
@@ -608,6 +640,7 @@
             }
         }
 
+        //функция поиска пользователей по ID через API с обработкой пустых результатов
         async function searchUsers() {
             const query = document.getElementById('userSearch').value.trim();
             if (!query) { loadUsers(1); return; }
@@ -643,6 +676,7 @@
             }
         }
 
+        //открытие модального окна с загрузкой детальной информации о пользователе по ID
         async function openUserModal(clientId) {
             const modal = document.getElementById('userModal');
             const content = document.getElementById('modalContent');
@@ -657,6 +691,7 @@
                 const data = await res.json();
                 const c = data.client;
                 
+                //формирование HTML-таблицы последних заказов пользователя
                 const ordersHtml = data.recent_orders?.length 
                     ? `<table class="data-table">
                         <thead><tr><th>ID</th><th>Сумма</th><th>Товаров</th><th>Дата</th></tr></thead>
@@ -673,6 +708,7 @@
                     </table>`
                     : '<p style="color:var(--gray-500)">Нет заказов</p>';
                 
+                //заполнение модального окна статистикой и таблицей заказов
                 content.innerHTML = `
                     <div style="display:grid;gap:15px">
                         <div class="user-stats">
@@ -692,10 +728,12 @@
             }
         }
 
+        //закрытие модального окна по кнопке или клику вне контента
         function closeUserModal() {
             document.getElementById('userModal').classList.remove('active');
         }
 
+        //инициализация при загрузке DOM: обновление статистики, обработчики событий, загрузка первой страницы
         document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('totalUsers').textContent = serverData.totalUsers;
             document.getElementById('activeCount').textContent = serverData.activeCount;
