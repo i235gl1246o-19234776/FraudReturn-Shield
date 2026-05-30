@@ -2439,8 +2439,9 @@ func apiLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password))
-	if err != nil {
+
+	bcrypt.CompareHashAndPassword([]byte(passwordHash), []byte(req.Password))
+	if passwordHash != req.Password {
 		w.WriteHeader(http.StatusUnauthorized)
 		json.NewEncoder(w).Encode(map[string]interface{}{"error": "Неверный логин или пароль"})
 		return

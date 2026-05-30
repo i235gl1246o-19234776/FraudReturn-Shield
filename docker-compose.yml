@@ -75,7 +75,7 @@ services:
       # - ./init-db:/docker-entrypoint-initdb.d:ro
     ports:
       # Expose for local development only (remove in production)
-      - "5432:5432"
+      - "5433:5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U postgres -d fraudreturn"]
       interval: 10s
